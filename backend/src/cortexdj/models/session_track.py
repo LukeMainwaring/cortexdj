@@ -29,19 +29,13 @@ class SessionTrack(Base):
     @classmethod
     async def get_by_session(cls, db: AsyncSession, session_id: str) -> Sequence[SessionTrack]:
         """Get all track associations for a session."""
-        result = await db.execute(
-            select(cls).where(cls.session_id == session_id).order_by(cls.track_order.asc())
-        )
+        result = await db.execute(select(cls).where(cls.session_id == session_id).order_by(cls.track_order.asc()))
         return result.scalars().all()
 
     @classmethod
-    async def get_by_state(
-        cls, db: AsyncSession, dominant_state: str, *, limit: int = 50
-    ) -> Sequence[SessionTrack]:
+    async def get_by_state(cls, db: AsyncSession, dominant_state: str, *, limit: int = 50) -> Sequence[SessionTrack]:
         """Find tracks that triggered a specific brain state."""
-        result = await db.execute(
-            select(cls).where(cls.dominant_state == dominant_state).limit(limit)
-        )
+        result = await db.execute(select(cls).where(cls.dominant_state == dominant_state).limit(limit))
         return result.scalars().all()
 
     @classmethod

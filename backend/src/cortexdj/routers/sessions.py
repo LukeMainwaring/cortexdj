@@ -12,9 +12,7 @@ sessions_router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
 @sessions_router.get("")
-async def list_sessions(
-    db: AsyncPostgresSessionDep, limit: int = 50, offset: int = 0
-) -> SessionListResponse:
+async def list_sessions(db: AsyncPostgresSessionDep, limit: int = 50, offset: int = 0) -> SessionListResponse:
     """List all EEG sessions."""
     sessions, total = await session_service.list_sessions(db, limit=limit, offset=offset)
     return SessionListResponse(

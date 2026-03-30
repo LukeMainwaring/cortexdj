@@ -89,15 +89,15 @@ cortexdj/
 │   │   ├── migrations/              # Alembic
 │   │   ├── scripts/                 # generate_synthetic, seed_sessions
 │   │   └── core/config.py           # pydantic-settings
+│   ├── data/
+│   │   ├── synthetic/               # Generated EEG data (gitignored)
+│   │   └── checkpoints/             # Model checkpoints (gitignored)
 │   ├── Dockerfile                    # Multi-stage (uv builder -> app -> local)
 │   └── pyproject.toml
 ├── frontend/                         # Next.js chat UI
 │   ├── app/(chat)/                  # Chat page + API proxy route
 │   ├── components/                  # chat, messages, greeting, brain-context-badge
 │   └── api/                         # Generated client + hooks
-├── data/
-│   ├── synthetic/                   # Generated EEG data (gitignored)
-│   └── checkpoints/                 # Model checkpoints (gitignored)
 ├── docker-compose.yml               # PostgreSQL + backend
 └── README.md
 ```

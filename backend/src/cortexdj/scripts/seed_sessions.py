@@ -120,9 +120,7 @@ async def seed_participant(
             # Simple dedup by title+artist
             from sqlalchemy import select
 
-            result = await db.execute(
-                select(Track).where(Track.title == track_title, Track.artist == track_artist)
-            )
+            result = await db.execute(select(Track).where(Track.title == track_title, Track.artist == track_artist))
             existing_track = result.scalar_one_or_none()
 
             if existing_track is None:

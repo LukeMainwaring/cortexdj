@@ -33,15 +33,11 @@ class EegSegment(Base):
     @classmethod
     async def get_by_session(cls, db: AsyncSession, session_id: str) -> Sequence[EegSegment]:
         """Get all segments for a session, ordered by index."""
-        result = await db.execute(
-            select(cls).where(cls.session_id == session_id).order_by(cls.segment_index.asc())
-        )
+        result = await db.execute(select(cls).where(cls.session_id == session_id).order_by(cls.segment_index.asc()))
         return result.scalars().all()
 
     @classmethod
-    async def get_by_state(
-        cls, db: AsyncSession, dominant_state: str, *, limit: int = 50
-    ) -> Sequence[EegSegment]:
+    async def get_by_state(cls, db: AsyncSession, dominant_state: str, *, limit: int = 50) -> Sequence[EegSegment]:
         """Get segments matching a specific emotional state."""
         result = await db.execute(
             select(cls).where(cls.dominant_state == dominant_state).order_by(cls.created_at.desc()).limit(limit)

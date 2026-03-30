@@ -9,3 +9,7 @@ if [ -z "$revision_message" ]; then
 fi
 
 docker compose run --rm backend python -m alembic -c src/cortexdj/alembic.ini revision --autogenerate -m "$revision_message"
+
+echo "Formatting migration files..."
+cd backend && uv run ruff format src/cortexdj/migrations/versions/
+uv run ruff check --fix src/cortexdj/migrations/versions/

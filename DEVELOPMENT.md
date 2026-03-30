@@ -77,7 +77,7 @@ uv run train-model
 uv run train-model --epochs 50 --lr 0.001 --folds 5
 ```
 
-Model checkpoints saved to `data/checkpoints/` (gitignored).
+Model checkpoints saved to `backend/data/checkpoints/` (gitignored).
 
 ### Database Seeding
 

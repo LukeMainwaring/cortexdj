@@ -9,13 +9,13 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from cortexdj.core.paths import CHECKPOINTS_DIR
 from cortexdj.ml.dataset import scores_to_quadrant
 from cortexdj.ml.model import EEGNetClassifier
 from cortexdj.ml.preprocessing import compute_band_powers, extract_features
 
 logger = logging.getLogger(__name__)
 
-CHECKPOINTS_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "checkpoints"
 DEFAULT_CHECKPOINT = CHECKPOINTS_DIR / "eegnet_best.pt"
 
 

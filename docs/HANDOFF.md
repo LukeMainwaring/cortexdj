@@ -82,8 +82,8 @@ cd backend && uv run python -m uvicorn cortexdj.app:app --host 127.0.0.1 --port 
 ### 3. Generate synthetic data + train model + seed DB
 ```bash
 cd backend
-uv run generate-synthetic           # Creates data/synthetic/s01.npz through s32.npz
-uv run train-model                  # Trains EEGNet, saves data/checkpoints/eegnet_best.pt
+uv run generate-synthetic           # Creates backend/data/synthetic/s01.npz through s32.npz
+uv run train-model                  # Trains EEGNet, saves backend/data/checkpoints/eegnet_best.pt
 uv run seed-sessions                # Populates sessions, segments, tracks, session_tracks
 ```
 

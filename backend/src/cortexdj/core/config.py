@@ -1,12 +1,11 @@
 """Application configuration using Pydantic Settings."""
 
-import pathlib
 from functools import lru_cache
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_PROJECT_ROOT = pathlib.Path(__file__).parent.parent.parent.parent.parent
+from cortexdj.core.paths import _BACKEND_ROOT, CHECKPOINTS_DIR, SYNTHETIC_DATA_DIR
 
 
 class ApiSettings(BaseSettings):
@@ -53,14 +52,14 @@ class Settings(
     """Main application settings."""
 
     model_config = SettingsConfigDict(
-        env_file=str(_PROJECT_ROOT / ".env"),
+        env_file=str(_BACKEND_ROOT.parent / ".env"),
         env_ignore_empty=True,
         extra="ignore",
     )
 
     ENVIRONMENT: Literal["development", "production"] = "development"
-    SYNTHETIC_DATA_DIR: str = str(_PROJECT_ROOT / "data" / "synthetic")
-    CHECKPOINTS_DIR: str = str(_PROJECT_ROOT / "data" / "checkpoints")
+    SYNTHETIC_DATA_DIR: str = str(SYNTHETIC_DATA_DIR)
+    CHECKPOINTS_DIR: str = str(CHECKPOINTS_DIR)
 
     def is_production(self) -> bool:
         """Check if running in production environment."""

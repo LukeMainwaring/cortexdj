@@ -17,9 +17,7 @@ async def get_session(db: AsyncSession, session_id: str) -> Session | None:
     return await Session.get(db, session_id)
 
 
-async def list_sessions(
-    db: AsyncSession, *, limit: int = 50, offset: int = 0
-) -> tuple[Sequence[Session], int]:
+async def list_sessions(db: AsyncSession, *, limit: int = 50, offset: int = 0) -> tuple[Sequence[Session], int]:
     """List all sessions with pagination."""
     return await Session.get_all(db, limit=limit, offset=offset)
 
@@ -38,15 +36,17 @@ async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any
     for st in session_tracks:
         track = await Track.get(db, st.track_id)
         if track:
-            track_details.append({
-                "track_id": track.id,
-                "title": track.title,
-                "artist": track.artist,
-                "track_order": st.track_order,
-                "avg_arousal": st.avg_arousal,
-                "avg_valence": st.avg_valence,
-                "dominant_state": st.dominant_state,
-            })
+            track_details.append(
+                {
+                    "track_id": track.id,
+                    "title": track.title,
+                    "artist": track.artist,
+                    "track_order": st.track_order,
+                    "avg_arousal": st.avg_arousal,
+                    "avg_valence": st.avg_valence,
+                    "dominant_state": st.dominant_state,
+                }
+            )
 
     return {
         "session": {

@@ -42,13 +42,15 @@ async def get_session_analysis(db: AsyncSession, session_id: str) -> dict[str, A
     for st in session_tracks:
         track = await Track.get(db, st.track_id)
         if track:
-            track_info.append({
-                "title": track.title,
-                "artist": track.artist,
-                "dominant_state": st.dominant_state,
-                "avg_arousal": st.avg_arousal,
-                "avg_valence": st.avg_valence,
-            })
+            track_info.append(
+                {
+                    "title": track.title,
+                    "artist": track.artist,
+                    "dominant_state": st.dominant_state,
+                    "avg_arousal": st.avg_arousal,
+                    "avg_valence": st.avg_valence,
+                }
+            )
 
     return {
         "session_id": session_id,
@@ -60,9 +62,7 @@ async def get_session_analysis(db: AsyncSession, session_id: str) -> dict[str, A
     }
 
 
-async def compare_sessions(
-    db: AsyncSession, session_id_1: str, session_id_2: str
-) -> dict[str, Any]:
+async def compare_sessions(db: AsyncSession, session_id_1: str, session_id_2: str) -> dict[str, Any]:
     """Compare brain state patterns across two sessions."""
     summary_1 = await EegSegment.get_session_summary(db, session_id_1)
     summary_2 = await EegSegment.get_session_summary(db, session_id_2)
@@ -81,9 +81,7 @@ async def compare_sessions(
     }
 
 
-async def find_tracks_by_mood(
-    db: AsyncSession, target_state: str, *, limit: int = 20
-) -> list[dict[str, Any]]:
+async def find_tracks_by_mood(db: AsyncSession, target_state: str, *, limit: int = 20) -> list[dict[str, Any]]:
     """Find tracks that triggered a specific brain state."""
     session_tracks = await SessionTrack.get_by_state(db, target_state, limit=limit)
 
@@ -96,13 +94,15 @@ async def find_tracks_by_mood(
 
         track = await Track.get(db, st.track_id)
         if track:
-            results.append({
-                "track_id": track.id,
-                "title": track.title,
-                "artist": track.artist,
-                "avg_arousal": st.avg_arousal,
-                "avg_valence": st.avg_valence,
-                "dominant_state": st.dominant_state,
-            })
+            results.append(
+                {
+                    "track_id": track.id,
+                    "title": track.title,
+                    "artist": track.artist,
+                    "avg_arousal": st.avg_arousal,
+                    "avg_valence": st.avg_valence,
+                    "dominant_state": st.dominant_state,
+                }
+            )
 
     return results

@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import torch
-
 from pydantic_ai import RunContext
 
 from cortexdj.agents.deps import AgentDeps
-from cortexdj.ml.model import EEGNetClassifier
+from cortexdj.core.paths import CHECKPOINTS_DIR
 
 
 async def get_model_info(ctx: RunContext[AgentDeps]) -> str:
@@ -26,7 +24,7 @@ async def get_model_info(ctx: RunContext[AgentDeps]) -> str:
     trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     # Try to load training metrics from checkpoint
-    checkpoint_path = Path(__file__).parent.parent.parent.parent.parent.parent / "data" / "checkpoints" / "eegnet_best.pt"
+    checkpoint_path = CHECKPOINTS_DIR / "eegnet_best.pt"
     metrics = {}
     if checkpoint_path.exists():
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)

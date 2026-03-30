@@ -41,7 +41,9 @@ def scores_to_quadrant(arousal: float, valence: float) -> str:
         return "calm"
 
 
-def load_synthetic_participant(file_path: Path) -> tuple[
+def load_synthetic_participant(
+    file_path: Path,
+) -> tuple[
     np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
     np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
 ]:

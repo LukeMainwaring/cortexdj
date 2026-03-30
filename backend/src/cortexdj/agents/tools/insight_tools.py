@@ -42,9 +42,7 @@ async def explain_brain_state(ctx: RunContext[AgentDeps], session_id: str) -> st
     return "\n".join(lines)
 
 
-async def compare_sessions(
-    ctx: RunContext[AgentDeps], session_id_1: str, session_id_2: str
-) -> str:
+async def compare_sessions(ctx: RunContext[AgentDeps], session_id_1: str, session_id_2: str) -> str:
     """Compare brain state patterns across two EEG sessions.
 
     Highlights differences in arousal, valence, and dominant states

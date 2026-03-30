@@ -16,14 +16,13 @@ from __future__ import annotations
 
 import argparse
 import logging
-from pathlib import Path
 
 import numpy as np
 
+from cortexdj.core.paths import SYNTHETIC_DATA_DIR
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-DATA_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "synthetic"
 
 NUM_CHANNELS = 32
 SAMPLING_RATE = 128
@@ -52,10 +51,10 @@ def _generate_eeg_signal(
     signal = np.zeros((n_channels, n_samples))
 
     band_configs = [
-        (1.0, 4.0, delta_power),    # Delta
-        (4.0, 8.0, theta_power),    # Theta
-        (8.0, 14.0, alpha_power),   # Alpha
-        (14.0, 30.0, beta_power),   # Beta
+        (1.0, 4.0, delta_power),  # Delta
+        (4.0, 8.0, theta_power),  # Theta
+        (8.0, 14.0, alpha_power),  # Alpha
+        (14.0, 30.0, beta_power),  # Beta
         (30.0, 40.0, gamma_power),  # Gamma
     ]
 
@@ -132,18 +131,18 @@ def _generate_participant(
 
 def generate(*, n_participants: int = 32, n_trials: int = 40) -> None:
     """Generate synthetic EEG data for all participants."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    SYNTHETIC_DATA_DIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(42)
 
     logger.info(f"Generating synthetic EEG data: {n_participants} participants, {n_trials} trials each")
 
     for p in range(1, n_participants + 1):
         data, labels = _generate_participant(p, n_trials, rng)
-        output_path = DATA_DIR / f"s{p:02d}.npz"
+        output_path = SYNTHETIC_DATA_DIR / f"s{p:02d}.npz"
         np.savez_compressed(output_path, data=data, labels=labels)
         logger.info(f"  [{p}/{n_participants}] Saved {output_path.name} — {data.shape}")
 
-    logger.info(f"Done! Generated {n_participants} files in {DATA_DIR}")
+    logger.info(f"Done! Generated {n_participants} files in {SYNTHETIC_DATA_DIR}")
 
 
 def main() -> None:

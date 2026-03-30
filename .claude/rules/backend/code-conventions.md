@@ -25,7 +25,7 @@ Python/FastAPI conventions for the CortexDJ backend.
 ## Data Patterns
 
 - Standard PostgreSQL queries on arousal/valence scores (no pgvector, no embedding similarity)
-- Synthetic EEG data stored in `data/synthetic/`; DB stores session metadata + segment classifications
+- Synthetic EEG data stored in `backend/data/synthetic/`; DB stores session metadata + segment classifications
 - Agent streams responses via Pydantic AI's streaming interface, proxied through a Vercel AI SDK-compatible SSE endpoint
 - Agent tools in `agents/tools/`, grouped by capability in `agents/capabilities/`
 - Use `scipy` for signal processing (filtering, PSD); use `mne` for advanced EEG analysis — do not mix

@@ -38,7 +38,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./backend/tests:/app/tests
-      - ./data:/app/data
+      - ./backend/data:/app/data
     depends_on:
       postgres:
         condition: service_healthy

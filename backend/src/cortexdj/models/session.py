@@ -33,15 +33,11 @@ class Session(Base):
         return result.scalar_one_or_none()
 
     @classmethod
-    async def get_all(
-        cls, db: AsyncSession, *, limit: int = 50, offset: int = 0
-    ) -> tuple[Sequence[Session], int]:
+    async def get_all(cls, db: AsyncSession, *, limit: int = 50, offset: int = 0) -> tuple[Sequence[Session], int]:
         """Get all sessions with pagination."""
         count_result = await db.execute(select(func.count(cls.id)))
         total = count_result.scalar() or 0
-        result = await db.execute(
-            select(cls).order_by(cls.recorded_at.desc()).limit(limit).offset(offset)
-        )
+        result = await db.execute(select(cls).order_by(cls.recorded_at.desc()).limit(limit).offset(offset))
         return result.scalars().all(), total
 
     @classmethod

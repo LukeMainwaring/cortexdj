@@ -85,7 +85,7 @@ class EEGNetClassifier(nn.Module):
             x = x.view(-1, 1, self.n_channels, self.n_bands)
 
         # Conv path
-        x = self.spatial_conv(x)   # (batch, 16, 1, n_bands)
+        x = self.spatial_conv(x)  # (batch, 16, 1, n_bands)
         x = self.temporal_conv(x)  # (batch, 32, 1, 1)
         x = x.view(x.size(0), -1)  # (batch, 32)
 

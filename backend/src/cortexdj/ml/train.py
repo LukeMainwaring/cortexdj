@@ -12,20 +12,17 @@ from __future__ import annotations
 
 import argparse
 import logging
-from pathlib import Path
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Subset
 
+from cortexdj.core.paths import CHECKPOINTS_DIR, SYNTHETIC_DATA_DIR
 from cortexdj.ml.dataset import EEGEmotionDataset
 from cortexdj.ml.model import EEGNetClassifier
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-DATA_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "synthetic"
-CHECKPOINTS_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "checkpoints"
 
 
 def train_fold(
@@ -127,13 +124,13 @@ def train(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
-    if not DATA_DIR.exists():
-        logger.error(f"Data directory not found: {DATA_DIR}")
+    if not SYNTHETIC_DATA_DIR.exists():
+        logger.error(f"Data directory not found: {SYNTHETIC_DATA_DIR}")
         logger.error("Run `uv run generate-synthetic` first to create training data.")
         return
 
-    logger.info(f"Loading dataset from {DATA_DIR}...")
-    dataset = EEGEmotionDataset(DATA_DIR)
+    logger.info(f"Loading dataset from {SYNTHETIC_DATA_DIR}...")
+    dataset = EEGEmotionDataset(SYNTHETIC_DATA_DIR)
     logger.info(f"Loaded {len(dataset)} segments")
 
     if len(dataset) == 0:
