@@ -40,6 +40,14 @@ class Track(Base):
         return result.scalar_one_or_none()
 
     @classmethod
+    async def get_many(cls, db: AsyncSession, track_ids: list[str]) -> Sequence[Track]:
+        """Get multiple tracks by ID."""
+        if not track_ids:
+            return []
+        result = await db.execute(select(cls).where(cls.id.in_(track_ids)))
+        return result.scalars().all()
+
+    @classmethod
     async def get_all(cls, db: AsyncSession, *, limit: int = 50) -> Sequence[Track]:
         """Get all tracks."""
         result = await db.execute(select(cls).order_by(cls.created_at.desc()).limit(limit))

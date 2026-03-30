@@ -20,7 +20,7 @@ from cortexdj.models.message import Message
 from cortexdj.models.thread import Thread
 from cortexdj.schemas.agent_type import AgentType
 from cortexdj.schemas.thread import BrainContext
-from cortexdj.services.spotify import get_spotify_client
+from cortexdj.services.spotify import get_spotify_client, get_user_spotify_client
 from cortexdj.services.title_generator import generate_thread_title
 from cortexdj.utils.message_serialization import extract_latest_user_text, prepare_messages_for_storage
 
@@ -49,7 +49,7 @@ async def stream_chat(
     thread_id = run_input.id
 
     eeg_model = _get_eeg_model(request)
-    spotify_client = get_spotify_client()
+    spotify_client = await get_user_spotify_client(db) or get_spotify_client()
 
     # Load existing brain context for this thread
     thread = await Thread.get(db, thread_id, AgentType.CHAT.value)

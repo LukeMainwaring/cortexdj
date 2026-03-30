@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 
 from pydantic_ai import RunContext
 
 from cortexdj.agents.deps import AgentDeps
 from cortexdj.models.playlist import Playlist
+from cortexdj.models.track import Track
 from cortexdj.services import eeg_processing as eeg_service
 from cortexdj.services import spotify as spotify_service
 
@@ -63,6 +63,11 @@ async def build_mood_playlist(
 
     playlist_name = name or f"CortexDJ: {mood.capitalize()} Mix"
 
+    # Bulk look up Spotify track IDs for real playlist creation
+    internal_ids = [str(t["track_id"]) for t in tracks]
+    db_tracks = await Track.get_many(ctx.deps.db, internal_ids)
+    spotify_track_ids = [t.spotify_track_id for t in db_tracks if t.spotify_track_id]
+
     # Record playlist in database
     playlist = Playlist(
         id=str(uuid.uuid4()),
@@ -73,12 +78,18 @@ async def build_mood_playlist(
     ctx.deps.db.add(playlist)
     await ctx.deps.db.flush()
 
-    # Attempt Spotify creation if client is available
+    # Create on Spotify if we have valid Spotify track IDs
     spotify_result = await spotify_service.create_playlist(
         playlist_name,
-        [str(t["track_id"]) for t in tracks],
+        spotify_track_ids,
         description=f"Auto-curated by CortexDJ based on brain state: {mood}",
+        client=ctx.deps.spotify_client,
     )
+
+    # Update playlist record with Spotify ID if created
+    if spotify_result.get("spotify_playlist_id"):
+        playlist.spotify_playlist_id = spotify_result["spotify_playlist_id"]
+        await ctx.deps.db.flush()
 
     lines = [
         f"**Playlist Created: {playlist_name}**\n",
@@ -89,7 +100,9 @@ async def build_mood_playlist(
     if len(tracks) > 15:
         lines.append(f"... and {len(tracks) - 15} more tracks")
 
-    if spotify_result and spotify_result.get("note"):
+    if spotify_result.get("spotify_url"):
+        lines.append(f"\n[Open in Spotify]({spotify_result['spotify_url']})")
+    elif spotify_result.get("note"):
         lines.append(f"\n*Note: {spotify_result['note']}*")
 
     return "\n".join(lines)
@@ -98,13 +111,26 @@ async def build_mood_playlist(
 async def get_listening_history(ctx: RunContext[AgentDeps], limit: int = 20) -> str:
     """Get recent Spotify listening history.
 
-    Requires Spotify to be connected. Returns recently played tracks.
+    Requires Spotify to be connected. Returns recently played tracks
+    which can be correlated with EEG session data.
     """
     if ctx.deps.spotify_client is None:
-        return "Spotify is not connected. Configure SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env."
+        return "Spotify is not connected. Connect Spotify in Settings to view listening history."
 
-    results = await spotify_service.search_tracks("relaxing music", limit=limit)
-    if not results:
-        return "Could not fetch listening history."
+    try:
+        results = await spotify_service.run_spotify(ctx.deps.spotify_client.current_user_recently_played, limit=limit)
+    except Exception:
+        return "Failed to fetch listening history. Try reconnecting Spotify in Settings."
 
-    return json.dumps(results, indent=2)
+    items = results.get("items", [])
+    if not items:
+        return "No recent listening history found."
+
+    lines = [f"**Recently Played ({len(items)} tracks):**\n"]
+    for item in items:
+        track = item["track"]
+        played_at = item.get("played_at", "")
+        artists = ", ".join(a["name"] for a in track["artists"])
+        lines.append(f"- **{track['name']}** by {artists} | {played_at}")
+
+    return "\n".join(lines)

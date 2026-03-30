@@ -187,6 +187,133 @@
         }
       }
     },
+    "/api/spotify/connect": {
+      "get": {
+        "tags": [
+          "spotify"
+        ],
+        "summary": "Connect Spotify",
+        "description": "Get the Spotify authorization URL to start OAuth flow.\n\nReturns:\n    Dict containing the auth_url to redirect the user to.",
+        "operationId": "connectSpotify",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Connectspotify"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/spotify/callback": {
+      "get": {
+        "tags": [
+          "spotify"
+        ],
+        "summary": "Spotify Callback",
+        "description": "Handle Spotify OAuth callback.\n\nExchanges the authorization code for access tokens and stores them.",
+        "operationId": "spotifyCallback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/spotify/status": {
+      "get": {
+        "tags": [
+          "spotify"
+        ],
+        "summary": "Get Spotify Status",
+        "description": "Get the current Spotify connection status.",
+        "operationId": "getSpotifyStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotifyConnectionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/spotify/disconnect": {
+      "post": {
+        "tags": [
+          "spotify"
+        ],
+        "summary": "Disconnect Spotify",
+        "description": "Disconnect Spotify by clearing stored tokens.",
+        "operationId": "disconnectSpotify",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotifyConnectionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/threads": {
       "get": {
         "tags": [
@@ -597,6 +724,20 @@
         ],
         "title": "SessionSchema",
         "description": "Full session representation."
+      },
+      "SpotifyConnectionStatus": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected"
+        ],
+        "title": "SpotifyConnectionStatus",
+        "description": "Response for Spotify connection status."
       },
       "ThreadDeleteResponse": {
         "properties": {

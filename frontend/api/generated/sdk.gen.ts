@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, StreamChatData, StreamChatResponses } from './types.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -73,6 +73,55 @@ export const getSession = <ThrowOnError extends boolean = false>(options: Option
 export const getSessionSegments = <ThrowOnError extends boolean = false>(options: Options<GetSessionSegmentsData, ThrowOnError>) => (options.client ?? client).get<GetSessionSegmentsResponses, GetSessionSegmentsErrors, ThrowOnError>({
     responseType: 'json',
     url: '/api/sessions/{session_id}/segments',
+    ...options
+});
+
+/**
+ * Connect Spotify
+ *
+ * Get the Spotify authorization URL to start OAuth flow.
+ *
+ * Returns:
+ * Dict containing the auth_url to redirect the user to.
+ */
+export const connectSpotify = <ThrowOnError extends boolean = false>(options?: Options<ConnectSpotifyData, ThrowOnError>) => (options?.client ?? client).get<ConnectSpotifyResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/connect',
+    ...options
+});
+
+/**
+ * Spotify Callback
+ *
+ * Handle Spotify OAuth callback.
+ *
+ * Exchanges the authorization code for access tokens and stores them.
+ */
+export const spotifyCallback = <ThrowOnError extends boolean = false>(options: Options<SpotifyCallbackData, ThrowOnError>) => (options.client ?? client).get<SpotifyCallbackResponses, SpotifyCallbackErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/callback',
+    ...options
+});
+
+/**
+ * Get Spotify Status
+ *
+ * Get the current Spotify connection status.
+ */
+export const getSpotifyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetSpotifyStatusData, ThrowOnError>) => (options?.client ?? client).get<GetSpotifyStatusResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/status',
+    ...options
+});
+
+/**
+ * Disconnect Spotify
+ *
+ * Disconnect Spotify by clearing stored tokens.
+ */
+export const disconnectSpotify = <ThrowOnError extends boolean = false>(options?: Options<DisconnectSpotifyData, ThrowOnError>) => (options?.client ?? client).post<DisconnectSpotifyResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/disconnect',
     ...options
 });
 
