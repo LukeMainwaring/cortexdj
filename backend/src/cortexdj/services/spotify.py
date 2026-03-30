@@ -1,8 +1,7 @@
-"""Spotify API service using spotipy with Client Credentials flow.
+"""Spotify API service using Client Credentials and User OAuth flows.
 
-Since CortexDJ doesn't have user auth yet, this uses client credentials
-for public search and a stored access token for playlist operations.
-User OAuth is a roadmap item.
+Client Credentials flow is used for public search operations.
+User OAuth flow is used for playlist creation and listening history.
 """
 
 from __future__ import annotations
@@ -10,10 +9,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar
 
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
+from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.core.config import get_settings
 
@@ -25,7 +26,9 @@ _spotify_client: spotipy.Spotify | None = None
 
 T = TypeVar("T")
 
-SPOTIFY_SCOPES = "user-library-read playlist-read-private playlist-modify-private playlist-modify-public"
+SPOTIFY_SCOPES = (
+    "user-library-read playlist-read-private playlist-modify-private playlist-modify-public user-read-recently-played"
+)
 
 
 def get_spotify_client() -> spotipy.Spotify | None:
@@ -47,6 +50,52 @@ def get_spotify_client() -> spotipy.Spotify | None:
 async def run_spotify(func: Callable[..., T], *args: object, **kwargs: object) -> T:
     """Wrap synchronous spotipy call in asyncio.to_thread for async compatibility."""
     return await asyncio.to_thread(func, *args, **kwargs)
+
+
+async def get_user_spotify_client(db: AsyncSession) -> spotipy.Spotify | None:
+    """Get a user-authenticated Spotify client from stored OAuth tokens.
+
+    Auto-refreshes if token is expired or expires within 5 minutes.
+    Returns None if no tokens are stored (user hasn't connected Spotify).
+    """
+    from cortexdj.models.spotify_token import SpotifyToken
+
+    token = await SpotifyToken.get(db)
+    if token is None:
+        return None
+
+    now = datetime.now(UTC)
+    buffer = timedelta(minutes=5)
+    needs_refresh = token.expires_at <= now + buffer
+
+    access_token = token.access_token
+
+    if needs_refresh and token.refresh_token:
+        logger.info("Refreshing Spotify access token")
+        try:
+            oauth = SpotifyOAuth(
+                client_id=config.SPOTIFY_CLIENT_ID,
+                client_secret=config.SPOTIFY_CLIENT_SECRET,
+                redirect_uri=config.SPOTIFY_REDIRECT_URI,
+                scope=SPOTIFY_SCOPES,
+            )
+            token_info = await run_spotify(oauth.refresh_access_token, token.refresh_token)
+
+            if token_info:
+                expires_at = datetime.fromtimestamp(token_info["expires_at"], tz=UTC)
+                await SpotifyToken.upsert(
+                    db,
+                    access_token=token_info["access_token"],
+                    refresh_token=token_info.get("refresh_token", token.refresh_token),
+                    expires_at=expires_at,
+                )
+                access_token = token_info["access_token"]
+                logger.info("Successfully refreshed Spotify access token")
+        except Exception:
+            logger.exception("Failed to refresh Spotify token")
+            # Continue with existing token, it might still work
+
+    return spotipy.Spotify(auth=access_token)
 
 
 async def fetch_all_pages(
@@ -107,18 +156,47 @@ async def create_playlist(
     track_ids: list[str],
     *,
     description: str = "",
-) -> dict[str, Any] | None:
+    client: spotipy.Spotify | None = None,
+) -> dict[str, Any]:
     """Create a Spotify playlist and add tracks.
 
-    Note: This requires user OAuth (roadmap item). Currently returns
-    a local-only playlist record.
+    When a user-authenticated client is provided, creates a real playlist
+    on the user's Spotify account. Otherwise returns a local-only record.
     """
-    # TODO: Implement with user OAuth when auth is added
-    logger.info(f"Would create Spotify playlist '{name}' with {len(track_ids)} tracks")
+    if client is None:
+        logger.info(f"Would create Spotify playlist '{name}' with {len(track_ids)} tracks")
+        return {
+            "name": name,
+            "track_count": len(track_ids),
+            "description": description,
+            "spotify_url": None,
+            "spotify_playlist_id": None,
+            "note": "Connect Spotify in Settings to create real playlists.",
+        }
+
+    # Create the playlist on Spotify
+    user_info = await run_spotify(client.current_user)
+    user_id = user_info["id"]
+
+    playlist = await run_spotify(
+        client.user_playlist_create,
+        user_id,
+        name,
+        public=False,
+        description=description,
+    )
+
+    # Add tracks in batches of 100 (Spotify API limit)
+    track_uris = [f"spotify:track:{tid}" for tid in track_ids if tid]
+    for i in range(0, len(track_uris), 100):
+        batch = track_uris[i : i + 100]
+        await run_spotify(client.playlist_add_items, playlist["id"], batch)
+
+    logger.info(f"Created Spotify playlist '{name}' with {len(track_ids)} tracks")
     return {
         "name": name,
         "track_count": len(track_ids),
         "description": description,
-        "spotify_url": None,
-        "note": "Spotify OAuth required for real playlist creation (see ROADMAP)",
+        "spotify_url": playlist["external_urls"].get("spotify"),
+        "spotify_playlist_id": playlist["id"],
     }
