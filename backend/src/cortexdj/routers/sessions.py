@@ -1,0 +1,42 @@
+"""EEG session REST endpoints."""
+
+from fastapi import APIRouter, HTTPException
+
+from cortexdj.dependencies.db import AsyncPostgresSessionDep
+from cortexdj.models.eeg_segment import EegSegment
+from cortexdj.schemas.eeg_segment import SegmentListResponse, SegmentSchema
+from cortexdj.schemas.session import SessionListResponse, SessionSchema
+from cortexdj.services import session as session_service
+
+sessions_router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+
+@sessions_router.get("")
+async def list_sessions(
+    db: AsyncPostgresSessionDep, limit: int = 50, offset: int = 0
+) -> SessionListResponse:
+    """List all EEG sessions."""
+    sessions, total = await session_service.list_sessions(db, limit=limit, offset=offset)
+    return SessionListResponse(
+        sessions=[SessionSchema.model_validate(s) for s in sessions],
+        total=total,
+    )
+
+
+@sessions_router.get("/{session_id}")
+async def get_session(db: AsyncPostgresSessionDep, session_id: str) -> SessionSchema:
+    """Get a specific EEG session."""
+    session = await session_service.get_session(db, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return SessionSchema.model_validate(session)
+
+
+@sessions_router.get("/{session_id}/segments")
+async def get_session_segments(db: AsyncPostgresSessionDep, session_id: str) -> SegmentListResponse:
+    """Get all EEG segments for a session."""
+    segments = await EegSegment.get_by_session(db, session_id)
+    return SegmentListResponse(
+        segments=[SegmentSchema.model_validate(s) for s in segments],
+        total=len(segments),
+    )

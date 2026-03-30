@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.14.10
+    hooks:
+      # Run the linter.
+      - id: ruff
+        name: ruff-backend
+        files: ^backend/(src|tests)/.*.py$
+        args: [--fix]
+      # Run the formatter.
+      - id: ruff-format
+        name: ruff-format-backend
+        files: ^backend/(src|tests)/.*.py$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    # Mypy version.
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        name: mypy-backend
+        language: system
+        files: ^backend/(src|tests)/.*.py$
+        entry: /bin/bash -c "cd backend && uv sync --frozen --no-install-project --all-groups && uv run mypy --strict src tests"
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: requirements-txt-fixer
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-toml
+      - id: check-yaml
+        exclude: ^frontend/

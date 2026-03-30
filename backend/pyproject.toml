@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cortexdj"
+version = "0.1.0"
+description = "AI-powered EEG brain-wave classifier and Spotify playlist curator"
+readme = "../README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "alembic>=1.18.4",
+  "asyncpg>=0.31.0",
+  "braindecode>=1.3.0",
+  "fastapi[standard]>=0.135.2",
+  "mne>=1.11.0",
+  "numpy>=2.0.0",
+  "psycopg[binary,pool]>=3.3.3",
+  "pydantic-ai>=1.73.0",
+  "pydantic>=2.12.5",
+  "scipy>=1.14.0",
+  "spotipy>=2.26.0",
+  "sqlalchemy[asyncio,mypy]>=2.0.48",
+  "torch>=2.11.0",
+  "uvicorn>=0.42.0",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.19.1",
+  "pre-commit>=4.5.1",
+  "pytest>=9.0.2",
+  "ruff>=0.15.8",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "main: marks tests for main demo examples",
+    "additional: marks tests for additional demo examples",
+]
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["mne.*", "braindecode.*", "spotipy.*", "scipy.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["I", "F401"]
+
+[project.scripts]
+generate-synthetic = "cortexdj.scripts.generate_synthetic:main"
+seed-sessions = "cortexdj.scripts.seed_sessions:main"
+train-model = "cortexdj.ml.train:main"
+
+[tool.uv]
+default-groups = ["dev"]

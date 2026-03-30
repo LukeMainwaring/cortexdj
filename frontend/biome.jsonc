@@ -1,0 +1,67 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["ultracite/next"],
+  "files": {
+    "includes": [
+      "**/*",
+      "!.next",
+      "!api/generated",
+      "!api/scripts",
+      "!components/ui",
+      "!lib/utils.ts",
+      "!hooks/use-mobile.ts"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "css": {
+    "parser": {
+      "cssModules": false,
+      "tailwindDirectives": true
+    }
+  },
+  "linter": {
+    "rules": {
+      "suspicious": {
+        /* Needs more work to fix */
+        "noExplicitAny": "off",
+
+        /* Allow for Tailwind @ rules */
+        "noUnknownAtRules": "off",
+
+        /* Allowing console for debugging */
+        "noConsole": "off",
+
+        /* Needs more work to fix */
+        "noArrayIndexKey": "off"
+      },
+      "style": {
+        /* Allowing magic numbers */
+        "noMagicNumbers": "off",
+
+        /* Needs more work to fix */
+        "noNestedTernary": "off"
+      },
+      "nursery": {
+        /* Too many false positives */
+        "noUnnecessaryConditions": "off"
+      },
+      "complexity": {
+        /* Needs more work to fix */
+        "noExcessiveCognitiveComplexity": "off",
+
+        /* This one has false positives. It's a bit... iffy */
+        "useSimplifiedLogicExpression": "off",
+
+        /* Allow !important in CSS where needed */
+        "noImportantStyles": "off"
+      },
+      "a11y": {
+        /* Needs more work to fix */
+        "noSvgWithoutTitle": "off"
+      }
+    }
+  }
+}

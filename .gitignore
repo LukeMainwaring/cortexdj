@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Data & models
+data/synthetic/
+data/checkpoints/
+data/deap/
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+*.safetensors
+*.bin
+
+# HuggingFace model cache
+huggingface_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.hypothesis/
+
+# Pre-commit / linting
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# Claude Code
+.claude/settings.local.json
+
+# Misc
+*.bak
+*.tmp
