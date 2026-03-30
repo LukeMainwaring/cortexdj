@@ -4,6 +4,7 @@ import {
   getSpotifyStatusOptions,
   getSpotifyStatusQueryKey,
 } from "../generated/@tanstack/react-query.gen";
+import { connectSpotify } from "../generated/sdk.gen";
 
 // Ensure client is configured with baseURL
 import "../client";
@@ -15,14 +16,8 @@ export const useSpotifyStatus = () => {
 export const useSpotifyConnectUrl = () => {
   const mutationResult = useMutation({
     mutationFn: async () => {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8003"}/api/spotify/connect`,
-        { credentials: "include" },
-      );
-      if (!response.ok) {
-        throw new Error("Failed to get connect URL");
-      }
-      return response.json() as Promise<{ auth_url: string }>;
+      const { data } = await connectSpotify({ throwOnError: true });
+      return data as { auth_url: string };
     },
   });
 

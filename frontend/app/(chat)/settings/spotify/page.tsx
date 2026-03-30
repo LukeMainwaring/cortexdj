@@ -43,6 +43,8 @@ function SpotifyPageContent() {
       window.history.replaceState({}, "", "/settings/spotify");
     } else if (error) {
       const errorMessages: Record<string, string> = {
+        access_denied: "Spotify authorization was denied",
+        missing_code: "No authorization code received from Spotify",
         token_exchange_failed: "Failed to exchange authorization code",
         callback_failed: "OAuth callback failed",
         invalid_state: "Invalid OAuth state — please try again",

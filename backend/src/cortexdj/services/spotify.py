@@ -92,8 +92,8 @@ async def get_user_spotify_client(db: AsyncSession) -> spotipy.Spotify | None:
                 access_token = token_info["access_token"]
                 logger.info("Successfully refreshed Spotify access token")
         except Exception:
-            logger.exception("Failed to refresh Spotify token")
-            # Continue with existing token, it might still work
+            logger.warning("Failed to refresh Spotify token, falling back to Client Credentials")
+            return None
 
     return spotipy.Spotify(auth=access_token)
 
@@ -174,29 +174,40 @@ async def create_playlist(
             "note": "Connect Spotify in Settings to create real playlists.",
         }
 
-    # Create the playlist on Spotify
-    user_info = await run_spotify(client.current_user)
-    user_id = user_info["id"]
+    try:
+        # Create the playlist on Spotify
+        user_info = await run_spotify(client.current_user)
+        user_id = user_info["id"]
 
-    playlist = await run_spotify(
-        client.user_playlist_create,
-        user_id,
-        name,
-        public=False,
-        description=description,
-    )
+        playlist = await run_spotify(
+            client.user_playlist_create,
+            user_id,
+            name,
+            public=False,
+            description=description,
+        )
 
-    # Add tracks in batches of 100 (Spotify API limit)
-    track_uris = [f"spotify:track:{tid}" for tid in track_ids if tid]
-    for i in range(0, len(track_uris), 100):
-        batch = track_uris[i : i + 100]
-        await run_spotify(client.playlist_add_items, playlist["id"], batch)
+        # Add tracks in batches of 100 (Spotify API limit)
+        track_uris = [f"spotify:track:{tid}" for tid in track_ids if tid]
+        for i in range(0, len(track_uris), 100):
+            batch = track_uris[i : i + 100]
+            await run_spotify(client.playlist_add_items, playlist["id"], batch)
 
-    logger.info(f"Created Spotify playlist '{name}' with {len(track_ids)} tracks")
-    return {
-        "name": name,
-        "track_count": len(track_ids),
-        "description": description,
-        "spotify_url": playlist["external_urls"].get("spotify"),
-        "spotify_playlist_id": playlist["id"],
-    }
+        logger.info(f"Created Spotify playlist '{name}' with {len(track_ids)} tracks")
+        return {
+            "name": name,
+            "track_count": len(track_ids),
+            "description": description,
+            "spotify_url": playlist["external_urls"].get("spotify"),
+            "spotify_playlist_id": playlist["id"],
+        }
+    except Exception:
+        logger.exception(f"Failed to create Spotify playlist '{name}'")
+        return {
+            "name": name,
+            "track_count": len(track_ids),
+            "description": description,
+            "spotify_url": None,
+            "spotify_playlist_id": None,
+            "note": "Failed to create playlist on Spotify. Try reconnecting in Settings.",
+        }

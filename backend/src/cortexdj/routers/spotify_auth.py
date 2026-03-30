@@ -5,6 +5,7 @@ Simplified from Earworm's implementation: no user auth (single-user local app).
 """
 
 import logging
+import time
 import uuid
 from datetime import UTC, datetime
 
@@ -24,9 +25,14 @@ config = get_settings()
 
 spotify_auth_router = APIRouter(prefix="/spotify", tags=["spotify"])
 
-# In-memory set of valid OAuth state tokens for CSRF protection.
+# In-memory mapping of OAuth state -> creation time for CSRF protection.
 # State is added during /connect and consumed during /callback.
-_pending_oauth_states: set[str] = set()
+# Note: lost on server restart and not shared across workers.
+# Acceptable for a single-user local app; use DB or Redis for production.
+_pending_oauth_states: dict[str, float] = {}
+
+_MAX_PENDING_STATES = 10
+_STATE_TTL_SECONDS = 600  # 10 minutes
 
 
 def get_oauth_manager() -> SpotifyOAuth:
@@ -52,8 +58,17 @@ async def connect_spotify() -> dict[str, str]:
         Dict containing the auth_url to redirect the user to.
     """
     oauth = get_oauth_manager()
+    # Prune expired states
+    now = time.monotonic()
+    expired = [s for s, t in _pending_oauth_states.items() if now - t > _STATE_TTL_SECONDS]
+    for s in expired:
+        _pending_oauth_states.pop(s, None)
+    # Cap the number of pending states
+    if len(_pending_oauth_states) >= _MAX_PENDING_STATES:
+        _pending_oauth_states.clear()
+
     state = str(uuid.uuid4())
-    _pending_oauth_states.add(state)
+    _pending_oauth_states[state] = now
     auth_url = oauth.get_authorize_url(state=state)
     logger.info("Generated Spotify auth URL")
     return {"auth_url": auth_url}
@@ -61,20 +76,29 @@ async def connect_spotify() -> dict[str, str]:
 
 @spotify_auth_router.get("/callback")
 async def spotify_callback(
-    code: str,
-    state: str | None,
     db: AsyncPostgresSessionDep,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
 ) -> RedirectResponse:
     """Handle Spotify OAuth callback.
 
     Exchanges the authorization code for access tokens and stores them.
+    Also handles user-denied authorization (Spotify sends ?error=access_denied).
     """
     redirect_base = f"{config.FRONTEND_URL}/settings/spotify"
+
+    if error:
+        logger.info(f"Spotify OAuth denied: {error}")
+        return RedirectResponse(f"{redirect_base}?error=access_denied")
+
+    if not code:
+        return RedirectResponse(f"{redirect_base}?error=missing_code")
 
     if not state or state not in _pending_oauth_states:
         return RedirectResponse(f"{redirect_base}?error=invalid_state")
 
-    _pending_oauth_states.discard(state)
+    _pending_oauth_states.pop(state, None)
     oauth = get_oauth_manager()
 
     try:

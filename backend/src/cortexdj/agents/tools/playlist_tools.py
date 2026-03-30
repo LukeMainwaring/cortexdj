@@ -63,12 +63,10 @@ async def build_mood_playlist(
 
     playlist_name = name or f"CortexDJ: {mood.capitalize()} Mix"
 
-    # Look up Spotify track IDs for real playlist creation
-    spotify_track_ids: list[str] = []
-    for t in tracks:
-        track = await Track.get(ctx.deps.db, str(t["track_id"]))
-        if track and track.spotify_track_id:
-            spotify_track_ids.append(track.spotify_track_id)
+    # Bulk look up Spotify track IDs for real playlist creation
+    internal_ids = [str(t["track_id"]) for t in tracks]
+    db_tracks = await Track.get_many(ctx.deps.db, internal_ids)
+    spotify_track_ids = [t.spotify_track_id for t in db_tracks if t.spotify_track_id]
 
     # Record playlist in database
     playlist = Playlist(
