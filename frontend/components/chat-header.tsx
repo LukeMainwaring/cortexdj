@@ -18,7 +18,9 @@ interface BrainContext {
 
 function PureChatHeader({
   brainContext,
-}: { brainContext?: BrainContext | null }) {
+}: {
+  brainContext?: BrainContext | null;
+}) {
   const router = useRouter();
   const { open } = useSidebar();
   const { width: windowWidth } = useWindowSize();

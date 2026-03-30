@@ -11,7 +11,9 @@ interface BrainContext {
 
 function PureBrainContextBadge({
   brainContext,
-}: { brainContext?: BrainContext | null }) {
+}: {
+  brainContext?: BrainContext | null;
+}) {
   if (!brainContext) return null;
 
   const pills: { label: string; value: string }[] = [];

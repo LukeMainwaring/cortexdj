@@ -3,13 +3,7 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { ArrowUp, Square } from "lucide-react";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import type { ChatMessage } from "@/lib/types";
@@ -86,7 +80,7 @@ function PureMultimodalInput({
     }
     // Only run once after hydration
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adjustHeight, localStorageInput, setInput]);
+  }, [adjustHeight, localStorageInput]);
 
   useEffect(() => {
     setLocalStorageInput(input);
@@ -108,7 +102,7 @@ function PureMultimodalInput({
     if (width && width > 768) {
       textareaRef.current?.focus();
     }
-  }, [input, setInput, sendMessage, setLocalStorageInput, width, chatId, resetHeight]);
+  }, [input, sendMessage, setLocalStorageInput, width, chatId, resetHeight]);
 
   return (
     <div

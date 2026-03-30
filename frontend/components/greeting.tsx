@@ -29,8 +29,8 @@ export const Greeting = () => {
           initial={{ opacity: 0, y: 10 }}
           transition={{ delay: 0.6 }}
         >
-          Ask me to analyze EEG sessions, explain brain states, or build
-          Spotify playlists based on your brain-wave data.
+          Ask me to analyze EEG sessions, explain brain states, or build Spotify
+          playlists based on your brain-wave data.
         </motion.p>
       </div>
     </div>

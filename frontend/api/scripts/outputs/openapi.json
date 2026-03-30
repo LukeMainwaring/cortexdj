@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "SampleSpace",
+    "title": "CortexDJ",
     "version": "0.1.0"
   },
   "paths": {
@@ -11,7 +11,7 @@
           "agent"
         ],
         "summary": "Stream Chat",
-        "description": "Sample assistant streaming endpoint.\n\nUses VercelAIAdapter to handle parsing, agent execution, and streaming\nin Vercel AI SDK protocol format.",
+        "description": "Brain assistant streaming endpoint.\n\nUses VercelAIAdapter to handle parsing, agent execution, and streaming\nin Vercel AI SDK protocol format.",
         "operationId": "streamChat",
         "responses": {
           "200": {
@@ -47,14 +47,14 @@
         }
       }
     },
-    "/api/samples/": {
+    "/api/sessions": {
       "get": {
         "tags": [
-          "samples"
+          "sessions"
         ],
-        "summary": "List Samples",
-        "description": "List all samples with pagination. Optionally filter by source.",
-        "operationId": "listSamples",
+        "summary": "List Sessions",
+        "description": "List all EEG sessions.",
+        "operationId": "listSessions",
         "parameters": [
           {
             "name": "limit",
@@ -75,22 +75,6 @@
               "default": 0,
               "title": "Offset"
             }
-          },
-          {
-            "name": "source",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Source"
-            }
           }
         ],
         "responses": {
@@ -99,7 +83,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SampleListResponse"
+                  "$ref": "#/components/schemas/SessionListResponse"
                 }
               }
             }
@@ -117,110 +101,22 @@
         }
       }
     },
-    "/api/samples/upload": {
-      "post": {
-        "tags": [
-          "samples"
-        ],
-        "summary": "Upload Sample",
-        "description": "Upload a WAV file, analyze it, and generate CLAP embeddings.",
-        "operationId": "uploadSample",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_uploadSample"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SampleSchema"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/samples/search": {
-      "post": {
-        "tags": [
-          "samples"
-        ],
-        "summary": "Search Samples",
-        "description": "Search samples by natural language query with optional metadata filters.",
-        "operationId": "searchSamples",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SampleSearchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SampleSchema"
-                  },
-                  "type": "array",
-                  "title": "Response Searchsamples"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/samples/{sample_id}": {
+    "/api/sessions/{session_id}": {
       "get": {
         "tags": [
-          "samples"
+          "sessions"
         ],
-        "summary": "Get Sample",
-        "description": "Get a single sample by ID.",
-        "operationId": "getSample",
+        "summary": "Get Session",
+        "description": "Get a specific EEG session.",
+        "operationId": "getSession",
         "parameters": [
           {
-            "name": "sample_id",
+            "name": "session_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Sample Id"
+              "title": "Session Id"
             }
           }
         ],
@@ -230,7 +126,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SampleSchema"
+                  "$ref": "#/components/schemas/SessionSchema"
                 }
               }
             }
@@ -248,32 +144,22 @@
         }
       }
     },
-    "/api/samples/{sample_id}/similar": {
+    "/api/sessions/{session_id}/segments": {
       "get": {
         "tags": [
-          "samples"
+          "sessions"
         ],
-        "summary": "Get Similar Samples",
-        "description": "Find similar samples using CNN embedding nearest neighbors.",
-        "operationId": "getSimilarSamples",
+        "summary": "Get Session Segments",
+        "description": "Get all EEG segments for a session.",
+        "operationId": "getSessionSegments",
         "parameters": [
           {
-            "name": "sample_id",
+            "name": "session_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Sample Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 10,
-              "title": "Limit"
+              "title": "Session Id"
             }
           }
         ],
@@ -283,126 +169,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SampleSchema"
-                  },
-                  "title": "Response Getsimilarsamples"
+                  "$ref": "#/components/schemas/SegmentListResponse"
                 }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/samples/{sample_id}/audio/transformed": {
-      "get": {
-        "tags": [
-          "samples"
-        ],
-        "summary": "Get Transformed Audio",
-        "description": "Serve a cached transformed audio file.\n\nThe agent tool pre-warms the cache via match_to_context. This endpoint\nis a pure file server — no on-demand transformation.",
-        "operationId": "getTransformedAudio",
-        "parameters": [
-          {
-            "name": "sample_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Sample Id"
-            }
-          },
-          {
-            "name": "key",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Key"
-            }
-          },
-          {
-            "name": "bpm",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Bpm"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/samples/{sample_id}/audio": {
-      "get": {
-        "tags": [
-          "samples"
-        ],
-        "summary": "Get Sample Audio",
-        "description": "Stream the audio file for a sample.",
-        "operationId": "getSampleAudio",
-        "parameters": [
-          {
-            "name": "sample_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Sample Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           },
@@ -581,19 +349,56 @@
   },
   "components": {
     "schemas": {
-      "Body_uploadSample": {
+      "BrainContext": {
         "properties": {
-          "file": {
-            "type": "string",
-            "contentMediaType": "application/octet-stream",
-            "title": "File"
+          "latest_session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Session Id"
+          },
+          "dominant_mood": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dominant Mood"
+          },
+          "avg_arousal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Arousal"
+          },
+          "avg_valence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Valence"
           }
         },
         "type": "object",
-        "required": [
-          "file"
-        ],
-        "title": "Body_uploadSample"
+        "title": "BrainContext",
+        "description": "Brain state context for a conversation thread."
       },
       "HTTPValidationError": {
         "properties": {
@@ -621,14 +426,14 @@
         ],
         "title": "HealthCheckResponse"
       },
-      "SampleListResponse": {
+      "SegmentListResponse": {
         "properties": {
-          "samples": {
+          "segments": {
             "items": {
-              "$ref": "#/components/schemas/SampleSchema"
+              "$ref": "#/components/schemas/SegmentSchema"
             },
             "type": "array",
-            "title": "Samples"
+            "title": "Segments"
           },
           "total": {
             "type": "integer",
@@ -637,87 +442,64 @@
         },
         "type": "object",
         "required": [
-          "samples",
+          "segments",
           "total"
         ],
-        "title": "SampleListResponse",
-        "description": "Paginated list of samples."
+        "title": "SegmentListResponse",
+        "description": "Response containing list of segments for a session."
       },
-      "SampleSchema": {
+      "SegmentSchema": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
           },
-          "filename": {
+          "session_id": {
             "type": "string",
-            "title": "Filename"
+            "title": "Session Id"
           },
-          "source": {
+          "segment_index": {
+            "type": "integer",
+            "title": "Segment Index"
+          },
+          "start_time": {
+            "type": "number",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time"
+          },
+          "arousal_score": {
+            "type": "number",
+            "title": "Arousal Score"
+          },
+          "valence_score": {
+            "type": "number",
+            "title": "Valence Score"
+          },
+          "dominant_state": {
             "type": "string",
-            "title": "Source",
-            "default": "local"
+            "title": "Dominant State"
           },
-          "pack_name": {
+          "band_powers": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Band Powers"
+          },
+          "features": {
             "anyOf": [
               {
-                "type": "string"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Pack Name"
-          },
-          "key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Key"
-          },
-          "bpm": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bpm"
-          },
-          "duration": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Duration"
-          },
-          "sample_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sample Type",
-            "description": "Category of the sample (e.g., kick, snare, pad, lead)"
-          },
-          "is_loop": {
-            "type": "boolean",
-            "title": "Is Loop",
-            "default": false
+            "title": "Features"
           },
           "created_at": {
             "type": "string",
@@ -728,149 +510,93 @@
         "type": "object",
         "required": [
           "id",
-          "filename",
+          "session_id",
+          "segment_index",
+          "start_time",
+          "end_time",
+          "arousal_score",
+          "valence_score",
+          "dominant_state",
+          "band_powers",
           "created_at"
         ],
-        "title": "SampleSchema",
-        "description": "Sample response schema."
+        "title": "SegmentSchema",
+        "description": "Full segment representation."
       },
-      "SampleSearchRequest": {
+      "SessionListResponse": {
         "properties": {
-          "query": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Query",
-            "description": "Natural language search query for CLAP semantic search"
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionSchema"
+            },
+            "type": "array",
+            "title": "Sessions"
           },
-          "key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Key",
-            "description": "Filter by musical key (e.g., 'C major', 'A minor')"
-          },
-          "bpm_min": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bpm Min",
-            "description": "Minimum BPM filter"
-          },
-          "bpm_max": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bpm Max",
-            "description": "Maximum BPM filter"
-          },
-          "sample_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sample Type",
-            "description": "Filter by sample type"
-          },
-          "is_loop": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Loop",
-            "description": "Filter by loop (True) or one-shot (False)"
-          },
-          "limit": {
+          "total": {
             "type": "integer",
-            "maximum": 100,
-            "minimum": 1,
-            "title": "Limit",
-            "description": "Maximum number of results",
-            "default": 20
+            "title": "Total"
           }
         },
         "type": "object",
-        "title": "SampleSearchRequest",
-        "description": "Search request with optional filters."
+        "required": [
+          "sessions",
+          "total"
+        ],
+        "title": "SessionListResponse",
+        "description": "Response containing list of sessions."
       },
-      "SongContext": {
+      "SessionSchema": {
         "properties": {
-          "key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Key"
+          "id": {
+            "type": "string",
+            "title": "Id"
           },
-          "bpm": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bpm"
+          "participant_id": {
+            "type": "string",
+            "title": "Participant Id"
           },
-          "genre": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Genre"
+          "dataset_source": {
+            "type": "string",
+            "title": "Dataset Source"
           },
-          "vibe": {
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "title": "Duration Seconds"
+          },
+          "metadata_extra": {
             "anyOf": [
               {
-                "type": "string"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Vibe"
+            "title": "Metadata Extra"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
           }
         },
         "type": "object",
-        "title": "SongContext",
-        "description": "Song context metadata for a conversation thread."
+        "required": [
+          "id",
+          "participant_id",
+          "dataset_source",
+          "recorded_at",
+          "duration_seconds",
+          "created_at"
+        ],
+        "title": "SessionSchema",
+        "description": "Full session representation."
       },
       "ThreadDeleteResponse": {
         "properties": {
@@ -917,10 +643,10 @@
             "type": "array",
             "title": "Messages"
           },
-          "song_context": {
+          "brain_context": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SongContext"
+                "$ref": "#/components/schemas/BrainContext"
               },
               {
                 "type": "null"
@@ -992,10 +718,10 @@
             ],
             "title": "Title"
           },
-          "song_context": {
+          "brain_context": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SongContext"
+                "$ref": "#/components/schemas/BrainContext"
               },
               {
                 "type": "null"
