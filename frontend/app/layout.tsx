@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lora, Plus_Jakarta_Sans, Roboto_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -12,19 +12,19 @@ export const metadata: Metadata = {
     "AI-powered EEG brain-wave classifier and Spotify playlist curator",
 };
 
-const fontSans = Plus_Jakarta_Sans({
+const fontSans = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-sans",
 });
 
-const fontSerif = Lora({
+const fontSerif = Playfair_Display({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-serif",
 });
 
-const fontMono = Roboto_Mono({
+const fontMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-mono",
