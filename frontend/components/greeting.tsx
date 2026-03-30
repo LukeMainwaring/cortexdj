@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import Image from "next/image";
 
 export const Greeting = () => {
   return (
@@ -9,11 +10,16 @@ export const Greeting = () => {
       <div className="flex flex-col items-center gap-2 text-center text-muted-foreground">
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          className="flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-3xl text-white"
           initial={{ opacity: 0, y: 10 }}
           transition={{ delay: 0.3 }}
         >
-          🧠
+          <Image
+            alt="CortexDJ"
+            className="size-20 rounded-full"
+            height={64}
+            src="/images/cortexdj-logo.png"
+            width={64}
+          />
         </motion.div>
         <motion.h2
           animate={{ opacity: 1, y: 0 }}

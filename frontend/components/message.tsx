@@ -22,10 +22,10 @@ const AssistantAvatar = ({ isLoading }: { isLoading?: boolean }) => (
     )}
   >
     <Image
-      alt="SampleSpace"
+      alt="CortexDJ"
       className="size-full object-cover"
       height={32}
-      src="/images/samplespace-logo.png"
+      src="/images/cortexdj-logo.png"
       width={32}
     />
   </div>

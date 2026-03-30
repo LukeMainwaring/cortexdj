@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "@/components/icons";
@@ -32,9 +33,13 @@ export function AppSidebar() {
                 setOpenMobile(false);
               }}
             >
-              <span className="flex size-7 items-center justify-center rounded-sm bg-gradient-to-br from-purple-500 to-blue-600 text-sm text-white">
-                🧠
-              </span>
+              <Image
+                alt="CortexDJ logo"
+                className="rounded-sm"
+                height={28}
+                src="/images/cortexdj-logo.png"
+                width={28}
+              />
               <span className="font-semibold text-lg">CortexDJ</span>
             </Link>
             <Tooltip>
