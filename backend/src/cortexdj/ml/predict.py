@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import torch
 
 from cortexdj.core.paths import CHECKPOINTS_DIR
@@ -49,7 +51,7 @@ def load_model(checkpoint_path: str | Path | None = None) -> EEGNetClassifier:
 
 
 def predict_segment(
-    eeg_data: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
+    eeg_data: npt.NDArray[np.floating[Any]],
     model: EEGNetClassifier,
 ) -> EEGPredictionResult:
     """Run inference on a single EEG segment.

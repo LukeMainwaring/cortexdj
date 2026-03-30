@@ -16,8 +16,10 @@ from __future__ import annotations
 
 import argparse
 import logging
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from cortexdj.core.paths import SYNTHETIC_DATA_DIR
 
@@ -41,7 +43,7 @@ def _generate_eeg_signal(
     delta_power: float = 0.5,
     gamma_power: float = 0.3,
     noise_level: float = 0.5,
-) -> np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]]:
+) -> npt.NDArray[np.floating[Any]]:
     """Generate synthetic multi-channel EEG with controlled band powers.
 
     Each frequency band is a sum of sinusoids at frequencies within the band,
@@ -82,8 +84,8 @@ def _generate_participant(
     n_trials: int,
     rng: np.random.Generator,
 ) -> tuple[
-    np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
-    np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
+    npt.NDArray[np.floating[Any]],
+    npt.NDArray[np.floating[Any]],
 ]:
     """Generate synthetic EEG data for one participant.
 

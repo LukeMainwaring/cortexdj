@@ -15,8 +15,10 @@ DEAP data format: .dat pickle files per participant with:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import torch
 from torch.utils.data import Dataset
 
@@ -44,8 +46,8 @@ def scores_to_quadrant(arousal: float, valence: float) -> str:
 def load_synthetic_participant(
     file_path: Path,
 ) -> tuple[
-    np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
-    np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
+    npt.NDArray[np.floating[Any]],
+    npt.NDArray[np.floating[Any]],
 ]:
     """Load a single participant's synthetic data.
 
@@ -72,7 +74,7 @@ class EEGEmotionDataset(Dataset[tuple[torch.Tensor, int, int]]):
     ) -> None:
         self.data_dir = Path(data_dir)
         self.segment_samples = segment_samples
-        self.samples: list[tuple[np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]], int, int]] = []
+        self.samples: list[tuple[npt.NDArray[np.floating[Any]], int, int]] = []
 
         # Determine which participants to load
         if participants is None:

@@ -6,7 +6,10 @@ Handles bandpass filtering, feature extraction (differential entropy across
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+import numpy.typing as npt
 from scipy import signal
 
 # Standard EEG frequency bands (Hz)
@@ -23,12 +26,12 @@ DEFAULT_SAMPLING_RATE = 128
 
 
 def bandpass_filter(
-    data: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
+    data: npt.NDArray[np.floating[Any]],
     low: float,
     high: float,
     fs: int = DEFAULT_SAMPLING_RATE,
     order: int = 5,
-) -> np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]]:
+) -> npt.NDArray[np.floating[Any]]:
     """Apply a Butterworth bandpass filter to EEG data.
 
     Args:
@@ -40,14 +43,14 @@ def bandpass_filter(
     """
     nyquist = fs / 2.0
     b, a = signal.butter(order, [low / nyquist, high / nyquist], btype="band")
-    filtered: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]] = signal.filtfilt(b, a, data, axis=-1)
+    filtered: npt.NDArray[np.floating[Any]] = signal.filtfilt(b, a, data, axis=-1)
     return filtered
 
 
 def compute_differential_entropy(
-    data: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
+    data: npt.NDArray[np.floating[Any]],
     fs: int = DEFAULT_SAMPLING_RATE,
-) -> dict[str, np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]]]:
+) -> dict[str, npt.NDArray[np.floating[Any]]]:
     """Compute differential entropy (DE) features across frequency bands.
 
     DE for a Gaussian-distributed signal: DE = 0.5 * ln(2 * pi * e * variance)
@@ -60,20 +63,20 @@ def compute_differential_entropy(
     Returns:
         Dict mapping band name to DE values per channel.
     """
-    de_features: dict[str, np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]]] = {}
+    de_features: dict[str, npt.NDArray[np.floating[Any]]] = {}
 
     for band_name, (low, high) in FREQ_BANDS.items():
         filtered = bandpass_filter(data, low, high, fs)
         variance = np.var(filtered, axis=-1)
         # DE = 0.5 * ln(2 * pi * e * variance), simplified to 0.5 * ln(variance) + const
-        de: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]] = 0.5 * np.log(variance + 1e-10)
+        de: npt.NDArray[np.floating[Any]] = 0.5 * np.log(variance + 1e-10)
         de_features[band_name] = de
 
     return de_features
 
 
 def compute_band_powers(
-    data: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
+    data: npt.NDArray[np.floating[Any]],
     fs: int = DEFAULT_SAMPLING_RATE,
 ) -> dict[str, float]:
     """Compute average power in each frequency band across all channels.
@@ -100,9 +103,9 @@ def compute_band_powers(
 
 
 def extract_features(
-    data: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]],
+    data: npt.NDArray[np.floating[Any]],
     fs: int = DEFAULT_SAMPLING_RATE,
-) -> np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]]:
+) -> npt.NDArray[np.floating[Any]]:
     """Extract a flat feature vector from EEG data.
 
     Concatenates differential entropy across all bands and channels into
@@ -118,5 +121,5 @@ def extract_features(
     de = compute_differential_entropy(data, fs)
     # Stack: (n_bands, n_channels) -> flatten to (n_channels * n_bands,)
     feature_arrays = [de[band] for band in FREQ_BANDS]
-    features: np.ndarray[tuple[int, ...], np.dtype[np.floating[object]]] = np.concatenate(feature_arrays)
+    features: npt.NDArray[np.floating[Any]] = np.concatenate(feature_arrays)
     return features
