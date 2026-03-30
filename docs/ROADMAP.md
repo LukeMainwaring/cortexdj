@@ -25,10 +25,6 @@
 - Attention visualization — which channels/timepoints drive predictions
 
 ## Phase 5: Spotify Deep Integration
-
-- Migrate from Client Credentials to Authorization Code / PKCE flow with token persistence
-- Replace `get_listening_history` placeholder (currently uses search) with real `user-top-tracks` / `recently-played` endpoints
-- Implement `create_playlist` service (currently a TODO stub in `services/spotify.py`)
 - Real-time "Now Playing" correlation — classify brain state while user listens
 - Recommendation engine combining brain-state preferences with Spotify audio features
 - Library analysis — scan user's saved tracks and predict brain-state compatibility
@@ -55,6 +51,5 @@
 ## Technical Debt
 
 - Add comprehensive pytest suite with model mocking
-- Implement proper Spotify OAuth callback with token storage
 - Add WebSocket support for real-time brain state streaming
 - Frontend EEG visualization (recharts or d3 for time-series, brain topomaps)
