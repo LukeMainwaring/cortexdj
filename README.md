@@ -125,27 +125,25 @@ cp .env.sample .env
 docker compose up -d
 
 # Backend setup
-cd backend
-uv sync
-uv run pre-commit install
+uv sync --directory backend
+uv run --directory backend pre-commit install
 
 # Generate synthetic EEG data
-uv run generate-synthetic
+uv run --directory backend generate-synthetic
 
 # Train the EEGNet model
-uv run train-model
+uv run --directory backend train-model
 
 # Seed the database
-uv run seed-sessions
+uv run --directory backend seed-sessions
 
 # Frontend setup
-cd ../frontend
-pnpm install
-pnpm generate-client
+pnpm -C frontend install
+pnpm -C frontend generate-client
 
 # Run
 # Terminal 1: docker compose up -d (if not already running)
-# Terminal 2: cd frontend && pnpm dev
+# Terminal 2: pnpm -C frontend dev
 # Visit http://localhost:3003
 ```
 

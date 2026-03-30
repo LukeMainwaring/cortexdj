@@ -8,44 +8,46 @@ When working with this codebase, prioritize readability over cleverness. Ask cla
 
 ## Common Commands
 
+All commands in this file are designed to run from the repo root. Do not use `cd <dir> && ...` patterns -- use `--directory` (uv) or `-C` (pnpm) flags instead.
+
 ### Backend (Python)
 
 ```bash
 # Install dependencies
-cd backend && uv sync
+uv sync --directory backend
 
 # Run backend with Docker (includes PostgreSQL)
 docker compose up -d
 
 # Pre-commit hooks (covers type checking, linting, and formatting)
-uv run pre-commit run --all-files
+uv run --directory backend pre-commit run --all-files
 
 # Generate synthetic EEG data
-uv run generate-synthetic
+uv run --directory backend generate-synthetic
 
 # Train EEGNet model
-uv run train-model
+uv run --directory backend train-model
 
 # Seed database with EEG sessions
-uv run seed-sessions
+uv run --directory backend seed-sessions
 
 # Create local database migration
-cd backend && ./scripts/create-db-revision-docker.sh "<migration_message>"
+./backend/scripts/create-db-revision-docker.sh "<migration_message>"
 
 # Apply pending migrations
-cd backend && ./scripts/migrate-docker.sh
+./backend/scripts/migrate-docker.sh
 ```
 
 ### Frontend (TypeScript/Next.js)
 
 ```bash
-cd frontend && pnpm install
-cd frontend && pnpm lint            # lint with ultracite
-cd frontend && pnpm format          # format with ultracite
-cd frontend && pnpm generate-client # regenerate API client from backend OpenAPI
+pnpm -C frontend install
+pnpm -C frontend lint            # lint with ultracite
+pnpm -C frontend format          # format with ultracite
+pnpm -C frontend generate-client # regenerate API client from backend OpenAPI
 ```
 
-After making frontend code changes, run `pnpm format` to fix formatting. Use `pnpm lint` to check for errors.
+After making frontend code changes, run `pnpm -C frontend format` to fix formatting. Use `pnpm -C frontend lint` to check for errors.
 
 ## Architecture
 
@@ -91,5 +93,5 @@ Next.js 16 with App Router, adapted from the SampleSpace project.
 - Backend port: 8003, Frontend port: 3003, PostgreSQL port: 5433
 - Synthetic EEG data is gitignored -- use `uv run generate-synthetic` to create.
 - Model checkpoints are gitignored -- use `uv run train-model` to train.
-- After modifying backend API endpoints, regenerate the frontend client with `cd frontend && pnpm generate-client`.
+- After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`.
 - Do not manually edit files in `frontend/api/generated/`.

@@ -21,32 +21,32 @@ This project uses:
 Install dependencies:
 
 ```bash
-cd backend && uv sync
+uv sync --directory backend
 ```
 
 Install pre-commit hooks:
 
 ```bash
-uv run pre-commit install
+uv run --directory backend pre-commit install
 ```
 
 ## Pre-commit hooks
 
 ```bash
-uv run pre-commit run --all-files
+uv run --directory backend pre-commit run --all-files
 ```
 
 ## Database migrations
 
 ```bash
 # Create a new migration
-cd backend && ./scripts/create-db-revision-docker.sh "<migration_message>"
+./backend/scripts/create-db-revision-docker.sh "<migration_message>"
 
 # Apply all pending migrations
-cd backend && ./scripts/migrate-docker.sh
+./backend/scripts/migrate-docker.sh
 
 # Roll back one migration
-cd backend && ./scripts/downgrade-db-revision-docker.sh
+./backend/scripts/downgrade-db-revision-docker.sh
 ```
 
 ## API Client Generation
@@ -58,7 +58,7 @@ After modifying backend API endpoints:
 docker compose up -d
 
 # Regenerate client
-cd frontend && pnpm generate-client
+pnpm -C frontend generate-client
 ```
 
 ## ML Development
@@ -66,15 +66,15 @@ cd frontend && pnpm generate-client
 ### Synthetic Data
 
 ```bash
-uv run generate-synthetic                    # 32 participants, 40 trials each
-uv run generate-synthetic --participants 8   # fewer participants for quick testing
+uv run --directory backend generate-synthetic                    # 32 participants, 40 trials each
+uv run --directory backend generate-synthetic --participants 8   # fewer participants for quick testing
 ```
 
 ### Model Training
 
 ```bash
-uv run train-model
-uv run train-model --epochs 50 --lr 0.001 --folds 5
+uv run --directory backend train-model
+uv run --directory backend train-model --epochs 50 --lr 0.001 --folds 5
 ```
 
 Model checkpoints saved to `backend/data/checkpoints/` (gitignored).
@@ -82,8 +82,8 @@ Model checkpoints saved to `backend/data/checkpoints/` (gitignored).
 ### Database Seeding
 
 ```bash
-uv run seed-sessions                          # seed all 32 participants
-uv run seed-sessions --participants 1 2 3     # seed specific participants
+uv run --directory backend seed-sessions                          # seed all 32 participants
+uv run --directory backend seed-sessions --participants 1 2 3     # seed specific participants
 ```
 
 ## Common Commands
@@ -91,17 +91,17 @@ uv run seed-sessions --participants 1 2 3     # seed specific participants
 ### Backend
 
 ```bash
-cd backend && uv sync                         # Install dependencies
+uv sync --directory backend                   # Install dependencies
 docker compose up -d                          # Start PostgreSQL + backend
-uv run pre-commit run --all-files            # Linting + type checking
+uv run --directory backend pre-commit run --all-files  # Linting + type checking
 ```
 
 ### Frontend
 
 ```bash
-cd frontend && pnpm install
-cd frontend && pnpm dev                       # Start dev server on port 3003
-cd frontend && pnpm lint                      # Lint with ultracite
-cd frontend && pnpm format                    # Format with ultracite
-cd frontend && pnpm generate-client           # Regenerate API client
+pnpm -C frontend install
+pnpm -C frontend dev                          # Start dev server on port 3003
+pnpm -C frontend lint                         # Lint with ultracite
+pnpm -C frontend format                       # Format with ultracite
+pnpm -C frontend generate-client              # Regenerate API client
 ```
