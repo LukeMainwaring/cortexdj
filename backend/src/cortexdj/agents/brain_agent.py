@@ -6,6 +6,7 @@ playlist curation, and model classification tools.
 
 import logging
 
+import logfire
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIResponsesModel
 
@@ -15,6 +16,9 @@ from cortexdj.agents.capabilities.playlist import PlaylistCapability
 from cortexdj.agents.capabilities.session import SessionCapability
 from cortexdj.agents.deps import AgentDeps
 from cortexdj.core.config import get_settings
+
+logfire.configure(service_name="cortexdj")
+logfire.instrument_pydantic_ai()
 
 logger = logging.getLogger(__name__)
 
