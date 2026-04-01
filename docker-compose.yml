@@ -37,7 +37,6 @@ services:
       - .env
     volumes:
       - ./backend/src:/app/src
-      - ./backend/tests:/app/tests
       - ./backend/data:/app/data
     depends_on:
       postgres:
