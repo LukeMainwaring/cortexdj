@@ -9,6 +9,7 @@ Python/FastAPI conventions for the CortexDJ backend.
 - Use f-strings for logging: `logger.info(f"Created {item.id}")`
 - Use descriptive variable names with auxiliary verbs (e.g., `is_active`, `has_permission`)
 - Type hints required on all functions
+- **Comments and docstrings:** Only add comments that explain *why*, not *what*. Don't add docstrings that restate the function name (e.g., `"""Delete a document."""` on `delete()`). Don't add `Args:`/`Returns:` sections that duplicate type annotations. Router endpoint docstrings are the exception — keep those since FastAPI surfaces them in OpenAPI docs. When a docstring adds genuine value (non-obvious behavior, important caveats), keep it concise — one or two lines.
 
 ## Architecture
 
