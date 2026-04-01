@@ -1,5 +1,3 @@
-"""EEG segment schemas."""
-
 from datetime import datetime
 from typing import Any
 
@@ -7,8 +5,6 @@ from .base import BaseSchema
 
 
 class BandPowers(BaseSchema):
-    """EEG frequency band power distribution."""
-
     delta: float
     theta: float
     alpha: float
@@ -17,8 +13,6 @@ class BandPowers(BaseSchema):
 
 
 class SegmentSchema(BaseSchema):
-    """Full segment representation."""
-
     id: str
     session_id: str
     segment_index: int
@@ -33,7 +27,5 @@ class SegmentSchema(BaseSchema):
 
 
 class SegmentListResponse(BaseSchema):
-    """Response containing list of segments for a session."""
-
     segments: list[SegmentSchema]
     total: int

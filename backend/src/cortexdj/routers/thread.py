@@ -1,5 +1,3 @@
-"""Thread CRUD endpoints for conversation management."""
-
 import logging
 
 from fastapi import APIRouter

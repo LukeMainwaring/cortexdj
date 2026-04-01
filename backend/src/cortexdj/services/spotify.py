@@ -32,10 +32,7 @@ SPOTIFY_SCOPES = (
 
 
 def get_spotify_client() -> spotipy.Spotify | None:
-    """Get or create singleton Spotify client (Client Credentials flow).
-
-    Returns None if Spotify credentials are not configured.
-    """
+    """Returns None if Spotify credentials are not configured."""
     global _spotify_client
     if _spotify_client is None and config.spotify_configured:
         _spotify_client = spotipy.Spotify(
@@ -104,7 +101,6 @@ async def fetch_all_pages(
     max_items: int | None = 500,
     **kwargs: Any,
 ) -> tuple[list[dict[str, Any]], int]:
-    """Fetch all pages from a paginated Spotify endpoint."""
     all_items: list[dict[str, Any]] = []
     offset = 0
     total = None
@@ -131,7 +127,6 @@ async def fetch_all_pages(
 
 
 async def search_tracks(query: str, *, limit: int = 10) -> list[dict[str, Any]]:
-    """Search Spotify for tracks by query string."""
     client = get_spotify_client()
     if client is None:
         return []
@@ -158,9 +153,7 @@ async def create_playlist(
     description: str = "",
     client: spotipy.Spotify | None = None,
 ) -> dict[str, Any]:
-    """Create a Spotify playlist and add tracks.
-
-    When a user-authenticated client is provided, creates a real playlist
+    """When a user-authenticated client is provided, creates a real playlist
     on the user's Spotify account. Otherwise returns a local-only record.
     """
     if client is None:
@@ -175,7 +168,6 @@ async def create_playlist(
         }
 
     try:
-        # Create the playlist on Spotify
         user_info = await run_spotify(client.current_user)
         user_id = user_info["id"]
 
@@ -187,7 +179,7 @@ async def create_playlist(
             description=description,
         )
 
-        # Add tracks in batches of 100 (Spotify API limit)
+        # Spotify API limits playlist_add_items to 100 tracks per call
         track_uris = [f"spotify:track:{tid}" for tid in track_ids if tid]
         for i in range(0, len(track_uris), 100):
             batch = track_uris[i : i + 100]

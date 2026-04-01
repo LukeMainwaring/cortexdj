@@ -1,5 +1,3 @@
-"""Session-track association with brain metrics."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -13,8 +11,6 @@ from cortexdj.models.base import Base
 
 
 class SessionTrack(Base):
-    """Maps a track to an EEG session with averaged brain metrics."""
-
     __tablename__ = "session_tracks"
 
     id: Mapped[str] = mapped_column(primary_key=True, index=True)
@@ -28,19 +24,16 @@ class SessionTrack(Base):
 
     @classmethod
     async def get_by_session(cls, db: AsyncSession, session_id: str) -> Sequence[SessionTrack]:
-        """Get all track associations for a session."""
         result = await db.execute(select(cls).where(cls.session_id == session_id).order_by(cls.track_order.asc()))
         return result.scalars().all()
 
     @classmethod
     async def get_by_state(cls, db: AsyncSession, dominant_state: str, *, limit: int = 50) -> Sequence[SessionTrack]:
-        """Find tracks that triggered a specific brain state."""
         result = await db.execute(select(cls).where(cls.dominant_state == dominant_state).limit(limit))
         return result.scalars().all()
 
     @classmethod
     async def get_relaxing_tracks(cls, db: AsyncSession, *, limit: int = 50) -> Sequence[SessionTrack]:
-        """Find tracks with low arousal and high valence (relaxed state)."""
         result = await db.execute(
             select(cls)
             .where(cls.avg_arousal < 0.5, cls.avg_valence >= 0.5)

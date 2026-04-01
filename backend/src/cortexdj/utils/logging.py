@@ -1,5 +1,3 @@
-"""Contextual logging with request context injection."""
-
 import logging
 import uuid
 from contextvars import ContextVar
@@ -59,7 +57,6 @@ class ContextualLogger(logging.Logger):
 
 
 def setup_logging() -> ContextVar[RequestLogContext | None]:
-    """Setup contextual logging and return the context variable for request context."""
     if config.ENVIRONMENT == "development":
         logging.basicConfig(
             format="%(asctime)s %(name)s - %(levelname)s:%(message)s",

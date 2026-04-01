@@ -84,7 +84,6 @@ async def seed_participant(
     data_dir: Path,
     model: object | None,
 ) -> int:
-    """Load one participant's data and seed sessions + segments."""
     file_path = data_dir / f"s{participant_id:02d}.npz"
     if not file_path.exists():
         logger.warning(f"  File not found: {file_path}")
@@ -97,7 +96,6 @@ async def seed_participant(
 
     seeded = 0
     async with get_async_sqlalchemy_session() as db:
-        # Create session for this participant
         session_id = str(uuid.uuid4())
         session = Session(
             id=session_id,
@@ -114,7 +112,6 @@ async def seed_participant(
             valence = float(labels[trial_idx, 0])
             arousal = float(labels[trial_idx, 1])
 
-            # Create or get track
             track_title, track_artist = STIMULUS_TRACKS[trial_idx % len(STIMULUS_TRACKS)]
             existing_track = None
             # Simple dedup by title+artist
@@ -135,7 +132,6 @@ async def seed_participant(
             else:
                 track_id = existing_track.id
 
-            # Segment the trial and classify
             n_samples = trial_data.shape[1]
             n_segments = n_samples // SEGMENT_SAMPLES
             segment_results: list[EEGPredictionResult] = []
@@ -148,7 +144,6 @@ async def seed_participant(
                 if model is not None:
                     prediction = predict_segment(segment_data, model)  # type: ignore[arg-type]
                 else:
-                    # Fallback: use ground truth labels
                     band_powers = compute_band_powers(segment_data)
                     prediction = EEGPredictionResult(
                         arousal_score=arousal / 9.0,
@@ -174,7 +169,6 @@ async def seed_participant(
                 )
                 db.add(eeg_segment)
 
-            # Create session-track association with averaged metrics
             if segment_results:
                 avg_a = sum(r.arousal_score for r in segment_results) / len(segment_results)
                 avg_v = sum(r.valence_score for r in segment_results) / len(segment_results)
@@ -197,7 +191,6 @@ async def seed_participant(
 
 
 async def seed_all(participants: list[int], data_dir: str | None) -> None:
-    """Seed all specified participants."""
     resolved_dir = Path(data_dir) if data_dir else Path(config.SYNTHETIC_DATA_DIR)
 
     if not resolved_dir.exists():
@@ -205,7 +198,6 @@ async def seed_all(participants: list[int], data_dir: str | None) -> None:
         logger.error("Run `uv run generate-synthetic` first to create data.")
         return
 
-    # Try to load trained model
     model = None
     try:
         model = load_model()
@@ -224,7 +216,6 @@ async def seed_all(participants: list[int], data_dir: str | None) -> None:
 
 
 def main() -> None:
-    """CLI entry point for database seeding."""
     parser = argparse.ArgumentParser(description="Seed CortexDJ database with EEG data")
     parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
     parser.add_argument("--data-dir", type=str, default=None)

@@ -1,5 +1,3 @@
-"""Classification and model info capability."""
-
 from dataclasses import dataclass
 
 from pydantic_ai import RunContext, ToolDefinition
@@ -14,8 +12,6 @@ _MODEL_TOOLS = frozenset({get_model_info.__name__})
 
 @dataclass
 class ClassificationCapability(AbstractCapability[AgentDeps]):
-    """EEG classification and brain context tools."""
-
     def get_toolset(self) -> FunctionToolset[AgentDeps]:
         ts: FunctionToolset[AgentDeps] = FunctionToolset()
         ts.tool(get_model_info)

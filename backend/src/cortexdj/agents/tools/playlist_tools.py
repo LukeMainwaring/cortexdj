@@ -1,5 +1,3 @@
-"""Agent tools for Spotify playlist curation based on brain data."""
-
 from __future__ import annotations
 
 import uuid
@@ -26,7 +24,6 @@ async def find_relaxing_tracks(ctx: RunContext[AgentDeps], limit: int = 20) -> s
     if not all_tracks:
         return "No tracks with relaxation data found. Make sure sessions are seeded with track associations."
 
-    # Deduplicate by track_id
     seen: set[str] = set()
     unique: list[dict[str, object]] = []
     for t in all_tracks:
@@ -63,12 +60,10 @@ async def build_mood_playlist(
 
     playlist_name = name or f"CortexDJ: {mood.capitalize()} Mix"
 
-    # Bulk look up Spotify track IDs for real playlist creation
     internal_ids = [str(t["track_id"]) for t in tracks]
     db_tracks = await Track.get_many(ctx.deps.db, internal_ids)
     spotify_track_ids = [t.spotify_track_id for t in db_tracks if t.spotify_track_id]
 
-    # Record playlist in database
     playlist = Playlist(
         id=str(uuid.uuid4()),
         name=playlist_name,
@@ -78,7 +73,6 @@ async def build_mood_playlist(
     ctx.deps.db.add(playlist)
     await ctx.deps.db.flush()
 
-    # Create on Spotify if we have valid Spotify track IDs
     spotify_result = await spotify_service.create_playlist(
         playlist_name,
         spotify_track_ids,
@@ -86,7 +80,6 @@ async def build_mood_playlist(
         client=ctx.deps.spotify_client,
     )
 
-    # Update playlist record with Spotify ID if created
     if spotify_result.get("spotify_playlist_id"):
         playlist.spotify_playlist_id = spotify_result["spotify_playlist_id"]
         await ctx.deps.db.flush()

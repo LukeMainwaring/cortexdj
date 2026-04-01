@@ -1,5 +1,3 @@
-"""EEG segment model with emotion classification results."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -14,8 +12,6 @@ from cortexdj.models.base import Base
 
 
 class EegSegment(Base):
-    """Classified EEG segment within a recording session."""
-
     __tablename__ = "eeg_segments"
 
     id: Mapped[str] = mapped_column(primary_key=True, index=True)
@@ -32,13 +28,11 @@ class EegSegment(Base):
 
     @classmethod
     async def get_by_session(cls, db: AsyncSession, session_id: str) -> Sequence[EegSegment]:
-        """Get all segments for a session, ordered by index."""
         result = await db.execute(select(cls).where(cls.session_id == session_id).order_by(cls.segment_index.asc()))
         return result.scalars().all()
 
     @classmethod
     async def get_by_state(cls, db: AsyncSession, dominant_state: str, *, limit: int = 50) -> Sequence[EegSegment]:
-        """Get segments matching a specific emotional state."""
         result = await db.execute(
             select(cls).where(cls.dominant_state == dominant_state).order_by(cls.created_at.desc()).limit(limit)
         )

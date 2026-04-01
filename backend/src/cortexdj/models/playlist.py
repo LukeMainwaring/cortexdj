@@ -1,5 +1,3 @@
-"""Agent-generated playlist model."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -14,8 +12,6 @@ from cortexdj.models.base import Base
 
 
 class Playlist(Base):
-    """Agent-generated Spotify playlist with brain-derived mood criteria."""
-
     __tablename__ = "playlists"
 
     id: Mapped[str] = mapped_column(primary_key=True, index=True)
@@ -27,12 +23,10 @@ class Playlist(Base):
 
     @classmethod
     async def get(cls, db: AsyncSession, playlist_id: str) -> Playlist | None:
-        """Get a playlist by ID."""
         result = await db.execute(select(cls).where(cls.id == playlist_id))
         return result.scalar_one_or_none()
 
     @classmethod
     async def get_all(cls, db: AsyncSession, *, limit: int = 50) -> Sequence[Playlist]:
-        """Get all playlists."""
         result = await db.execute(select(cls).order_by(cls.created_at.desc()).limit(limit))
         return result.scalars().all()

@@ -1,5 +1,3 @@
-"""Agent tools for EEG session analysis."""
-
 from __future__ import annotations
 
 import json

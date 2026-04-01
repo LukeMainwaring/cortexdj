@@ -1,5 +1,3 @@
-"""Playlist curation capability with conditional Spotify tools."""
-
 from dataclasses import dataclass
 
 from pydantic_ai import RunContext, ToolDefinition
@@ -18,8 +16,6 @@ _SPOTIFY_ONLY_TOOLS = frozenset({get_listening_history.__name__})
 
 @dataclass
 class PlaylistCapability(AbstractCapability[AgentDeps]):
-    """Playlist curation tools. Spotify-dependent tools hidden when not configured."""
-
     def get_toolset(self) -> FunctionToolset[AgentDeps]:
         ts: FunctionToolset[AgentDeps] = FunctionToolset()
         ts.tool(find_relaxing_tracks)

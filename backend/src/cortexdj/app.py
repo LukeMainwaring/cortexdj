@@ -30,7 +30,6 @@ def generate_operation_id(route: APIRoute) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Application lifespan: load ML models at startup, clean up on shutdown."""
     logger.info("Starting CortexDJ backend...")
 
     try:
@@ -74,7 +73,6 @@ app.include_router(api_router, prefix=config.API_PREFIX)
 
 @app.middleware("http")
 async def add_request_context(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-    """Inject request context into ContextVar for structured logging."""
     request_json = None
     if request.method in {"POST", "PUT", "PATCH"}:
         try:

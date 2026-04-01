@@ -1,5 +1,3 @@
-"""Agent tools for brain state insights and explanations."""
-
 from __future__ import annotations
 
 import json

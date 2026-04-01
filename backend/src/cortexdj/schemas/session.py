@@ -1,5 +1,3 @@
-"""EEG session schemas."""
-
 from datetime import datetime
 from typing import Any
 
@@ -7,8 +5,6 @@ from .base import BaseSchema
 
 
 class SessionSchema(BaseSchema):
-    """Full session representation."""
-
     id: str
     participant_id: str
     dataset_source: str
@@ -19,8 +15,6 @@ class SessionSchema(BaseSchema):
 
 
 class SessionCreateSchema(BaseSchema):
-    """Schema for creating a new session."""
-
     id: str
     participant_id: str
     dataset_source: str
@@ -30,7 +24,5 @@ class SessionCreateSchema(BaseSchema):
 
 
 class SessionListResponse(BaseSchema):
-    """Response containing list of sessions."""
-
     sessions: list[SessionSchema]
     total: int

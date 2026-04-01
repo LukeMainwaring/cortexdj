@@ -53,11 +53,11 @@ def _generate_eeg_signal(
     signal = np.zeros((n_channels, n_samples))
 
     band_configs = [
-        (1.0, 4.0, delta_power),  # Delta
-        (4.0, 8.0, theta_power),  # Theta
-        (8.0, 14.0, alpha_power),  # Alpha
-        (14.0, 30.0, beta_power),  # Beta
-        (30.0, 40.0, gamma_power),  # Gamma
+        (1.0, 4.0, delta_power),
+        (4.0, 8.0, theta_power),
+        (8.0, 14.0, alpha_power),
+        (14.0, 30.0, beta_power),
+        (30.0, 40.0, gamma_power),
     ]
 
     rng = np.random.default_rng()
@@ -65,14 +65,12 @@ def _generate_eeg_signal(
     for ch in range(n_channels):
         ch_signal = np.zeros(n_samples)
         for low, high, power in band_configs:
-            # 3 sinusoids per band at random frequencies
             for _ in range(3):
                 freq = rng.uniform(low, high)
                 phase = rng.uniform(0, 2 * np.pi)
                 amplitude = power * rng.uniform(0.5, 1.5)
                 ch_signal += amplitude * np.sin(2 * np.pi * freq * t + phase)
 
-        # Add Gaussian noise
         ch_signal += noise_level * rng.normal(size=n_samples)
         signal[ch] = ch_signal
 
@@ -89,18 +87,16 @@ def _generate_participant(
 ]:
     """Generate synthetic EEG data for one participant.
 
-    Each trial has randomized band power profiles that determine the
-    arousal/valence labels:
-      - High alpha → relaxed (low arousal, high valence)
-      - High beta → stressed (high arousal, low valence)
-      - High alpha + theta → calm (low arousal, low valence)
-      - High beta + alpha → excited (high arousal, high valence)
+    Band power profiles determine the arousal/valence labels:
+      - High alpha -> relaxed (low arousal, high valence)
+      - High beta -> stressed (high arousal, low valence)
+      - High alpha + theta -> calm (low arousal, low valence)
+      - High beta + alpha -> excited (high arousal, high valence)
     """
     all_data = np.zeros((n_trials, NUM_CHANNELS, TRIAL_SAMPLES))
     all_labels = np.zeros((n_trials, 4))
 
     for trial in range(n_trials):
-        # Randomly assign emotion profile
         profile = rng.choice(["relaxed", "stressed", "calm", "excited"])
 
         if profile == "relaxed":
@@ -132,7 +128,6 @@ def _generate_participant(
 
 
 def generate(*, n_participants: int = 32, n_trials: int = 40) -> None:
-    """Generate synthetic EEG data for all participants."""
     SYNTHETIC_DATA_DIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(42)
 
@@ -148,7 +143,6 @@ def generate(*, n_participants: int = 32, n_trials: int = 40) -> None:
 
 
 def main() -> None:
-    """CLI entry point for synthetic data generation."""
     parser = argparse.ArgumentParser(description="Generate synthetic EEG data")
     parser.add_argument("--participants", type=int, default=32, help="Number of participants")
     parser.add_argument("--trials", type=int, default=40, help="Trials per participant")

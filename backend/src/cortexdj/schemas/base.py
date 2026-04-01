@@ -1,5 +1,3 @@
-"""Base schema with ORM mode for all ORM-mapped schemas."""
-
 import pydantic
 
 

@@ -1,5 +1,3 @@
-"""Message model for conversation persistence."""
-
 from datetime import datetime
 from typing import Any
 
@@ -12,8 +10,6 @@ from cortexdj.models.base import Base
 
 
 class Message(Base):
-    """Message model representing a single message in conversation history."""
-
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -32,7 +28,6 @@ class Message(Base):
 
     @classmethod
     async def get_history(cls, db: AsyncSession, thread_id: str, agent_type: str) -> list[dict[str, Any]]:
-        """Get all messages for a thread in chronological order."""
         result = await db.execute(
             select(cls.message_data)
             .where(cls.thread_id == thread_id, cls.agent_type == agent_type)

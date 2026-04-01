@@ -1,5 +1,3 @@
-"""EEG session REST endpoints."""
-
 from fastapi import APIRouter, HTTPException
 
 from cortexdj.dependencies.db import AsyncPostgresSessionDep

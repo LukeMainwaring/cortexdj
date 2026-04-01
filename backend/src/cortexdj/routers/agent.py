@@ -51,7 +51,6 @@ async def stream_chat(
     eeg_model = _get_eeg_model(request)
     spotify_client = await get_user_spotify_client(db) or get_spotify_client()
 
-    # Load existing brain context for this thread
     thread = await Thread.get(db, thread_id, AgentType.CHAT.value)
     existing_context = BrainContext.model_validate(thread.brain_context) if thread and thread.brain_context else None
 

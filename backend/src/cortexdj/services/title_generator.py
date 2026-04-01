@@ -1,5 +1,3 @@
-"""Title generation service for chat threads."""
-
 import logging
 
 from openai import AsyncOpenAI
@@ -20,7 +18,6 @@ MAX_FALLBACK_LENGTH = 40
 
 
 def _create_fallback_title(user_message: str) -> str:
-    """Create a fallback title from the user message when LLM fails."""
     title = user_message.strip()
     if len(title) <= MAX_FALLBACK_LENGTH:
         return title

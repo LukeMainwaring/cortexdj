@@ -1,5 +1,3 @@
-"""Track schemas."""
-
 from datetime import datetime
 from typing import Any
 
@@ -7,8 +5,6 @@ from .base import BaseSchema
 
 
 class TrackSchema(BaseSchema):
-    """Full track representation."""
-
     id: str
     spotify_track_id: str | None = None
     title: str
@@ -20,8 +16,6 @@ class TrackSchema(BaseSchema):
 
 
 class TrackCreateSchema(BaseSchema):
-    """Schema for creating a new track."""
-
     id: str
     spotify_track_id: str | None = None
     title: str

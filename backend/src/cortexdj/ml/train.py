@@ -33,7 +33,6 @@ def train_fold(
     lr: float,
     device: torch.device,
 ) -> tuple[EEGNetClassifier, dict[str, float]]:
-    """Train one fold and return the model + metrics."""
     model = EEGNetClassifier().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
@@ -120,7 +119,6 @@ def train(
     batch_size: int = 32,
     n_folds: int = 5,
 ) -> None:
-    """Train EEGNet with k-fold cross-validation."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
@@ -137,7 +135,6 @@ def train(
         logger.error("No data found. Run `uv run generate-synthetic` first.")
         return
 
-    # K-fold cross-validation
     n_samples = len(dataset)
     indices = list(range(n_samples))
     fold_size = n_samples // n_folds
@@ -166,7 +163,6 @@ def train(
         )
         all_metrics.append(metrics)
 
-    # Summary
     avg_arousal = sum(m["best_val_arousal_acc"] for m in all_metrics) / n_folds
     avg_valence = sum(m["best_val_valence_acc"] for m in all_metrics) / n_folds
     avg_overall = sum(m["best_val_avg_acc"] for m in all_metrics) / n_folds
@@ -175,7 +171,6 @@ def train(
     logger.info(f"Avg Valence Accuracy: {avg_valence:.4f}")
     logger.info(f"Avg Overall Accuracy: {avg_overall:.4f}")
 
-    # Save the final fold's best model as checkpoint
     CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
     checkpoint_path = CHECKPOINTS_DIR / "eegnet_best.pt"
     torch.save(
@@ -195,7 +190,6 @@ def train(
 
 
 def main() -> None:
-    """CLI entry point for model training."""
     parser = argparse.ArgumentParser(description="Train EEGNet on EEG emotion data")
     parser.add_argument("--epochs", type=int, default=30, help="Training epochs per fold")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")

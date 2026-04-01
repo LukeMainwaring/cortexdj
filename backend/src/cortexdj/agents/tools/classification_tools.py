@@ -1,5 +1,3 @@
-"""Agent tools for EEG classification and model info."""
-
 from __future__ import annotations
 
 import json
@@ -23,7 +21,6 @@ async def get_model_info(ctx: RunContext[AgentDeps]) -> str:
     param_count = sum(p.numel() for p in model.parameters())
     trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    # Try to load training metrics from checkpoint
     checkpoint_path = CHECKPOINTS_DIR / "eegnet_best.pt"
     metrics = {}
     if checkpoint_path.exists():

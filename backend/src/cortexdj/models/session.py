@@ -1,5 +1,3 @@
-"""EEG recording session model."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -14,8 +12,6 @@ from cortexdj.models.base import Base
 
 
 class Session(Base):
-    """EEG recording session representing one participant's trial batch."""
-
     __tablename__ = "sessions"
 
     id: Mapped[str] = mapped_column(primary_key=True, index=True)
@@ -28,13 +24,11 @@ class Session(Base):
 
     @classmethod
     async def get(cls, db: AsyncSession, session_id: str) -> Session | None:
-        """Get a session by ID."""
         result = await db.execute(select(cls).where(cls.id == session_id))
         return result.scalar_one_or_none()
 
     @classmethod
     async def get_all(cls, db: AsyncSession, *, limit: int = 50, offset: int = 0) -> tuple[Sequence[Session], int]:
-        """Get all sessions with pagination."""
         count_result = await db.execute(select(func.count(cls.id)))
         total = count_result.scalar() or 0
         result = await db.execute(select(cls).order_by(cls.recorded_at.desc()).limit(limit).offset(offset))
@@ -42,7 +36,6 @@ class Session(Base):
 
     @classmethod
     async def get_by_participant(cls, db: AsyncSession, participant_id: str) -> Sequence[Session]:
-        """Get all sessions for a participant."""
         result = await db.execute(
             select(cls).where(cls.participant_id == participant_id).order_by(cls.recorded_at.desc())
         )

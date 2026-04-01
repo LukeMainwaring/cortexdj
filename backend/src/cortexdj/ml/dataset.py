@@ -32,7 +32,6 @@ VALENCE_THRESHOLD = 5.0
 
 
 def scores_to_quadrant(arousal: float, valence: float) -> str:
-    """Map arousal/valence scores to emotion quadrant label."""
     if arousal >= AROUSAL_THRESHOLD and valence >= VALENCE_THRESHOLD:
         return "excited"
     elif arousal < AROUSAL_THRESHOLD and valence >= VALENCE_THRESHOLD:
@@ -49,12 +48,6 @@ def load_synthetic_participant(
     npt.NDArray[np.floating[Any]],
     npt.NDArray[np.floating[Any]],
 ]:
-    """Load a single participant's synthetic data.
-
-    Returns:
-        (data, labels) where data is (n_trials, n_channels, n_samples)
-        and labels is (n_trials, 4).
-    """
     npz = np.load(file_path)
     return npz["data"], npz["labels"]
 
@@ -76,7 +69,6 @@ class EEGEmotionDataset(Dataset[tuple[torch.Tensor, int, int]]):
         self.segment_samples = segment_samples
         self.samples: list[tuple[npt.NDArray[np.floating[Any]], int, int]] = []
 
-        # Determine which participants to load
         if participants is None:
             files = sorted(self.data_dir.glob("*.npz"))
         else:
@@ -87,7 +79,6 @@ class EEGEmotionDataset(Dataset[tuple[torch.Tensor, int, int]]):
             self._load_participant(file_path)
 
     def _load_participant(self, file_path: Path) -> None:
-        """Load one participant's data and segment into training samples."""
         data, labels = load_synthetic_participant(file_path)
         n_trials = data.shape[0]
 
@@ -99,7 +90,6 @@ class EEGEmotionDataset(Dataset[tuple[torch.Tensor, int, int]]):
             arousal_label = 1 if arousal >= AROUSAL_THRESHOLD else 0
             valence_label = 1 if valence >= VALENCE_THRESHOLD else 0
 
-            # Segment the trial into fixed-length windows
             n_samples = trial_data.shape[1]
             n_segments = n_samples // self.segment_samples
 

@@ -1,5 +1,3 @@
-"""Emotion quadrant mapping utilities."""
-
 from __future__ import annotations
 
 # Emotion quadrants based on arousal-valence model (Russell, 1980)
@@ -35,10 +33,8 @@ BRAIN_STATE_EXPLANATIONS: dict[str, str] = {
 
 
 def quadrant_to_mood_description(state: str) -> str:
-    """Get a human-readable description of an emotion quadrant."""
     return QUADRANT_DESCRIPTIONS.get(state, f"Unknown state: {state}")
 
 
 def get_brain_state_explanation(state: str) -> str:
-    """Get a detailed explanation of what the brain was doing in a given state."""
     return BRAIN_STATE_EXPLANATIONS.get(state, f"No detailed explanation available for state: {state}")

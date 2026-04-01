@@ -1,5 +1,3 @@
-"""SQLAlchemy ORM models."""
-
 from .base import Base
 from .eeg_segment import EegSegment
 from .message import Message

@@ -26,10 +26,8 @@ FEATURE_DIM = NUM_CHANNELS * NUM_BANDS  # 160
 
 
 class EEGNetClassifier(nn.Module):
-    """Dual-head classifier for EEG emotion classification.
-
-    Takes differential entropy features (n_channels * n_bands) and predicts
-    binary arousal and valence labels.
+    """Dual-head classifier taking differential entropy features (n_channels * n_bands)
+    and predicting binary arousal and valence labels.
     """
 
     def __init__(
@@ -60,7 +58,6 @@ class EEGNetClassifier(nn.Module):
             nn.Dropout(dropout),
         )
 
-        # Shared backbone
         self.backbone = nn.Sequential(
             nn.Linear(32, hidden_dim),
             nn.ReLU(inplace=True),
@@ -70,29 +67,20 @@ class EEGNetClassifier(nn.Module):
             nn.Dropout(dropout),
         )
 
-        # Dual classification heads
         self.arousal_head = nn.Linear(hidden_dim, 2)
         self.valence_head = nn.Linear(hidden_dim, 2)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Forward pass returning (arousal_logits, valence_logits).
-
-        Args:
-            x: Feature tensor of shape (batch, n_features) or (batch, n_channels, n_bands).
-        """
+        """Forward pass returning (arousal_logits, valence_logits)."""
         if x.dim() == 2:
-            # Reshape flat features to (batch, 1, n_channels, n_bands)
             x = x.view(-1, 1, self.n_channels, self.n_bands)
 
-        # Conv path
         x = self.spatial_conv(x)  # (batch, 16, 1, n_bands)
         x = self.temporal_conv(x)  # (batch, 32, 1, 1)
         x = x.view(x.size(0), -1)  # (batch, 32)
 
-        # Shared backbone
         x = self.backbone(x)
 
-        # Dual heads
         arousal_logits = self.arousal_head(x)
         valence_logits = self.valence_head(x)
 

@@ -1,5 +1,3 @@
-"""Single-row Spotify OAuth token storage."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -14,10 +12,8 @@ _SINGLETON_ID = 1
 
 
 class SpotifyToken(Base):
-    """Stores Spotify OAuth tokens for the single-user local app.
-
-    Uses a singleton pattern (always row id=1) since CortexDJ
-    has no user authentication.
+    """Stores Spotify OAuth tokens using a singleton pattern (always row id=1)
+    since CortexDJ has no user authentication.
     """
 
     __tablename__ = "spotify_tokens"
@@ -31,7 +27,6 @@ class SpotifyToken(Base):
 
     @classmethod
     async def get(cls, db: AsyncSession) -> SpotifyToken | None:
-        """Get the singleton token row."""
         result = await db.execute(select(cls).where(cls.id == _SINGLETON_ID))
         return result.scalar_one_or_none()
 
@@ -43,7 +38,6 @@ class SpotifyToken(Base):
         refresh_token: str,
         expires_at: datetime,
     ) -> SpotifyToken:
-        """Create or update the singleton token row."""
         token = await cls.get(db)
         if token is None:
             token = cls(
@@ -62,7 +56,6 @@ class SpotifyToken(Base):
 
     @classmethod
     async def clear(cls, db: AsyncSession) -> None:
-        """Delete the singleton token row (disconnect Spotify)."""
         token = await cls.get(db)
         if token is not None:
             await db.delete(token)
@@ -70,5 +63,4 @@ class SpotifyToken(Base):
 
     @classmethod
     async def is_connected(cls, db: AsyncSession) -> bool:
-        """Check if Spotify tokens exist."""
         return await cls.get(db) is not None

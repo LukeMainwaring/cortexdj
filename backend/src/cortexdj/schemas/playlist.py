@@ -1,5 +1,3 @@
-"""Playlist schemas."""
-
 from datetime import datetime
 from typing import Any
 
@@ -7,8 +5,6 @@ from .base import BaseSchema
 
 
 class PlaylistSchema(BaseSchema):
-    """Full playlist representation."""
-
     id: str
     spotify_playlist_id: str | None = None
     name: str
@@ -18,8 +14,6 @@ class PlaylistSchema(BaseSchema):
 
 
 class PlaylistCreateSchema(BaseSchema):
-    """Schema for creating a new playlist."""
-
     id: str
     spotify_playlist_id: str | None = None
     name: str

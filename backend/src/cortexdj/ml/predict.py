@@ -1,5 +1,3 @@
-"""Inference wrapper for the trained EEGNet model."""
-
 from __future__ import annotations
 
 import logging
@@ -23,8 +21,6 @@ DEFAULT_CHECKPOINT = CHECKPOINTS_DIR / "eegnet_best.pt"
 
 @dataclass
 class EEGPredictionResult:
-    """Result from EEGNet inference on a single segment."""
-
     arousal_score: float
     valence_score: float
     arousal_class: str
@@ -34,7 +30,6 @@ class EEGPredictionResult:
 
 
 def load_model(checkpoint_path: str | Path | None = None) -> EEGNetClassifier:
-    """Load a trained EEGNetClassifier from a checkpoint."""
     path = Path(checkpoint_path) if checkpoint_path else DEFAULT_CHECKPOINT
 
     if not path.exists():
@@ -54,15 +49,7 @@ def predict_segment(
     eeg_data: npt.NDArray[np.floating[Any]],
     model: EEGNetClassifier,
 ) -> EEGPredictionResult:
-    """Run inference on a single EEG segment.
-
-    Args:
-        eeg_data: EEG signal array (n_channels x n_samples).
-        model: Trained EEGNetClassifier.
-
-    Returns:
-        Prediction result with arousal/valence scores and dominant state.
-    """
+    """Run inference on a single EEG segment (n_channels x n_samples)."""
     features = extract_features(eeg_data)
     features_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)
 
@@ -78,9 +65,9 @@ def predict_segment(
     arousal_class = "high" if arousal_score >= 0.5 else "low"
     valence_class = "high" if valence_score >= 0.5 else "low"
 
-    # Map to emotion quadrant using raw score thresholds
+    # Scale 0-1 back to 0-10 for quadrant mapping
     dominant_state = scores_to_quadrant(
-        arousal_score * 10,  # Scale 0-1 back to 0-10 for quadrant mapping
+        arousal_score * 10,
         valence_score * 10,
     )
 

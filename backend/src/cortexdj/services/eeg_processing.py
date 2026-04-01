@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 async def get_session_analysis(db: AsyncSession, session_id: str) -> dict[str, Any]:
-    """Get full analysis of a session including segment breakdown and tracks."""
     session = await Session.get(db, session_id)
     if session is None:
         return {"error": f"Session {session_id} not found."}
@@ -36,7 +35,6 @@ async def get_session_analysis(db: AsyncSession, session_id: str) -> dict[str, A
         for s in segments
     ]
 
-    # Get associated tracks
     session_tracks = await SessionTrack.get_by_session(db, session_id)
     track_info = []
     for st in session_tracks:
@@ -63,7 +61,6 @@ async def get_session_analysis(db: AsyncSession, session_id: str) -> dict[str, A
 
 
 async def compare_sessions(db: AsyncSession, session_id_1: str, session_id_2: str) -> dict[str, Any]:
-    """Compare brain state patterns across two sessions."""
     summary_1 = await EegSegment.get_session_summary(db, session_id_1)
     summary_2 = await EegSegment.get_session_summary(db, session_id_2)
 
@@ -82,7 +79,6 @@ async def compare_sessions(db: AsyncSession, session_id_1: str, session_id_2: st
 
 
 async def find_tracks_by_mood(db: AsyncSession, target_state: str, *, limit: int = 20) -> list[dict[str, Any]]:
-    """Find tracks that triggered a specific brain state."""
     session_tracks = await SessionTrack.get_by_state(db, target_state, limit=limit)
 
     results = []

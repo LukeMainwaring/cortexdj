@@ -1,6 +1,5 @@
-"""Spotify OAuth API endpoints.
+"""Spotify OAuth endpoints.
 
-Provides endpoints for connecting/disconnecting Spotify via OAuth.
 Simplified from Earworm's implementation: no user auth (single-user local app).
 """
 
@@ -36,7 +35,6 @@ _STATE_TTL_SECONDS = 600  # 10 minutes
 
 
 def get_oauth_manager() -> SpotifyOAuth:
-    """Create a SpotifyOAuth manager for OAuth flows."""
     if not config.SPOTIFY_CLIENT_ID or not config.SPOTIFY_CLIENT_SECRET:
         raise HTTPException(
             status_code=503,
@@ -52,18 +50,12 @@ def get_oauth_manager() -> SpotifyOAuth:
 
 @spotify_auth_router.get("/connect")
 async def connect_spotify() -> dict[str, str]:
-    """Get the Spotify authorization URL to start OAuth flow.
-
-    Returns:
-        Dict containing the auth_url to redirect the user to.
-    """
+    """Get the Spotify authorization URL to start OAuth flow."""
     oauth = get_oauth_manager()
-    # Prune expired states
     now = time.monotonic()
     expired = [s for s, t in _pending_oauth_states.items() if now - t > _STATE_TTL_SECONDS]
     for s in expired:
         _pending_oauth_states.pop(s, None)
-    # Cap the number of pending states
     if len(_pending_oauth_states) >= _MAX_PENDING_STATES:
         _pending_oauth_states.clear()
 
@@ -81,11 +73,7 @@ async def spotify_callback(
     state: str | None = None,
     error: str | None = None,
 ) -> RedirectResponse:
-    """Handle Spotify OAuth callback.
-
-    Exchanges the authorization code for access tokens and stores them.
-    Also handles user-denied authorization (Spotify sends ?error=access_denied).
-    """
+    """Handle Spotify OAuth callback and exchange code for tokens."""
     redirect_base = f"{config.FRONTEND_URL}/settings/spotify"
 
     if error:

@@ -1,5 +1,3 @@
-"""Application configuration using Pydantic Settings."""
-
 from functools import lru_cache
 from typing import Literal
 
@@ -9,8 +7,6 @@ from cortexdj.core.paths import _BACKEND_ROOT, CHECKPOINTS_DIR, SYNTHETIC_DATA_D
 
 
 class ApiSettings(BaseSettings):
-    """API and CORS configuration."""
-
     API_PREFIX: str = "/api"
     ALLOWED_ORIGINS: dict[str, list[str]] = {
         "development": ["http://localhost:3003"],
@@ -19,14 +15,10 @@ class ApiSettings(BaseSettings):
 
 
 class AgentSettings(BaseSettings):
-    """Pydantic AI agent configuration."""
-
     AGENT_MODEL: str = "gpt-4o-mini"
 
 
 class PostgresSettings(BaseSettings):
-    """PostgreSQL connection configuration."""
-
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
@@ -35,8 +27,6 @@ class PostgresSettings(BaseSettings):
 
 
 class SpotifySettings(BaseSettings):
-    """Spotify OAuth configuration (optional)."""
-
     SPOTIFY_CLIENT_ID: str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
     SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8003/api/spotify/callback"
@@ -49,8 +39,6 @@ class Settings(
     PostgresSettings,
     SpotifySettings,
 ):
-    """Main application settings."""
-
     model_config = SettingsConfigDict(
         env_file=str(_BACKEND_ROOT.parent / ".env"),
         env_ignore_empty=True,
@@ -62,16 +50,13 @@ class Settings(
     CHECKPOINTS_DIR: str = str(CHECKPOINTS_DIR)
 
     def is_production(self) -> bool:
-        """Check if running in production environment."""
         return self.ENVIRONMENT == "production"
 
     @property
     def spotify_configured(self) -> bool:
-        """Check if Spotify credentials are set."""
         return bool(self.SPOTIFY_CLIENT_ID and self.SPOTIFY_CLIENT_SECRET)
 
 
 @lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings instance."""
     return Settings.model_validate({})
