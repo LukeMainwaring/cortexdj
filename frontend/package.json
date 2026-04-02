@@ -11,7 +11,7 @@
     "generate-client": "node api/scripts/modifyOpenApiFile.mjs && openapi-ts && pnpm run format"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.143",
+    "@ai-sdk/react": "^3.0.145",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -20,8 +20,8 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@tanstack/react-query": "^5.95.2",
-    "ai": "^6.0.141",
+    "@tanstack/react-query": "^5.96.1",
+    "ai": "^6.0.143",
     "axios": "^1.14.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -30,7 +30,7 @@
     "geist": "^1.7.0",
     "lucide-react": "^1.7.0",
     "motion": "^12.38.0",
-    "next": "16.2.1",
+    "next": "16.2.2",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
-    "@hey-api/openapi-ts": "^0.94.5",
+    "@hey-api/openapi-ts": "^0.95.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
@@ -52,7 +52,7 @@
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
-    "ultracite": "7.4.0"
+    "ultracite": "7.4.2"
   },
   "packageManager": "pnpm@9.12.3"
 }
