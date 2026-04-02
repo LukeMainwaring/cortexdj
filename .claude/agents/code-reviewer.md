@@ -2,6 +2,7 @@
 name: code-reviewer
 description: "Reviews code changes on the current branch for quality, correctness, security, and adherence to project conventions. Use before creating a PR. Examples:\n\n1. Pre-PR review:\nuser: \"Review my changes before I create a PR\"\nassistant: \"Let me use the code-reviewer agent to analyze your branch changes.\"\n<Task tool call to code-reviewer agent>\n\n2. Targeted review:\nuser: \"Review the backend changes I made\"\nassistant: \"I'll have the code-reviewer agent focus on the backend changes on your branch.\"\n<Task tool call to code-reviewer agent>\n\n3. After finishing a feature:\nassistant: \"The feature is implemented. Let me run the code-reviewer agent to check the changes before you create a PR.\"\n<Task tool call to code-reviewer agent>"
 model: inherit
+effort: high
 tools: Read, Glob, Grep, Bash
 ---
 
