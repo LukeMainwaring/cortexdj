@@ -15,7 +15,7 @@ class ApiSettings(BaseSettings):
 
 
 class AgentSettings(BaseSettings):
-    AGENT_MODEL: str = "gpt-4o-mini"
+    AGENT_MODEL: str = "gpt-5.4-mini"
 
 
 class PostgresSettings(BaseSettings):
