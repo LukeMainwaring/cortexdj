@@ -5,6 +5,8 @@ description: "Update all dependencies to latest versions, re-download library do
 
 # Update Dependencies
 
+> For scheduled/autonomous execution, use the `updating-deps-auto` skill instead.
+
 Update all backend and frontend dependencies to their latest versions, refresh library documentation, validate the build, and review changelogs for refactoring opportunities.
 
 ## Phase 1: Branch Setup

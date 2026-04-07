@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:ai.pydantic.dev)"
+      "WebFetch(domain:ai.pydantic.dev)",
+      "WebFetch(domain:ai-sdk.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(git:*)",
+      "Bash(uv lock:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)",
+      "Bash(pnpm:*)",
+      "Bash(curl:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh label:*)",
+      "Bash(npm info:*)",
+      "Bash(npm view:*)"
     ],
     "deny": [],
     "ask": []
