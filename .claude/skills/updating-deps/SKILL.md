@@ -1,6 +1,8 @@
 ---
 name: updating-deps
 description: "Update all dependencies to latest versions, re-download library docs, and review changelogs for refactoring opportunities."
+model: opus
+effort: high
 ---
 
 # Update Dependencies
