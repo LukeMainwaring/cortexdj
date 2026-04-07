@@ -201,28 +201,21 @@ If no fixes were needed, skip this commit.
 
 Record the code review summary and verdict for inclusion in the PR body.
 
-## Phase 9: Push + Create PR
+## Phase 9: Write PR Body + Push
 
-### Push
+PR creation is handled automatically by a GitHub Action (`.github/workflows/create-deps-pr.yml`) that triggers when the branch is pushed. The skill's job is to write the PR body to a file and push.
+
+### Write PR Body
+
+Create the directory and write the PR body markdown file:
 
 ```bash
-git push -u origin update-deps/$(date +%Y-%m-%d)
+mkdir -p .github/update-deps/$(date +%Y-%m-%d)
 ```
 
-### Duplicate Guard
+Write the PR body to `.github/update-deps/$(date +%Y-%m-%d)/pr-body.md` with the following structure. Replace all placeholders with actual content from previous phases:
 
-Before creating a PR, check if one already exists for this branch:
-
-```bash
-gh pr list --head update-deps/$(date +%Y-%m-%d) --json number
-```
-
-If a PR already exists, skip creation and return the existing PR URL.
-
-### Create PR
-
-```bash
-gh pr create --title "chore: bump all dependencies ($(date +%Y-%m-%d))" --body "$(cat <<'EOF'
+```markdown
 ## Summary
 - Automated dependency update for YYYY-MM-DD
 - X backend deps updated, Y frontend deps updated
@@ -254,20 +247,22 @@ gh pr create --title "chore: bump all dependencies ($(date +%Y-%m-%d))" --body "
 - [ ] Smoke test chat UI end-to-end
 
 🤖 Generated autonomously by Claude Code (`updating-deps-auto`)
-EOF
-)"
 ```
 
-**Important:** Replace all placeholder comments above with actual content from the previous phases. The template shows the structure — fill in real data.
+### Commit + Push
 
-### Post-Creation
-
-- If validation has unresolved failures, add the `needs-attention` label:
+Stage the PR body file and create a final commit:
 
 ```bash
-gh pr edit <number> --add-label needs-attention
+git add .github/update-deps/$(date +%Y-%m-%d)/pr-body.md
+git commit -m "docs: add PR body for dependency update $(date +%Y-%m-%d)"
+git push -u origin update-deps/$(date +%Y-%m-%d)
 ```
 
-- If the PR body exceeds ~5000 characters, summarize each section and link to the full changelog URLs instead of inlining all details.
+The GitHub Action will automatically:
+1. Detect the push to the `update-deps/*` branch
+2. Read the PR body from `.github/update-deps/YYYY-MM-DD/pr-body.md`
+3. Create the PR with title `chore: bump all dependencies (YYYY-MM-DD)`
+4. Add the `needs-attention` label if validation failures are detected in the body
 
-### Return the PR URL.
+If the PR body exceeds ~5000 characters, summarize each section and link to the full changelog URLs instead of inlining all details.

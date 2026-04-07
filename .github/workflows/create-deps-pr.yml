@@ -1,0 +1,61 @@
+name: Create Dependency Update PR
+
+on:
+  push:
+    branches:
+      - "update-deps/*"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    name: Create PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract date from branch name
+        id: branch
+        run: echo "date=${GITHUB_REF_NAME#update-deps/}" >> "$GITHUB_OUTPUT"
+
+      - name: Check for PR body file
+        id: check
+        run: |
+          PR_BODY_FILE=".github/update-deps/${{ steps.branch.outputs.date }}/pr-body.md"
+          if [ -f "$PR_BODY_FILE" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "path=$PR_BODY_FILE" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for existing PR
+        if: steps.check.outputs.found == 'true'
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_COUNT=$(gh pr list --head "$GITHUB_REF_NAME" --json number --jq length)
+          echo "count=$PR_COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Create PR
+        if: steps.check.outputs.found == 'true' && steps.existing.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr create \
+            --title "chore: bump all dependencies (${{ steps.branch.outputs.date }})" \
+            --body-file "${{ steps.check.outputs.path }}")
+          echo "Created PR: $PR_URL"
+
+      - name: Add needs-attention label if validation failed
+        if: steps.check.outputs.found == 'true' && steps.existing.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if grep -q "VALIDATION FAILURES DETECTED" "${{ steps.check.outputs.path }}"; then
+            PR_NUMBER=$(gh pr list --head "$GITHUB_REF_NAME" --json number --jq '.[0].number')
+            gh pr edit "$PR_NUMBER" --add-label needs-attention 2>/dev/null || true
+          fi
