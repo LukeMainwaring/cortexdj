@@ -85,15 +85,12 @@ Update everything — no exclusions.
 
 ## Phase 4: Re-download Library Documentation
 
-Download fresh copies of the key AI library documentation used by this project:
+Download fresh copies of the key AI library documentation used by this project. Use the **WebFetch** tool (not `curl`) since the remote CCR environment blocks outbound HTTP via curl.
 
-```bash
-curl -o docs/pydantic-ai-llms-full.txt https://ai.pydantic.dev/llms-full.txt
-```
+1. Use WebFetch to fetch `https://ai.pydantic.dev/llms-full.txt` and write the contents to `docs/pydantic-ai-llms-full.txt`
+2. Use WebFetch to fetch `https://ai-sdk.dev/llms.txt`, extract the section from `# AI SDK UI` up to (but not including) `# AI_APICallError`, and write it to `docs/vercel-ai-sdk-ui.txt`
 
-```bash
-curl -s https://ai-sdk.dev/llms.txt | awk '/^# AI SDK UI$/{if(!found){found=1; printing=1}} /^# AI_APICallError$/{if(printing){printing=0; exit}} printing' > docs/vercel-ai-sdk-ui.txt
-```
+**Best-effort:** If either download fails (timeout, size limit, network error), restore the file from git (`git checkout -- docs/<file>`) and note the failure in the PR body. Do not let doc download failures block the rest of the workflow.
 
 ## Phase 5: Validate + Auto-Fix
 
