@@ -83,14 +83,9 @@ pnpm -C frontend add -D <pkg>@latest  # for devDependencies
 
 Update everything — no exclusions.
 
-## Phase 4: Re-download Library Documentation
+## Phase 4: Skip — Library Documentation
 
-Download fresh copies of the key AI library documentation used by this project. Use the **WebFetch** tool (not `curl`) since the remote CCR environment blocks outbound HTTP via curl.
-
-1. Use WebFetch to fetch `https://ai.pydantic.dev/llms-full.txt` and write the contents to `docs/pydantic-ai-llms-full.txt`
-2. Use WebFetch to fetch `https://ai-sdk.dev/llms.txt`, extract the section from `# AI SDK UI` up to (but not including) `# AI_APICallError`, and write it to `docs/vercel-ai-sdk-ui.txt`
-
-**Best-effort:** If either download fails (timeout, size limit, network error), restore the file from git (`git checkout -- docs/<file>`) and note the failure in the PR body. Do not let doc download failures block the rest of the workflow.
+**Skipped in autonomous mode.** The CCR environment's limited network access blocks `ai.pydantic.dev` and `ai-sdk.dev`. Library docs are refreshed during interactive `/updating-deps` runs instead. Proceed directly to Phase 5.
 
 ## Phase 5: Validate + Auto-Fix
 
@@ -117,10 +112,10 @@ If validation still fails after auto-fix attempts, capture the full error output
 
 ## Phase 5.5: Commit 1 — Dependency Bumps
 
-Stage and commit the dependency, lockfile, documentation, and any auto-fix formatting changes:
+Stage and commit the dependency, lockfile, and any auto-fix formatting changes:
 
 ```bash
-git add backend/pyproject.toml backend/uv.lock frontend/package.json frontend/pnpm-lock.yaml docs/pydantic-ai-llms-full.txt docs/vercel-ai-sdk-ui.txt
+git add backend/pyproject.toml backend/uv.lock frontend/package.json frontend/pnpm-lock.yaml
 ```
 
 Also stage any files modified by auto-fix (check `git status` for additional changed files from Phase 5).
