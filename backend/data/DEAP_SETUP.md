@@ -38,8 +38,11 @@ CortexDJ's loader automatically strips the baseline and extracts the 32 EEG chan
 ## Usage
 
 ```bash
-# Train CBraMod on DEAP with LOSO CV (default)
+# Train CBraMod on DEAP with LOSO CV (default — 50 epochs, all 32 folds)
 uv run --directory backend train-model
+
+# Quick dev run (10 epochs, 3 folds)
+uv run --directory backend train-model --quick
 
 # Train EEGNet instead
 uv run --directory backend train-model --model eegnet

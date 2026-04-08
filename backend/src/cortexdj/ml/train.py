@@ -4,9 +4,11 @@ Supports training the custom EEGNet (on DE features) or fine-tuning
 CBraMod pretrained model (on raw EEG), with LOSO or grouped cross-validation.
 
 Usage:
-    uv run train-model
-    uv run train-model --model cbramod --cv loso
-    uv run compare-models
+    uv run train-model                       # best-effort defaults (CBraMod, LOSO, 50 epochs)
+    uv run train-model --quick               # fast dev run (10 epochs, 3 folds)
+    uv run train-model --model eegnet        # train EEGNet instead
+    uv run compare-models                    # compare from checkpoints
+    uv run compare-models --retrain --quick  # retrain both quickly
 """
 
 from __future__ import annotations
@@ -14,11 +16,18 @@ from __future__ import annotations
 import argparse
 import copy
 import logging
+import math
+import os
+import random
 import time
+from dataclasses import dataclass
 from typing import Literal
 
+import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn.utils import clip_grad_norm_
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, LRScheduler, SequentialLR
 from torch.utils.data import DataLoader, Subset
 
 from cortexdj.core.paths import CHECKPOINTS_DIR
@@ -33,6 +42,83 @@ from cortexdj.ml.pretrained import PretrainedDualHead, load_pretrained_dual_head
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
+
+# ── Default hyperparameters ──────────────────────────────────────────────────
+# These represent best-effort quality defaults. Use --quick for fast iteration.
+DEFAULT_EPOCHS = 50
+DEFAULT_LR = 1e-3
+DEFAULT_FINETUNE_LR = 1e-5
+DEFAULT_BATCH_SIZE = 64
+DEFAULT_N_FOLDS = 5
+DEFAULT_WEIGHT_DECAY = 1e-4
+DEFAULT_MAX_GRAD_NORM = 1.0
+DEFAULT_PATIENCE = 10
+DEFAULT_SEED = 42
+
+# Fine-tune phase uses stronger weight decay (standard for pretrained models)
+FINETUNE_WEIGHT_DECAY_MULTIPLIER = 100
+# LR warmup epochs for pretrained model phases
+WARMUP_EPOCHS = 3
+
+# Quick mode overrides for fast development
+QUICK_EPOCHS = 10
+QUICK_MAX_FOLDS = 3
+
+
+@dataclass
+class TrainingConfig:
+    """Bundle of all training hyperparameters."""
+
+    model_type: Literal["eegnet", "cbramod"] = "cbramod"
+    cv_mode: Literal["loso", "grouped"] = "loso"
+    epochs: int = DEFAULT_EPOCHS
+    lr: float = DEFAULT_LR
+    finetune_lr: float = DEFAULT_FINETUNE_LR
+    batch_size: int = DEFAULT_BATCH_SIZE
+    n_folds: int = DEFAULT_N_FOLDS
+    max_folds: int | None = None
+    weight_decay: float = DEFAULT_WEIGHT_DECAY
+    max_grad_norm: float = DEFAULT_MAX_GRAD_NORM
+    patience: int = DEFAULT_PATIENCE
+    seed: int | None = DEFAULT_SEED
+    no_early_stop: bool = False
+
+
+class EarlyStopping:
+    """Monitors validation metric and signals when to stop training."""
+
+    def __init__(self, patience: int) -> None:
+        self.patience = patience
+        self.best_score = 0.0
+        self.counter = 0
+
+    def step(self, score: float) -> bool:
+        """Returns True if training should stop."""
+        if score > self.best_score:
+            self.best_score = score
+            self.counter = 0
+            return False
+        self.counter += 1
+        return self.counter >= self.patience
+
+
+def _get_device() -> torch.device:
+    """Select the best available device: CUDA → MPS (Apple Silicon) → CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def _set_seed(seed: int) -> None:
+    """Set random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 
 # Type for any dataset that has participant_ids
 type ParticipantDataset = DEAPFeatureDataset | DEAPRawDataset
@@ -81,6 +167,7 @@ def make_grouped_splits(
     return splits
 
 
+@torch.inference_mode()
 def _evaluate(
     model: EEGModel,
     loader: DataLoader[tuple[torch.Tensor, int, int]],
@@ -92,16 +179,15 @@ def _evaluate(
     correct_valence = 0
     total = 0
 
-    with torch.no_grad():
-        for features, arousal_labels, valence_labels in loader:
-            features = features.to(device)
-            arousal_targets = arousal_labels.clone().detach().to(dtype=torch.long, device=device)
-            valence_targets = valence_labels.clone().detach().to(dtype=torch.long, device=device)
+    for features, arousal_labels, valence_labels in loader:
+        features = features.to(device)
+        arousal_targets = arousal_labels.clone().detach().to(dtype=torch.long, device=device)
+        valence_targets = valence_labels.clone().detach().to(dtype=torch.long, device=device)
 
-            arousal_logits, valence_logits = model(features)
-            correct_arousal += (arousal_logits.argmax(1) == arousal_targets).sum().item()
-            correct_valence += (valence_logits.argmax(1) == valence_targets).sum().item()
-            total += features.size(0)
+        arousal_logits, valence_logits = model(features)
+        correct_arousal += (arousal_logits.argmax(1) == arousal_targets).sum().item()
+        correct_valence += (valence_logits.argmax(1) == valence_targets).sum().item()
+        total += features.size(0)
 
     arousal_acc = correct_arousal / total if total > 0 else 0.0
     valence_acc = correct_valence / total if total > 0 else 0.0
@@ -116,19 +202,20 @@ def train_fold_eegnet(
     train_loader: DataLoader[tuple[torch.Tensor, int, int]],
     val_loader: DataLoader[tuple[torch.Tensor, int, int]],
     *,
-    epochs: int,
-    lr: float,
+    config: TrainingConfig,
     device: torch.device,
 ) -> tuple[EEGNetClassifier, dict[str, float]]:
     """Train EEGNet on DE features for one fold."""
     model = EEGNetClassifier().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
+    scheduler = CosineAnnealingLR(optimizer, T_max=config.epochs)
     criterion = nn.CrossEntropyLoss()
+    stopper = EarlyStopping(patience=config.patience)
 
     best_val_acc = 0.0
     best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-    for epoch in range(epochs):
+    for epoch in range(config.epochs):
         model.train()
         train_loss = 0.0
         train_total = 0
@@ -143,16 +230,18 @@ def train_fold_eegnet(
 
             loss = criterion(arousal_logits, arousal_targets) + criterion(valence_logits, valence_targets)
             loss.backward()
+            clip_grad_norm_(model.parameters(), max_norm=config.max_grad_norm)
             optimizer.step()
 
             train_loss += loss.item() * features.size(0)
             train_total += features.size(0)
 
+        scheduler.step()
         val_metrics = _evaluate(model, val_loader, device)
 
         if (epoch + 1) % 5 == 0 or epoch == 0:
             logger.info(
-                f"  Epoch {epoch + 1}/{epochs} | "
+                f"  Epoch {epoch + 1}/{config.epochs} | "
                 f"Loss: {train_loss / train_total:.4f} | "
                 f"Val A/V: {val_metrics['arousal_acc']:.3f}/{val_metrics['valence_acc']:.3f}"
             )
@@ -160,6 +249,10 @@ def train_fold_eegnet(
         if val_metrics["avg_acc"] > best_val_acc:
             best_val_acc = val_metrics["avg_acc"]
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
+
+        if not config.no_early_stop and stopper.step(val_metrics["avg_acc"]):
+            logger.info(f"  Early stopping at epoch {epoch + 1} (patience={config.patience})")
+            break
 
     model.load_state_dict(best_state)
     return model, _evaluate(model, val_loader, device)
@@ -170,15 +263,13 @@ def train_fold_pretrained(
     val_loader: DataLoader[tuple[torch.Tensor, int, int]],
     *,
     base_model: PretrainedDualHead,
-    epochs: int,
-    head_lr: float,
-    finetune_lr: float,
+    config: TrainingConfig,
     device: torch.device,
 ) -> tuple[PretrainedDualHead, dict[str, float]]:
     """Train pretrained model for one fold with two-phase strategy.
 
-    Phase 1 (first 1/3 epochs): frozen backbone, train heads only.
-    Phase 2 (remaining epochs): unfreeze backbone, full fine-tuning with lower LR.
+    Phase 1 (first 1/3 epochs): frozen backbone, train heads only with warmup.
+    Phase 2 (remaining epochs): unfreeze backbone, full fine-tuning with warmup + cosine decay.
 
     Reinitializes heads from scratch each fold but reuses the pretrained backbone
     weights (avoids re-downloading).
@@ -188,15 +279,19 @@ def train_fold_pretrained(
     model.freeze_backbone()
     criterion = nn.CrossEntropyLoss()
 
-    phase1_epochs = max(1, epochs // 3)
-    phase2_epochs = epochs - phase1_epochs
+    phase1_epochs = max(1, config.epochs // 3)
+    phase2_epochs = config.epochs - phase1_epochs
 
     best_val_acc = 0.0
     best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-    # Phase 1: frozen backbone
+    # Phase 1: frozen backbone — train heads with warmup
     head_params = list(model.arousal_head.parameters()) + list(model.valence_head.parameters())
-    optimizer = torch.optim.Adam(head_params, lr=head_lr)
+    optimizer = torch.optim.AdamW(head_params, lr=config.lr, weight_decay=config.weight_decay)
+    warmup_iters = min(WARMUP_EPOCHS, phase1_epochs)
+    scheduler: LRScheduler = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_iters)
+    phase1_patience = max(3, config.patience // 2)
+    stopper = EarlyStopping(patience=phase1_patience)
 
     for epoch in range(phase1_epochs):
         epoch_start = time.monotonic()
@@ -214,11 +309,13 @@ def train_fold_pretrained(
 
             loss = criterion(arousal_logits, arousal_targets) + criterion(valence_logits, valence_targets)
             loss.backward()
+            clip_grad_norm_(model.parameters(), max_norm=config.max_grad_norm)
             optimizer.step()
 
             train_loss += loss.item() * features.size(0)
             train_total += features.size(0)
 
+        scheduler.step()
         val_metrics = _evaluate(model, val_loader, device)
         elapsed = time.monotonic() - epoch_start
         logger.info(
@@ -232,9 +329,21 @@ def train_fold_pretrained(
             best_val_acc = val_metrics["avg_acc"]
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-    # Phase 2: full fine-tuning
+        if not config.no_early_stop and stopper.step(val_metrics["avg_acc"]):
+            logger.info(f"  Phase 1 early stop at epoch {epoch + 1} (patience={phase1_patience})")
+            break
+
+    # Phase 2: full fine-tuning — warmup + cosine decay
     model.unfreeze_backbone()
-    optimizer = torch.optim.Adam(model.parameters(), lr=finetune_lr)
+    finetune_wd = config.weight_decay * FINETUNE_WEIGHT_DECAY_MULTIPLIER
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config.finetune_lr, weight_decay=finetune_wd)
+    warmup_iters = min(WARMUP_EPOCHS, phase2_epochs)
+    cosine_epochs = max(1, phase2_epochs - warmup_iters)
+    warmup_sched = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_iters)
+    cosine_sched = CosineAnnealingLR(optimizer, T_max=cosine_epochs)
+    scheduler = SequentialLR(optimizer, [warmup_sched, cosine_sched], milestones=[warmup_iters])
+    phase2_patience = max(5, config.patience)
+    stopper = EarlyStopping(patience=phase2_patience)
 
     for epoch in range(phase2_epochs):
         epoch_start = time.monotonic()
@@ -252,11 +361,13 @@ def train_fold_pretrained(
 
             loss = criterion(arousal_logits, arousal_targets) + criterion(valence_logits, valence_targets)
             loss.backward()
+            clip_grad_norm_(model.parameters(), max_norm=config.max_grad_norm)
             optimizer.step()
 
             train_loss += loss.item() * features.size(0)
             train_total += features.size(0)
 
+        scheduler.step()
         val_metrics = _evaluate(model, val_loader, device)
         elapsed = time.monotonic() - epoch_start
 
@@ -272,26 +383,44 @@ def train_fold_pretrained(
             best_val_acc = val_metrics["avg_acc"]
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
+        if not config.no_early_stop and stopper.step(val_metrics["avg_acc"]):
+            logger.info(f"  Phase 2 early stop at epoch {epoch + 1} (patience={phase2_patience})")
+            break
+
     model.load_state_dict(best_state)
     return model, _evaluate(model, val_loader, device)
 
 
-def train(
-    *,
-    model_type: Literal["eegnet", "cbramod"] = "cbramod",
-    cv_mode: Literal["loso", "grouped"] = "loso",
-    epochs: int = 30,
-    lr: float = 1e-3,
-    finetune_lr: float = 1e-5,
-    batch_size: int = 32,
-    n_folds: int = 5,
-    max_folds: int | None = None,
-) -> None:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
-    logger.info(f"Config: model={model_type}, cv={cv_mode}")
+def _dataloader_kwargs(device: torch.device) -> dict[str, object]:
+    """DataLoader kwargs optimized per device.
 
-    mode: Literal["features", "raw"] = "raw" if model_type == "cbramod" else "features"
+    macOS/MPS hangs with num_workers > 0 due to fork-related deadlocks,
+    so we only parallelize data loading on CUDA.
+    """
+    if device.type == "cuda":
+        n_workers = min(4, os.cpu_count() or 1)
+        return {"num_workers": n_workers, "pin_memory": True, "persistent_workers": True}
+    return {"num_workers": 0, "pin_memory": False}
+
+
+def train(config: TrainingConfig) -> None:
+    if config.seed is not None:
+        _set_seed(config.seed)
+
+    device = _get_device()
+
+    # Backend optimizations
+    torch.set_float32_matmul_precision("high")
+    if config.seed is None:
+        torch.backends.cudnn.benchmark = True
+
+    logger.info(f"Using device: {device}")
+    logger.info(
+        f"Config: model={config.model_type}, cv={config.cv_mode}, "
+        f"epochs={config.epochs}, lr={config.lr}, batch_size={config.batch_size}"
+    )
+
+    mode: Literal["features", "raw"] = "raw" if config.model_type == "cbramod" else "features"
 
     try:
         dataset = load_dataset(mode=mode)
@@ -306,16 +435,16 @@ def train(
         return
 
     # Build CV splits
-    if cv_mode == "loso":
-        splits = make_loso_splits(dataset, max_folds=max_folds)
+    if config.cv_mode == "loso":
+        splits = make_loso_splits(dataset, max_folds=config.max_folds)
     else:
-        splits = make_grouped_splits(dataset, n_folds=n_folds)
+        splits = make_grouped_splits(dataset, n_folds=config.n_folds)
 
-    logger.info(f"Cross-validation: {len(splits)} folds ({cv_mode})")
+    logger.info(f"Cross-validation: {len(splits)} folds ({config.cv_mode})")
 
     # Pre-load pretrained model once (avoids re-downloading per fold)
     base_pretrained: PretrainedDualHead | None = None
-    if model_type == "cbramod":
+    if config.model_type == "cbramod":
         logger.info("Loading pretrained CBraMod backbone (one-time)...")
         load_start = time.monotonic()
         base_pretrained = load_pretrained_dual_head()
@@ -324,6 +453,8 @@ def train(
     all_metrics: list[dict[str, float]] = []
     best_overall_acc = 0.0
     best_model_state: dict[str, torch.Tensor] | None = None
+    dl_kwargs = _dataloader_kwargs(device)
+    train_start = time.monotonic()
 
     for fold_idx, (train_indices, val_indices) in enumerate(splits):
         logger.info(f"\n--- Fold {fold_idx + 1}/{len(splits)} (train={len(train_indices)}, val={len(val_indices)}) ---")
@@ -331,30 +462,33 @@ def train(
         train_subset = Subset(dataset, train_indices)
         val_subset = Subset(dataset, val_indices)
         train_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
-            train_subset, batch_size=batch_size, shuffle=True
+            train_subset,
+            batch_size=config.batch_size,
+            shuffle=True,
+            **dl_kwargs,  # type: ignore[arg-type]
         )
         val_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
-            val_subset, batch_size=batch_size, shuffle=False
+            val_subset,
+            batch_size=config.batch_size,
+            shuffle=False,
+            **dl_kwargs,  # type: ignore[arg-type]
         )
 
         fold_model: EEGModel
-        if model_type == "cbramod":
+        if config.model_type == "cbramod":
             assert base_pretrained is not None
             fold_model, metrics = train_fold_pretrained(
                 train_loader,
                 val_loader,
                 base_model=base_pretrained,
-                epochs=epochs,
-                head_lr=lr,
-                finetune_lr=finetune_lr,
+                config=config,
                 device=device,
             )
         else:
             fold_model, metrics = train_fold_eegnet(
                 train_loader,
                 val_loader,
-                epochs=epochs,
-                lr=lr,
+                config=config,
                 device=device,
             )
 
@@ -365,37 +499,87 @@ def train(
             best_overall_acc = metrics["avg_acc"]
             best_model_state = {k: v.cpu().clone() for k, v in fold_model.state_dict().items()}
 
-    # Report cross-validation results
-    avg_arousal = sum(m["arousal_acc"] for m in all_metrics) / len(splits)
-    avg_valence = sum(m["valence_acc"] for m in all_metrics) / len(splits)
-    avg_overall = sum(m["avg_acc"] for m in all_metrics) / len(splits)
-    logger.info(f"\n=== Cross-Validation Results ({len(splits)} folds, {cv_mode}) ===")
-    logger.info(f"Avg Arousal Accuracy: {avg_arousal:.4f}")
-    logger.info(f"Avg Valence Accuracy: {avg_valence:.4f}")
-    logger.info(f"Avg Overall Accuracy: {avg_overall:.4f}")
+    total_time = time.monotonic() - train_start
+    _print_results_table(all_metrics, cv_mode=config.cv_mode, total_time=total_time)
 
     # Save best fold's model
     if best_model_state is not None:
+        n = len(splits)
         CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-        checkpoint_name = "cbramod_best.pt" if model_type == "cbramod" else "eegnet_best.pt"
+        checkpoint_name = "cbramod_best.pt" if config.model_type == "cbramod" else "eegnet_best.pt"
         checkpoint_path = CHECKPOINTS_DIR / checkpoint_name
         torch.save(
             {
-                "model_type": model_type,
+                "model_type": config.model_type,
                 "model_state_dict": best_model_state,
                 "metrics": {
-                    "avg_arousal_acc": avg_arousal,
-                    "avg_valence_acc": avg_valence,
-                    "avg_overall_acc": avg_overall,
+                    "avg_arousal_acc": sum(m["arousal_acc"] for m in all_metrics) / n,
+                    "avg_valence_acc": sum(m["valence_acc"] for m in all_metrics) / n,
+                    "avg_overall_acc": sum(m["avg_acc"] for m in all_metrics) / n,
                     "best_fold_acc": best_overall_acc,
-                    "n_folds": len(splits),
-                    "cv_mode": cv_mode,
-                    "epochs": epochs,
+                    "n_folds": n,
+                    "cv_mode": config.cv_mode,
+                    "epochs": config.epochs,
                 },
+                "config": {
+                    "model_type": config.model_type,
+                    "cv_mode": config.cv_mode,
+                    "epochs": config.epochs,
+                    "lr": config.lr,
+                    "finetune_lr": config.finetune_lr,
+                    "batch_size": config.batch_size,
+                    "weight_decay": config.weight_decay,
+                    "max_grad_norm": config.max_grad_norm,
+                    "patience": config.patience,
+                    "seed": config.seed,
+                },
+                "fold_metrics": all_metrics,
+                "training_time": total_time,
             },
             checkpoint_path,
         )
         logger.info(f"Saved best model to {checkpoint_path}")
+
+
+def _std(values: list[float]) -> float:
+    """Population standard deviation."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    mean = sum(values) / n
+    return math.sqrt(sum((v - mean) ** 2 for v in values) / n)
+
+
+def _print_results_table(
+    all_metrics: list[dict[str, float]],
+    *,
+    cv_mode: str,
+    total_time: float,
+) -> None:
+    """Print per-fold results with mean ± std and wall-clock time."""
+    n = len(all_metrics)
+    logger.info(f"\n{'=' * 66}")
+    logger.info(f"Cross-Validation Results ({n} folds, {cv_mode})")
+    logger.info(f"{'=' * 66}")
+    logger.info(f"{'Fold':<6} | {'Arousal Acc':>11} | {'Valence Acc':>11} | {'Avg Acc':>7}")
+    logger.info(f"{'-' * 6}-+-{'-' * 11}-+-{'-' * 11}-+-{'-' * 7}")
+
+    for i, m in enumerate(all_metrics):
+        logger.info(f"{i + 1:<6} | {m['arousal_acc']:>11.4f} | {m['valence_acc']:>11.4f} | {m['avg_acc']:>7.4f}")
+
+    avg_arousal = sum(m["arousal_acc"] for m in all_metrics) / n
+    avg_valence = sum(m["valence_acc"] for m in all_metrics) / n
+    avg_overall = sum(m["avg_acc"] for m in all_metrics) / n
+    std_arousal = _std([m["arousal_acc"] for m in all_metrics])
+    std_valence = _std([m["valence_acc"] for m in all_metrics])
+    std_overall = _std([m["avg_acc"] for m in all_metrics])
+
+    logger.info(f"{'-' * 6}-+-{'-' * 11}-+-{'-' * 11}-+-{'-' * 7}")
+    logger.info(f"{'Mean':<6} | {avg_arousal:>11.4f} | {avg_valence:>11.4f} | {avg_overall:>7.4f}")
+    logger.info(f"{'Std':<6} | {std_arousal:>11.4f} | {std_valence:>11.4f} | {std_overall:>7.4f}")
+
+    minutes, seconds = divmod(total_time, 60)
+    logger.info(f"\nTotal training time: {int(minutes)}m {seconds:.1f}s")
 
 
 def _print_comparison_table(results: dict[str, dict[str, float]], source: str) -> None:
@@ -412,13 +596,7 @@ def _print_comparison_table(results: dict[str, dict[str, float]], source: str) -
         )
 
 
-def compare(
-    *,
-    retrain: bool = False,
-    epochs: int = 30,
-    cv_mode: Literal["loso", "grouped"] = "loso",
-    max_folds: int | None = None,
-) -> None:
+def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
     """Compare EEGNet and CBraMod metrics.
 
     By default, loads metrics from existing checkpoints. Use retrain=True
@@ -455,6 +633,9 @@ def compare(
             logger.info("No checkpoints found. Training both models...\n")
 
     # Full retraining path
+    if config.seed is not None:
+        _set_seed(config.seed)
+
     results = {}
 
     for model_type in ("eegnet", "cbramod"):
@@ -465,25 +646,48 @@ def compare(
         mode: Literal["features", "raw"] = "raw" if model_type == "cbramod" else "features"
         dataset = load_dataset(mode=mode)
 
-        if cv_mode == "loso":
-            splits = make_loso_splits(dataset, max_folds=max_folds)
+        if config.cv_mode == "loso":
+            splits = make_loso_splits(dataset, max_folds=config.max_folds)
         else:
             splits = make_grouped_splits(dataset)
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = _get_device()
         all_metrics: list[dict[str, float]] = []
+
+        # Create a per-model config so fold functions see the right model_type
+        model_config = TrainingConfig(
+            model_type=model_type,  # type: ignore[arg-type]
+            cv_mode=config.cv_mode,
+            epochs=config.epochs,
+            lr=config.lr,
+            finetune_lr=config.finetune_lr,
+            batch_size=config.batch_size,
+            weight_decay=config.weight_decay,
+            max_grad_norm=config.max_grad_norm,
+            patience=config.patience,
+            seed=config.seed,
+            no_early_stop=config.no_early_stop,
+        )
 
         base_pretrained: PretrainedDualHead | None = None
         if model_type == "cbramod":
             base_pretrained = load_pretrained_dual_head()
 
+        dl_kwargs = _dataloader_kwargs(device)
+
         for fold_idx, (train_indices, val_indices) in enumerate(splits):
             logger.info(f"--- Fold {fold_idx + 1}/{len(splits)} ---")
             train_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
-                Subset(dataset, train_indices), batch_size=32, shuffle=True
+                Subset(dataset, train_indices),
+                batch_size=config.batch_size,
+                shuffle=True,
+                **dl_kwargs,  # type: ignore[arg-type]
             )
             val_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
-                Subset(dataset, val_indices), batch_size=32, shuffle=False
+                Subset(dataset, val_indices),
+                batch_size=config.batch_size,
+                shuffle=False,
+                **dl_kwargs,  # type: ignore[arg-type]
             )
 
             if model_type == "cbramod":
@@ -492,17 +696,14 @@ def compare(
                     train_loader,
                     val_loader,
                     base_model=base_pretrained,
-                    epochs=epochs,
-                    head_lr=1e-3,
-                    finetune_lr=1e-5,
+                    config=model_config,
                     device=device,
                 )
             else:
                 _, metrics = train_fold_eegnet(
                     train_loader,
                     val_loader,
-                    epochs=epochs,
-                    lr=1e-3,
+                    config=model_config,
                     device=device,
                 )
             all_metrics.append(metrics)
@@ -516,7 +717,8 @@ def compare(
     _print_comparison_table(results, "deap")
 
 
-def main() -> None:
+def _build_train_parser() -> argparse.ArgumentParser:
+    """Build the shared argument parser for training CLI commands."""
     parser = argparse.ArgumentParser(description="Train EEG emotion classifier")
     parser.add_argument(
         "--model",
@@ -530,56 +732,104 @@ def main() -> None:
         default="loso",
         help="Cross-validation strategy (default: loso)",
     )
-    parser.add_argument("--epochs", type=int, default=30, help="Training epochs per fold")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
+    parser.add_argument(
+        "--epochs", type=int, default=None, help=f"Training epochs per fold (default: {DEFAULT_EPOCHS})"
+    )
+    parser.add_argument("--lr", type=float, default=DEFAULT_LR, help=f"Learning rate (default: {DEFAULT_LR})")
     parser.add_argument(
         "--finetune-lr",
         type=float,
-        default=1e-5,
-        help="Fine-tuning LR for pretrained backbone (default: 1e-5)",
+        default=DEFAULT_FINETUNE_LR,
+        help=f"Fine-tuning LR for pretrained backbone (default: {DEFAULT_FINETUNE_LR})",
     )
-    parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
-    parser.add_argument("--folds", type=int, default=5, help="Number of CV folds (grouped mode)")
+    parser.add_argument(
+        "--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help=f"Batch size (default: {DEFAULT_BATCH_SIZE})"
+    )
+    parser.add_argument(
+        "--folds",
+        type=int,
+        default=DEFAULT_N_FOLDS,
+        help=f"Number of CV folds for grouped mode (default: {DEFAULT_N_FOLDS})",
+    )
     parser.add_argument(
         "--max-folds",
         type=int,
         default=None,
         help="Limit LOSO folds for faster development",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--weight-decay",
+        type=float,
+        default=DEFAULT_WEIGHT_DECAY,
+        help=f"Weight decay for AdamW (default: {DEFAULT_WEIGHT_DECAY})",
+    )
+    parser.add_argument(
+        "--max-grad-norm",
+        type=float,
+        default=DEFAULT_MAX_GRAD_NORM,
+        help=f"Max gradient norm for clipping (default: {DEFAULT_MAX_GRAD_NORM})",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=DEFAULT_PATIENCE,
+        help=f"Early stopping patience in epochs (default: {DEFAULT_PATIENCE})",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=DEFAULT_SEED, help=f"Random seed for reproducibility (default: {DEFAULT_SEED})"
+    )
+    parser.add_argument("--no-seed", action="store_true", help="Disable seeding for non-deterministic training")
+    parser.add_argument("--no-early-stop", action="store_true", help="Disable early stopping (train for all epochs)")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help=f"Fast dev mode: {QUICK_EPOCHS} epochs, {QUICK_MAX_FOLDS} folds (overrides --epochs/--max-folds if not explicitly set)",
+    )
+    return parser
 
-    train(
+
+def _resolve_config(args: argparse.Namespace) -> TrainingConfig:
+    """Build TrainingConfig from parsed CLI args, applying --quick overrides."""
+    epochs = args.epochs
+    max_folds = args.max_folds
+    if args.quick:
+        if epochs is None:
+            epochs = QUICK_EPOCHS
+        if max_folds is None:
+            max_folds = QUICK_MAX_FOLDS
+    if epochs is None:
+        epochs = DEFAULT_EPOCHS
+
+    return TrainingConfig(
         model_type=args.model,
         cv_mode=args.cv,
-        epochs=args.epochs,
+        epochs=epochs,
         lr=args.lr,
         finetune_lr=args.finetune_lr,
         batch_size=args.batch_size,
         n_folds=args.folds,
-        max_folds=args.max_folds,
+        max_folds=max_folds,
+        weight_decay=args.weight_decay,
+        max_grad_norm=args.max_grad_norm,
+        patience=args.patience,
+        seed=None if args.no_seed else args.seed,
+        no_early_stop=args.no_early_stop,
     )
 
 
+def main() -> None:
+    parser = _build_train_parser()
+    args = parser.parse_args()
+    train(_resolve_config(args))
+
+
 def compare_main() -> None:
-    parser = argparse.ArgumentParser(description="Compare EEGNet vs CBraMod on DEAP")
+    parser = _build_train_parser()
+    parser.description = "Compare EEGNet vs CBraMod on DEAP"
     parser.add_argument(
         "--retrain",
         action="store_true",
         help="Force retraining instead of loading existing checkpoints",
     )
-    parser.add_argument(
-        "--cv",
-        choices=["loso", "grouped"],
-        default="loso",
-        help="Cross-validation strategy for retraining (default: loso)",
-    )
-    parser.add_argument("--epochs", type=int, default=30, help="Training epochs per fold (retraining only)")
-    parser.add_argument(
-        "--max-folds",
-        type=int,
-        default=None,
-        help="Limit LOSO folds for faster development (retraining only)",
-    )
     args = parser.parse_args()
-
-    compare(retrain=args.retrain, cv_mode=args.cv, epochs=args.epochs, max_folds=args.max_folds)
+    compare(_resolve_config(args), retrain=args.retrain)

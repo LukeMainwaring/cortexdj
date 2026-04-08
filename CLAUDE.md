@@ -25,6 +25,9 @@ uv run --directory backend pre-commit run --all-files
 # Train CBraMod model with LOSO CV (default; requires DEAP — see backend/data/DEAP_SETUP.md)
 uv run --directory backend train-model
 
+# Quick dev run (10 epochs, 3 folds)
+uv run --directory backend train-model --quick
+
 # Train EEGNet instead
 uv run --directory backend train-model --model eegnet
 

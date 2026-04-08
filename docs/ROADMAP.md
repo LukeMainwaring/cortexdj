@@ -36,6 +36,7 @@
 
 ## Phase 4: Advanced ML
 
+- EEG data augmentation — Gaussian noise injection, temporal jittering/random cropping, channel dropout (randomly zero channels during training)
 - CNN-Transformer hybrid model (EEGNet backbone + Transformer encoder)
 - Personalized models — fine-tune per user from their session history
 - Cross-session trend analysis (how brain responses change over time)
