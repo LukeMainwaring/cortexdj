@@ -1,13 +1,7 @@
 "use client";
 
 import { memo } from "react";
-
-interface BrainContext {
-  latest_session_id?: string | null;
-  dominant_mood?: string | null;
-  avg_arousal?: number | null;
-  avg_valence?: number | null;
-}
+import type { BrainContext } from "@/api/generated/types.gen";
 
 function PureBrainContextBadge({
   brainContext,

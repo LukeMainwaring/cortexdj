@@ -55,8 +55,7 @@ const PurePreviewMessage = ({
     (p) => p.type === "text" && p.text?.trim(),
   );
   const hasToolParts = message.parts?.some((p) => isToolUIPart(p));
-  const hasDataParts = message.parts?.some((p) => isDataUIPart(p));
-  const hasVisibleContent = hasTextParts || hasToolParts || hasDataParts;
+  const hasVisibleContent = hasTextParts || hasToolParts;
 
   return (
     <div

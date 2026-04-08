@@ -10,7 +10,7 @@ from cortexdj.agents.tools.classification_tools import get_model_info, set_brain
 _MODEL_TOOLS = frozenset({get_model_info.__name__})
 
 
-async def _inject_brain_context(ctx: RunContext[AgentDeps]) -> str:
+def _inject_brain_context(ctx: RunContext[AgentDeps]) -> str:
     if not ctx.deps.brain_context:
         return ""
     bc = ctx.deps.brain_context

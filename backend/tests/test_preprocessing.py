@@ -11,6 +11,8 @@ from cortexdj.ml.preprocessing import (
     extract_features,
 )
 
+_rng = np.random.default_rng(42)
+
 
 def _make_sine_signal(
     freq: float,
@@ -62,7 +64,7 @@ class TestComputeBandPowers:
         assert powers["alpha"] > powers["beta"]
 
     def test_all_powers_non_negative(self) -> None:
-        data = np.random.randn(32, 512)
+        data = _rng.standard_normal((32, 512))
         powers = compute_band_powers(data)
         for power in powers.values():
             assert power >= 0.0
@@ -70,13 +72,13 @@ class TestComputeBandPowers:
 
 class TestComputeDifferentialEntropy:
     def test_returns_all_five_bands(self) -> None:
-        data = np.random.randn(32, 512)
+        data = _rng.standard_normal((32, 512))
         de = compute_differential_entropy(data)
         assert set(de.keys()) == set(FREQ_BANDS.keys())
 
     def test_each_band_has_per_channel_values(self) -> None:
         n_channels = 32
-        data = np.random.randn(n_channels, 512)
+        data = _rng.standard_normal((n_channels, 512))
         de = compute_differential_entropy(data)
         for band_values in de.values():
             assert band_values.shape == (n_channels,)
@@ -85,18 +87,18 @@ class TestComputeDifferentialEntropy:
 class TestExtractFeatures:
     def test_output_shape_is_channels_times_bands(self) -> None:
         n_channels = 32
-        data = np.random.randn(n_channels, 512)
+        data = _rng.standard_normal((n_channels, 512))
         features = extract_features(data)
         expected_length = n_channels * len(FREQ_BANDS)
         assert features.shape == (expected_length,)
 
     def test_output_is_one_dimensional(self) -> None:
-        data = np.random.randn(32, 512)
+        data = _rng.standard_normal((32, 512))
         features = extract_features(data)
         assert features.ndim == 1
 
     def test_deterministic_for_same_input(self) -> None:
-        data = np.random.randn(32, 512)
+        data = _rng.standard_normal((32, 512))
         features_1 = extract_features(data)
         features_2 = extract_features(data)
         np.testing.assert_array_equal(features_1, features_2)
