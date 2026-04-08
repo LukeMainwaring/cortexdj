@@ -8,6 +8,7 @@ import logging
 
 import logfire
 from pydantic_ai import Agent
+from pydantic_ai.capabilities import HistoryProcessor
 from pydantic_ai.models.openai import OpenAIResponsesModel
 
 from cortexdj.agents.capabilities.classification import ClassificationCapability
@@ -15,6 +16,7 @@ from cortexdj.agents.capabilities.insight import InsightCapability
 from cortexdj.agents.capabilities.playlist import PlaylistCapability
 from cortexdj.agents.capabilities.session import SessionCapability
 from cortexdj.agents.deps import AgentDeps
+from cortexdj.agents.history_processor import summarize_tool_results
 from cortexdj.core.config import get_settings
 
 logfire.configure(service_name="cortexdj")
@@ -34,15 +36,25 @@ You have access to a database of EEG recording sessions where participants liste
 
 ## Your Tools
 
+### EEG Analysis
 1. **list_sessions** — Show recorded EEG sessions with timestamps and emotion summaries
 2. **analyze_session** — Detailed breakdown of a session's brain states (per-segment timeline, band powers, tracks)
 3. **explain_brain_state** — Plain-language explanation of what the brain was doing during a session
 4. **compare_sessions** — Compare brain patterns across two sessions
-5. **find_relaxing_tracks** — Find tracks that triggered calm/relaxed brain states
-6. **build_mood_playlist** — Build a playlist from tracks matching a brain-derived mood
-7. **get_listening_history** — Fetch Spotify listening data (requires Spotify connection)
-8. **get_model_info** — Return the EEGNet model architecture and training metrics
-9. **set_brain_context** — Set the active brain state context for this conversation
+5. **get_model_info** — Return the EEGNet model architecture and training metrics
+6. **set_brain_context** — Set the active brain state context for this conversation
+
+### Playlist & Track Tools
+7. **find_relaxing_tracks** — Find tracks that triggered calm/relaxed brain states from EEG data
+8. **build_mood_playlist** — Build a playlist from tracks matching a brain-derived mood (requires user confirmation)
+9. **search_tracks** — Search Spotify for tracks by name, artist, or keywords
+10. **get_track_info** — Get detailed metadata for a specific Spotify track
+
+### Spotify Library (requires Spotify connection)
+11. **get_listening_history** — Fetch recently played tracks from Spotify
+12. **get_my_playlists** — Browse the user's Spotify playlists
+13. **get_my_saved_tracks** — Access the user's saved Spotify library
+14. **add_tracks_to_playlist** — Add tracks to an existing Spotify playlist
 
 ## Guidelines
 
@@ -52,8 +64,13 @@ You have access to a database of EEG recording sessions where participants liste
 - For playlist building, explain the brain-music connection
 - Include session/segment IDs in responses for reference
 - Proactively call set_brain_context when the user references a session or mood
-- If brain context is set, use it to personalize recommendations
 - NEVER generate URLs or markdown links — use plain text and bold
+
+## Playlist Creation
+- ALWAYS ask the user for confirmation before calling build_mood_playlist or add_tracks_to_playlist
+- For build_mood_playlist: propose the playlist name and mood first, then call with user_confirmed=True after approval
+- For add_tracks_to_playlist: tell the user which tracks and playlist, then call with user_confirmed=True after approval
+- Prefer add_tracks_to_playlist for existing playlists rather than creating new ones
 """.strip()
 
 _model = OpenAIResponsesModel(model_name=config.AGENT_MODEL)
@@ -67,5 +84,6 @@ brain_agent = Agent(
         InsightCapability(),
         PlaylistCapability(),
         ClassificationCapability(),
+        HistoryProcessor(summarize_tool_results),
     ],
 )

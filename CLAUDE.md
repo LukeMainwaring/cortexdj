@@ -36,6 +36,9 @@ uv run --directory backend seed-sessions
 
 # Apply pending migrations
 ./backend/scripts/migrate-docker.sh
+
+# Run tests
+uv run --directory backend pytest
 ```
 
 ### Frontend (TypeScript/Next.js)
@@ -57,9 +60,10 @@ FastAPI Python backend using async patterns throughout.
 
 - **`src/cortexdj/app.py`**: FastAPI application entry point with lifespan handler (EEGNet model loading)
 - **`src/cortexdj/routers/`**: API routes by domain (agent, sessions, threads, health)
-- **`src/cortexdj/agents/`**: Pydantic AI agent -- `brain_agent.py` defines the brain assistant with tools for session analysis, brain state insights, playlist curation, and EEG classification
-- **`src/cortexdj/agents/capabilities/`**: Capability classes grouping related tools (SessionCapability, InsightCapability, PlaylistCapability, ClassificationCapability)
+- **`src/cortexdj/agents/`**: Pydantic AI agent -- `brain_agent.py` defines the brain assistant with tools for session analysis, brain state insights, playlist curation, Spotify integration, and EEG classification
+- **`src/cortexdj/agents/capabilities/`**: Capability classes grouping related tools; ClassificationCapability uses `get_instructions()` to dynamically inject brain context into the system prompt
 - **`src/cortexdj/agents/tools/`**: Agent tool implementations (session_tools, insight_tools, playlist_tools, classification_tools)
+- **`src/cortexdj/agents/history_processor.py`**: Summarizes large tool results in historical messages to prevent token bloat in multi-turn conversations
 - **`src/cortexdj/models/`**: SQLAlchemy async models with CRUD classmethods (Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message)
 - **`src/cortexdj/schemas/`**: Pydantic schemas for API contracts
 - **`src/cortexdj/services/`**: Business logic (EEG processing, Spotify, session management, thread management, title generation)
@@ -81,10 +85,11 @@ Next.js 16 with App Router, adapted from the SampleSpace project.
 
 1. Frontend `useChat` sends messages to `/api/chat` route
 2. Route proxies to backend `POST /agent/chat`
-3. Backend loads thread's `brain_context` and injects into `AgentDeps`
-4. Pydantic AI agent decides which tools to call
-5. Agent streams response back as SSE (Vercel AI SDK format)
-6. Frontend renders with tool-call transparency and brain context badge
+3. Backend loads thread's `brain_context` into `AgentDeps`; `ClassificationCapability.get_instructions()` dynamically injects it into the system prompt
+4. `HistoryProcessor` summarizes large tool results from prior turns to prevent token bloat
+5. Pydantic AI agent decides which tools to call
+6. Agent streams response back as SSE (Vercel AI SDK format)
+7. Frontend renders with tool-call transparency and brain context badge
 
 ## Additional Instructions
 

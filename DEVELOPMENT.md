@@ -36,6 +36,14 @@ uv run --directory backend pre-commit install
 uv run --directory backend pre-commit run --all-files
 ```
 
+## Tests
+
+```bash
+uv run --directory backend pytest              # run all tests
+uv run --directory backend pytest -v           # verbose output
+uv run --directory backend pytest tests/test_preprocessing.py  # single file
+```
+
 ## Database migrations
 
 ```bash

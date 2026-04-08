@@ -40,8 +40,9 @@ graph TB
 2. **EEGNet classifier** predicts arousal (low/high) and valence (low/high) for each 4-second EEG segment, mapping to four emotional quadrants: relaxed, calm, excited, stressed
 3. **Pydantic AI agent** orchestrates session analysis, brain state explanation, and Spotify playlist curation through natural language conversation
 4. **Session analysis** provides detailed brain state breakdowns with per-segment timelines, band power distributions, and associated track metadata
-5. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists
-6. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display
+5. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
+6. **Spotify integration** provides search, library access, and playlist management tools — user-authenticated tools are hidden when Spotify is not connected
+7. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display; a history processor summarizes large tool results from prior turns to prevent token bloat
 
 ### Why EEGNet + Agent?
 
@@ -61,6 +62,7 @@ graph TB
 | Database | PostgreSQL |
 | Spotify | spotipy (OAuth 2.0) |
 | DevOps | Docker Compose, GitHub Actions CI |
+| Testing | pytest |
 | Code Quality | Ruff, mypy (strict), pre-commit, Biome/Ultracite |
 
 ## Project Structure
@@ -74,7 +76,8 @@ cortexdj/
 │   │   │   ├── brain_agent.py        # Pydantic AI agent + system prompt
 │   │   │   ├── deps.py              # AgentDeps (db, eeg_model, spotify, brain_context)
 │   │   │   ├── capabilities/        # Session, Insight, Playlist, Classification
-│   │   │   └── tools/               # Tool implementations per capability
+│   │   │   ├── tools/               # Tool implementations per capability
+│   │   │   └── history_processor.py # Summarizes large tool results to prevent token bloat
 │   │   ├── ml/
 │   │   │   ├── model.py             # EEGNet dual-head classifier (arousal + valence)
 │   │   │   ├── dataset.py           # EEG emotion dataset (synthetic/DEAP)
@@ -85,10 +88,11 @@ cortexdj/
 │   │   ├── schemas/                  # Pydantic request/response schemas
 │   │   ├── services/                 # eeg_processing, spotify, session, thread, title_generator
 │   │   ├── routers/                  # agent (SSE), sessions, threads, health
-│   │   ├── dependencies/            # db sessions
+│   │   ├── dependencies/            # FastAPI DI (db sessions, EEG model)
 │   │   ├── migrations/              # Alembic
 │   │   ├── scripts/                 # generate_synthetic, seed_sessions
 │   │   └── core/config.py           # pydantic-settings
+│   ├── tests/                        # pytest (preprocessing, dataset, ML)
 │   ├── data/
 │   │   ├── synthetic/               # Generated EEG data (gitignored)
 │   │   └── checkpoints/             # Model checkpoints (gitignored)
@@ -171,7 +175,8 @@ EEG Signal (32 channels @ 128 Hz)
 
 - **Synthetic data for MVP.** Realistic EEG-like signals with controlled band power profiles. Real dataset support (DEAP, SEED) documented in [Roadmap](docs/ROADMAP.md).
 - **No pgvector.** EEG segments queried by arousal/valence scores using standard SQL — no embedding similarity search needed.
-- **Spotify is optional.** Playlist capabilities gracefully hidden via `prepare_tools` when Spotify credentials aren't configured.
+- **Spotify is optional.** User-authenticated tools (library, playlist management) hidden via `prepare_tools` when not connected; public tools (search, track info) always available. Mutation tools require explicit user confirmation (`user_confirmed=True`) to prevent accidental writes.
 - **EEGNet architecture.** Custom dual-head PyTorch model with spatial and temporal convolutions — designed for EEG, not a generic CNN.
-- **Thread-backed brain context.** Persistent per-thread JSONB column storing dominant mood, arousal, valence — survives page refreshes.
+- **Thread-backed brain context.** Persistent per-thread JSONB column storing dominant mood, arousal, valence — survives page refreshes. Dynamically injected into the agent system prompt via `get_instructions()` so the agent is immediately context-aware.
+- **History processor.** Large tool results (track lists, playlists) are automatically summarized in prior conversation turns, keeping the current turn's data intact while preventing token bloat in multi-turn sessions.
 - **Agentic orchestration.** The agent decides which tools to call per query, enabling multi-step reasoning (analyze session -> explain brain state -> build playlist).

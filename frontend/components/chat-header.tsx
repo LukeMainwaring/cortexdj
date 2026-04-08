@@ -3,18 +3,12 @@
 import { useRouter } from "next/navigation";
 import { memo } from "react";
 import { useWindowSize } from "usehooks-ts";
+import type { BrainContext } from "@/api/generated/types.gen";
 import { BrainContextBadge } from "@/components/brain-context-badge";
 import { PlusIcon } from "@/components/icons";
 import { SidebarToggle } from "@/components/sidebar-toggle";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "./ui/sidebar";
-
-interface BrainContext {
-  latest_session_id?: string | null;
-  dominant_mood?: string | null;
-  avg_arousal?: number | null;
-  avg_valence?: number | null;
-}
 
 function PureChatHeader({
   brainContext,

@@ -48,6 +48,9 @@
 - See [Pretrained Models Analysis](pretrained-models-analysis.md) for API patterns and migration architecture
 
 ## Phase 5: Spotify Deep Integration
+- ~~Library access — agent tools for browsing playlists, saved tracks, and searching Spotify~~ (shipped)
+- ~~Playlist management — add tracks to existing playlists with user confirmation gates~~ (shipped)
+- ~~Structured error handling — HTTP status-aware Spotify error responses~~ (shipped)
 - Real-time "Now Playing" correlation — classify brain state while user listens
 - Recommendation engine combining brain-state preferences with Spotify audio features
 - Library analysis — scan user's saved tracks and predict brain-state compatibility
@@ -58,7 +61,8 @@
 - User authentication (OAuth or magic link)
 - Multi-user session management
 - Cloud deployment (Railway/Render)
-- CI/CD pipeline with model versioning
+- ~~CI pipeline (GitHub Actions: pre-commit + pytest)~~ (shipped)
+- CD pipeline with model versioning
 - Mobile companion app for BCI device pairing
 
 ## Dataset Action Items
@@ -73,6 +77,6 @@
 
 ## Technical Debt
 
-- Add comprehensive pytest suite with model mocking
+- Expand pytest suite — current tests cover preprocessing and dataset utilities; add async integration tests with model mocking
 - Add WebSocket support for real-time brain state streaming
 - Frontend EEG visualization (recharts or d3 for time-series, brain topomaps)

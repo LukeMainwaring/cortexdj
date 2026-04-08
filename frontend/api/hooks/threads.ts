@@ -68,9 +68,10 @@ export const useThreadMessages = (threadId: string) => {
   });
 };
 
-export const useThreadBrainContext = (threadId: string) => {
+export const useThreadBrainContext = (threadId: string, enabled = true) => {
   return useQuery({
     ...getThreadMessagesOptions({ path: { thread_id: threadId } }),
+    enabled,
     select: (data) => data.brain_context ?? null,
     retry: (failureCount, error) => {
       if (error?.response?.status === 404) return false;

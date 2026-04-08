@@ -10,6 +10,28 @@ from cortexdj.agents.tools.classification_tools import get_model_info, set_brain
 _MODEL_TOOLS = frozenset({get_model_info.__name__})
 
 
+def _inject_brain_context(ctx: RunContext[AgentDeps]) -> str:
+    if not ctx.deps.brain_context:
+        return ""
+    bc = ctx.deps.brain_context
+    parts = []
+    if bc.latest_session_id:
+        parts.append(f"Active session: {bc.latest_session_id}")
+    if bc.dominant_mood:
+        parts.append(f"Dominant mood: {bc.dominant_mood}")
+    if bc.avg_arousal is not None:
+        parts.append(f"Avg arousal: {bc.avg_arousal:.2f}")
+    if bc.avg_valence is not None:
+        parts.append(f"Avg valence: {bc.avg_valence:.2f}")
+    if not parts:
+        return ""
+    return (
+        "\n\n## Active Brain Context\n"
+        + "\n".join(f"- {p}" for p in parts)
+        + "\n\nUse this context to personalize analysis and playlist recommendations."
+    )
+
+
 @dataclass
 class ClassificationCapability(AbstractCapability[AgentDeps]):
     def get_toolset(self) -> FunctionToolset[AgentDeps]:
@@ -17,6 +39,9 @@ class ClassificationCapability(AbstractCapability[AgentDeps]):
         ts.tool(get_model_info)
         ts.tool(set_brain_context)
         return ts
+
+    def get_instructions(self) -> object:
+        return _inject_brain_context
 
     async def prepare_tools(
         self,
