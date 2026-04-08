@@ -4,7 +4,7 @@ braindecode 1.4.0 ships 8 pretrained EEG foundation models with transfer learnin
 
 ## Executive Summary
 
-CortexDJ currently uses a custom `EEGNetClassifier` that operates on hand-crafted differential entropy (DE) features — a pipeline of bandpass filtering, DE computation, and flattening into a 160-dim vector before classification. braindecode's pretrained models operate directly on **raw EEG signals**, learning their own feature representations from massive pretraining corpora. Adopting them would replace both the preprocessing stage (`preprocessing.py`) and the model (`model.py`) with a single pretrained encoder plus a fine-tuned classification head.
+CortexDJ supports two model backends: a custom `EEGNetClassifier` operating on hand-crafted differential entropy (DE) features, and a **CBraMod pretrained encoder** (shipped) with custom dual arousal/valence heads operating on raw EEG. The pretrained backend is implemented in `ml/pretrained.py` as `PretrainedDualHead`, selectable via `EEG_MODEL_BACKEND=cbramod`. This document evaluates the broader landscape of braindecode pretrained models for future expansion (e.g., REVE).
 
 ### Pipeline Comparison
 
@@ -110,24 +110,26 @@ class PretrainedDualHead(nn.Module):
 
 **Recommendation:** Option B — maintains the dual-head pattern, runs the encoder only once, and keeps `EEGPredictionResult` unchanged.
 
-### Parallel Operation
+### Parallel Operation (Implemented)
 
-Keep the current DE pipeline as the default for synthetic data and backward compatibility. Add pretrained as a second backend selectable via configuration:
+Both pipelines are implemented and selectable via `EEG_MODEL_BACKEND` env var:
 
-- `EEG_MODEL_BACKEND=custom` — current pipeline (default)
-- `EEG_MODEL_BACKEND=pretrained` — braindecode pretrained pipeline
+- `EEG_MODEL_BACKEND=eegnet` — DE feature pipeline (default)
+- `EEG_MODEL_BACKEND=cbramod` — CBraMod pretrained pipeline
 - Both produce the same `EEGPredictionResult` output
 - `compute_band_powers()` from `preprocessing.py` remains useful for visualization regardless of model backend
 
-### Files Affected
+### Files Implemented
 
-| File | Change |
+| File | Status |
 |------|--------|
-| `ml/model.py` | Add `PretrainedDualHead` wrapper class |
-| `ml/predict.py` | Add `predict_segment_pretrained()` or parameterize existing function |
-| `ml/train.py` | Add pretrained fine-tuning path (freeze encoder, train heads) |
-| `core/config.py` | Add `eeg_model_backend` setting |
-| `app.py` | Load correct model variant based on config |
+| `ml/pretrained.py` | **New** — `PretrainedDualHead` wrapper with freeze/unfreeze, `load_pretrained_dual_head()` factory |
+| `ml/predict.py` | **Updated** — `EEGModel` type alias, polymorphic `predict_segment()` and `load_model()` |
+| `ml/train.py` | **Updated** — LOSO/grouped CV, model selection, two-phase pretrained training, `compare-models` CLI |
+| `ml/dataset.py` | **Updated** — `DEAPFeatureDataset`, `DEAPRawDataset` (with 128→200Hz resampling), `load_dataset()` factory |
+| `core/config.py` | **Updated** — `EEG_MODEL_BACKEND` setting |
+| `app.py` | **Updated** — configurable model loading via `EEG_MODEL_BACKEND` |
+| `agents/deps.py` | **Updated** — `EEGModel` type for `eeg_model` field |
 | `preprocessing.py` | No changes — kept for band power visualization + backward compat |
 
 ## Roadmap Alignment

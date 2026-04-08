@@ -78,20 +78,39 @@ uv run --directory backend generate-synthetic                    # 32 participan
 uv run --directory backend generate-synthetic --participants 8   # fewer participants for quick testing
 ```
 
+### DEAP Dataset
+
+See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instructions. Place `.dat` files in `backend/data/deap/`.
+
 ### Model Training
 
+Two model backends are available:
+
 ```bash
+# EEGNet on synthetic data (default, quick start)
 uv run --directory backend train-model
-uv run --directory backend train-model --epochs 50 --lr 0.001 --folds 5
+
+# EEGNet on DEAP data
+uv run --directory backend train-model --source deap --model eegnet --cv loso
+
+# CBraMod pretrained on DEAP (fine-tuned, higher accuracy)
+uv run --directory backend train-model --source deap --model cbramod --cv loso
+
+# Limit LOSO folds for faster dev iteration
+uv run --directory backend train-model --source deap --model cbramod --cv loso --max-folds 3
+
+# Compare both models (loads checkpoints by default, --retrain to train fresh)
+uv run --directory backend compare-models
 ```
 
-Model checkpoints saved to `backend/data/checkpoints/` (gitignored).
+Model checkpoints saved to `backend/data/checkpoints/` (gitignored). Set `EEG_MODEL_BACKEND=cbramod` in `.env` to use the pretrained model at runtime.
 
 ### Database Seeding
 
 ```bash
-uv run --directory backend seed-sessions                          # seed all 32 participants
+uv run --directory backend seed-sessions                          # seed synthetic data (all 32 participants)
 uv run --directory backend seed-sessions --participants 1 2 3     # seed specific participants
+uv run --directory backend seed-sessions --source deap            # seed from DEAP dataset
 ```
 
 ## Common Commands

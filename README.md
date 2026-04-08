@@ -22,31 +22,38 @@ graph TB
 
     subgraph Storage ["Storage"]
         PG[(PostgreSQL)]
-        Data[Synthetic EEG Data]
+        Synth[Synthetic EEG Data]
+        DEAP[DEAP Dataset]
     end
 
     UI --> UC -->|SSE Stream| Agent
     UI --> TQ -->|REST| Backend
     Agent --> Tools
     Tools --> EEGNet -->|Arousal/Valence Classification| PG
-    Tools --> Preprocess -->|Band Power Analysis| Data
+    Tools --> Preprocess -->|Band Power Analysis| Synth
+    Tools --> Preprocess -->|Band Power Analysis| DEAP
     Tools --> Spotify -->|Playlist Curation| PG
-    PG --- Data
+    PG --- Synth
+    PG --- DEAP
 ```
 
 ### How It Works
 
 1. **EEG data is preprocessed** using bandpass filtering and differential entropy feature extraction across 5 frequency bands (delta, theta, alpha, beta, gamma)
-2. **EEGNet classifier** predicts arousal (low/high) and valence (low/high) for each 4-second EEG segment, mapping to four emotional quadrants: relaxed, calm, excited, stressed
-3. **Pydantic AI agent** orchestrates session analysis, brain state explanation, and Spotify playlist curation through natural language conversation
-4. **Session analysis** provides detailed brain state breakdowns with per-segment timelines, band power distributions, and associated track metadata
-5. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
-6. **Spotify integration** provides search, library access, and playlist management tools — user-authenticated tools are hidden when Spotify is not connected
-7. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display; a history processor summarizes large tool results from prior turns to prevent token bloat
+2. **Dual model backends** classify arousal (low/high) and valence (low/high) for each 4-second EEG segment, mapping to four emotional quadrants: relaxed, calm, excited, stressed
+   - **EEGNet** (custom, 25K params): operates on hand-crafted DE features — fast, lightweight
+   - **CBraMod** (pretrained, 4.9M params): operates on raw EEG via pretrained transformer encoder fine-tuned on DEAP — higher accuracy
+3. **DEAP dataset** provides real EEG benchmark data (32 participants, 40 music video trials) evaluated with leave-one-subject-out cross-validation. Synthetic data is also supported for zero-setup development.
+4. **Pydantic AI agent** orchestrates session analysis, brain state explanation, and Spotify playlist curation through natural language conversation
+5. **Session analysis** provides detailed brain state breakdowns with per-segment timelines, band power distributions, and associated track metadata
+6. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
+7. **Spotify integration** provides search, library access, and playlist management tools — user-authenticated tools are hidden when Spotify is not connected
+8. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display; a history processor summarizes large tool results from prior turns to prevent token bloat
 
-### Why EEGNet + Agent?
+### Why Dual Models + Agent?
 
-- **EEGNet** (custom dual-head): Compact CNN designed for EEG data, adapted with separate arousal and valence classification heads. Learns spatial and temporal EEG patterns from differential entropy features.
+- **EEGNet** (custom dual-head): Compact CNN designed for EEG data, adapted with separate arousal and valence classification heads. Learns spatial and temporal EEG patterns from differential entropy features. Default for quick-start with synthetic data.
+- **CBraMod** (pretrained dual-head): Transformer encoder pretrained on the TUEG corpus, fine-tuned with custom dual arousal/valence heads on DEAP. Flexible channel count via asymmetric conditional positional encoding — supports 32-channel DEAP and future 4-channel Muse 2 BCI.
 - **Agent**: Orchestrates classification, analysis, and playlist curation. A query like _"build me a relaxation playlist"_ triggers brain state querying, track filtering by arousal/valence, and Spotify integration — multi-step reasoning that a static pipeline can't do.
 
 ## Tech Stack
@@ -57,7 +64,7 @@ graph TB
 | Chat UI | Vercel AI SDK (`useChat`), Streamdown |
 | Backend | FastAPI, Pydantic v2, async SQLAlchemy |
 | Agent | Pydantic AI with OpenAI |
-| ML | PyTorch (EEGNet), MNE-Python, scipy |
+| ML | PyTorch (EEGNet), braindecode (CBraMod pretrained), MNE-Python, scipy |
 | EEG Processing | Bandpass filtering, differential entropy, Welch PSD |
 | Database | PostgreSQL |
 | Spotify | spotipy (OAuth 2.0) |

@@ -2,7 +2,9 @@
 
 ## Phase 2: Real EEG Datasets
 
-- DEAP dataset integration (32 participants, music + emotion labels, requires registration)
+- ~~DEAP dataset integration (32 participants, music + emotion labels)~~ (shipped)
+- ~~DEAP data loader with baseline stripping, feature/raw modes, participant tracking~~ (shipped)
+- ~~Leave-one-subject-out (LOSO) cross-validation and participant-grouped CV~~ (shipped)
 - SEED dataset support (15 participants, film clips, freely available)
 - AMIGOS dataset support (40 participants, audio stimuli)
 - Dataset-agnostic data loader with format autodetection (.dat, .mat, .edf)
@@ -10,9 +12,10 @@
 
 ### Pretrained Model Opportunity
 
-- Evaluate CBraMod and REVE on DEAP/SEED/AMIGOS — pretrained on massive EEG corpora (TUEG, 92 datasets respectively), likely outperform training from scratch on 32-participant datasets
-- Implement `from_pretrained()` + `reset_head(2)` fine-tuning loop alongside existing training pipeline
-- Benchmark: pretrained fine-tuned vs. current EEGNetClassifier on DEAP arousal/valence accuracy
+- ~~CBraMod integration via braindecode — `PretrainedDualHead` wrapper with freeze/unfreeze, two-phase fine-tuning~~ (shipped)
+- ~~Dual model backends: `EEG_MODEL_BACKEND=eegnet` (DE features) or `EEG_MODEL_BACKEND=cbramod` (raw EEG)~~ (shipped)
+- ~~`compare-models` CLI for benchmarking EEGNet vs CBraMod on DEAP~~ (shipped)
+- Evaluate REVE on DEAP — pretrained on 92 datasets, 25K subjects; may outperform CBraMod
 - See [Pretrained Models Analysis](pretrained-models-analysis.md) for model selection rationale
 
 ## Phase 3: Live BCI Device Integration
