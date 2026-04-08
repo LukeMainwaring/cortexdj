@@ -89,8 +89,7 @@ async def get_user_spotify_client(db: AsyncSession) -> spotipy.Spotify | None:
                 access_token = token_info["access_token"]
                 logger.info("Successfully refreshed Spotify access token")
         except Exception:
-            logger.warning("Failed to refresh Spotify token, falling back to Client Credentials")
-            return None
+            logger.warning("Failed to refresh Spotify token, continuing with existing token")
 
     return spotipy.Spotify(auth=access_token)
 
@@ -126,13 +125,44 @@ async def fetch_all_pages(
     return all_items, total or 0
 
 
-async def search_tracks(query: str, *, limit: int = 10) -> list[dict[str, Any]]:
+async def _search_paginated(
+    client: spotipy.Spotify,
+    query: str,
+    search_type: str,
+    max_results: int,
+    batch_size: int = 50,
+) -> tuple[list[dict[str, Any]], int]:
+    result_key = f"{search_type}s"
+    all_items: list[dict[str, Any]] = []
+    current_offset = 0
+    total_available = 0
+
+    while len(all_items) < max_results:
+        fetch_limit = min(batch_size, max_results - len(all_items))
+        results = await run_spotify(client.search, q=query, type=search_type, limit=fetch_limit, offset=current_offset)
+        data = results.get(result_key, {})
+        items = data.get("items", [])
+        total_available = data.get("total", 0)
+
+        if not items:
+            break
+
+        all_items.extend(items)
+        current_offset += len(items)
+
+        if current_offset >= total_available:
+            break
+
+    return all_items, total_available
+
+
+async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, Any]]:
     client = get_spotify_client()
     if client is None:
         return []
 
-    results = await run_spotify(client.search, q=query, type="track", limit=limit)
-    tracks_data = results.get("tracks", {}).get("items", [])
+    max_results = max(1, min(200, max_results))
+    all_tracks, _ = await _search_paginated(client, query, "track", max_results)
 
     return [
         {
@@ -140,9 +170,10 @@ async def search_tracks(query: str, *, limit: int = 10) -> list[dict[str, Any]]:
             "artists": [a["name"] for a in t["artists"]],
             "album": t["album"]["name"],
             "spotify_url": t["external_urls"].get("spotify"),
+            "preview_url": t.get("preview_url"),
             "track_id": t["id"],
         }
-        for t in tracks_data
+        for t in all_tracks
     ]
 
 
