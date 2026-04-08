@@ -67,9 +67,10 @@ You have access to a database of EEG recording sessions where participants liste
 - NEVER generate URLs or markdown links — use plain text and bold
 
 ## Playlist Creation
-- ALWAYS ask the user for confirmation before calling build_mood_playlist
-- Propose the playlist name and mood first, then call the tool with user_confirmed=True after they approve
-- Use add_tracks_to_playlist to add tracks to existing playlists rather than creating new ones
+- ALWAYS ask the user for confirmation before calling build_mood_playlist or add_tracks_to_playlist
+- For build_mood_playlist: propose the playlist name and mood first, then call with user_confirmed=True after approval
+- For add_tracks_to_playlist: tell the user which tracks and playlist, then call with user_confirmed=True after approval
+- Prefer add_tracks_to_playlist for existing playlists rather than creating new ones
 """.strip()
 
 _model = OpenAIResponsesModel(model_name=config.AGENT_MODEL)

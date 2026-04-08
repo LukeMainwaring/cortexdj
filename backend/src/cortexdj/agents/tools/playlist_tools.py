@@ -11,8 +11,13 @@ from cortexdj.agents.deps import AgentDeps
 from cortexdj.models.playlist import Playlist
 from cortexdj.models.track import Track
 from cortexdj.services import eeg_processing as eeg_service
-from cortexdj.services import spotify as spotify_service
-from cortexdj.services.spotify import fetch_all_pages, get_spotify_client, run_spotify
+from cortexdj.services.spotify import (
+    create_playlist,
+    fetch_all_pages,
+    get_spotify_client,
+    run_spotify,
+    search_paginated,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +70,9 @@ async def find_relaxing_tracks(ctx: RunContext[AgentDeps], limit: int = 20) -> d
     seen: set[str] = set()
     unique: list[dict[str, object]] = []
     for t in all_tracks:
-        if t["track_id"] not in seen:
-            seen.add(str(t["track_id"]))
+        tid = str(t["track_id"])
+        if tid not in seen:
+            seen.add(tid)
             unique.append(t)
 
     return {
@@ -75,8 +81,8 @@ async def find_relaxing_tracks(ctx: RunContext[AgentDeps], limit: int = 20) -> d
                 "title": t["title"],
                 "artist": t["artist"],
                 "dominant_state": t["dominant_state"],
-                "avg_arousal": round(float(str(t["avg_arousal"])), 2),
-                "avg_valence": round(float(str(t["avg_valence"])), 2),
+                "avg_arousal": round(float(t["avg_arousal"]), 2),  # type: ignore[arg-type]
+                "avg_valence": round(float(t["avg_valence"]), 2),  # type: ignore[arg-type]
             }
             for t in unique[:limit]
         ],
@@ -129,7 +135,7 @@ async def build_mood_playlist(
     ctx.deps.db.add(playlist)
     await ctx.deps.db.flush()
 
-    spotify_result = await spotify_service.create_playlist(
+    spotify_result = await create_playlist(
         playlist_name,
         spotify_track_ids,
         description=f"Auto-curated by CortexDJ based on brain state: {mood}",
@@ -284,13 +290,27 @@ async def add_tracks_to_playlist(
     ctx: RunContext[AgentDeps],
     playlist_id: str,
     track_ids: list[str],
+    user_confirmed: bool = False,
 ) -> dict[str, Any]:
     """Add tracks to an existing Spotify playlist.
+
+    IMPORTANT: You must get explicit user confirmation before calling this tool.
+    Tell the user which tracks you plan to add and to which playlist, then call
+    with user_confirmed=True after they approve.
 
     Args:
         playlist_id: The Spotify playlist ID to add tracks to
         track_ids: List of Spotify track IDs to add (max 100 per call)
+        user_confirmed: Must be True to confirm user has approved the addition
     """
+    if not user_confirmed:
+        return {
+            "error": "confirmation_required",
+            "message": "You must get explicit user confirmation before adding tracks to a playlist. "
+            "Tell the user which tracks you plan to add and to which playlist, then call "
+            "with user_confirmed=True after they approve.",
+        }
+
     client = ctx.deps.spotify_client
     if client is None:
         return _requires_connection_error()
@@ -350,9 +370,7 @@ async def search_tracks(
     max_results = max(1, min(200, max_results))
 
     try:
-        from cortexdj.services.spotify import _search_paginated
-
-        all_tracks, total_available = await _search_paginated(client, query, "track", max_results)
+        all_tracks, total_available = await search_paginated(client, query, "track", max_results)
 
         return {
             "tracks": [

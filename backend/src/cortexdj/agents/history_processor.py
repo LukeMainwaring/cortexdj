@@ -67,10 +67,10 @@ def _summarize_list_result(
         summary["summary"] = f"Retrieved {len(tracks)} tracks"
         summary["count"] = len(tracks)
         summary["sample"] = tracks[:SAMPLE_SIZE]
-        if "total_results" in content:
-            summary["total_available"] = content["total_results"]
         if "total_available" in content:
             summary["total_available"] = content["total_available"]
+        elif "total_results" in content:
+            summary["total_available"] = content["total_results"]
 
     elif "saved_tracks" in content and isinstance(content["saved_tracks"], list):
         saved = content["saved_tracks"]
@@ -118,9 +118,10 @@ def _process_tool_return_part(part: ToolReturnPart) -> ToolReturnPart:
 def summarize_tool_results(messages: list[ModelMessage]) -> list[ModelMessage]:
     """Summarize large tool results in historical messages.
 
-    Scans all messages except the current user prompt (last message) and replaces
-    large tool results with compact summaries. Current turn results are NOT
-    summarized, ensuring the agent has full data for its current reasoning.
+    Scans all messages except the most recent one and replaces large tool
+    results with compact summaries. The last message (whether a user prompt
+    or a tool return from the current agent turn) is preserved in full,
+    ensuring the agent has complete data for its current reasoning.
     """
     if len(messages) <= 1:
         return messages

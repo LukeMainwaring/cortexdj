@@ -89,7 +89,8 @@ async def get_user_spotify_client(db: AsyncSession) -> spotipy.Spotify | None:
                 access_token = token_info["access_token"]
                 logger.info("Successfully refreshed Spotify access token")
         except Exception:
-            logger.warning("Failed to refresh Spotify token, continuing with existing token")
+            logger.warning("Failed to refresh Spotify token, falling back to Client Credentials")
+            return None
 
     return spotipy.Spotify(auth=access_token)
 
@@ -125,7 +126,7 @@ async def fetch_all_pages(
     return all_items, total or 0
 
 
-async def _search_paginated(
+async def search_paginated(
     client: spotipy.Spotify,
     query: str,
     search_type: str,
@@ -162,7 +163,7 @@ async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, 
         return []
 
     max_results = max(1, min(200, max_results))
-    all_tracks, _ = await _search_paginated(client, query, "track", max_results)
+    all_tracks, _ = await search_paginated(client, query, "track", max_results)
 
     return [
         {
