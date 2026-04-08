@@ -140,7 +140,7 @@ uv run --directory backend pre-commit install
 # Download DEAP dataset (see backend/data/DEAP_SETUP.md)
 # Place .dat files in backend/data/deap/
 
-# Train the EEGNet model
+# Train the model (CBraMod with LOSO CV by default)
 uv run --directory backend train-model
 
 # Seed the database
