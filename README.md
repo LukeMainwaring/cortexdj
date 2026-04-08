@@ -61,6 +61,7 @@ graph TB
 | Database | PostgreSQL |
 | Spotify | spotipy (OAuth 2.0) |
 | DevOps | Docker Compose, GitHub Actions CI |
+| Testing | pytest |
 | Code Quality | Ruff, mypy (strict), pre-commit, Biome/Ultracite |
 
 ## Project Structure
@@ -85,10 +86,11 @@ cortexdj/
 │   │   ├── schemas/                  # Pydantic request/response schemas
 │   │   ├── services/                 # eeg_processing, spotify, session, thread, title_generator
 │   │   ├── routers/                  # agent (SSE), sessions, threads, health
-│   │   ├── dependencies/            # db sessions
+│   │   ├── dependencies/            # FastAPI DI (db sessions, EEG model)
 │   │   ├── migrations/              # Alembic
 │   │   ├── scripts/                 # generate_synthetic, seed_sessions
 │   │   └── core/config.py           # pydantic-settings
+│   ├── tests/                        # pytest (preprocessing, dataset, ML)
 │   ├── data/
 │   │   ├── synthetic/               # Generated EEG data (gitignored)
 │   │   └── checkpoints/             # Model checkpoints (gitignored)
@@ -173,5 +175,5 @@ EEG Signal (32 channels @ 128 Hz)
 - **No pgvector.** EEG segments queried by arousal/valence scores using standard SQL — no embedding similarity search needed.
 - **Spotify is optional.** Playlist capabilities gracefully hidden via `prepare_tools` when Spotify credentials aren't configured.
 - **EEGNet architecture.** Custom dual-head PyTorch model with spatial and temporal convolutions — designed for EEG, not a generic CNN.
-- **Thread-backed brain context.** Persistent per-thread JSONB column storing dominant mood, arousal, valence — survives page refreshes.
+- **Thread-backed brain context.** Persistent per-thread JSONB column storing dominant mood, arousal, valence — survives page refreshes. Dynamically injected into the agent system prompt via `get_instructions()` so the agent is immediately context-aware.
 - **Agentic orchestration.** The agent decides which tools to call per query, enabling multi-step reasoning (analyze session -> explain brain state -> build playlist).

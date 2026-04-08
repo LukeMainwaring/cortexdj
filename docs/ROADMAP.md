@@ -73,6 +73,6 @@
 
 ## Technical Debt
 
-- Add comprehensive pytest suite with model mocking
+- Expand pytest suite — current tests cover preprocessing and dataset utilities; add async integration tests with model mocking
 - Add WebSocket support for real-time brain state streaming
 - Frontend EEG visualization (recharts or d3 for time-series, brain topomaps)

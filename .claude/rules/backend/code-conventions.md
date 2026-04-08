@@ -21,7 +21,8 @@ Python/FastAPI conventions for the CortexDJ backend.
 - Use `BackgroundTasks` for blocking, secondary work in routes
 - Prefer Pydantic models over raw dicts for request/response schemas
 - ML inference code lives in `ml/`; keep it separate from `services/`. Services call into `ml/` for predictions.
-- EEGNet model loaded once via FastAPI lifespan handler; accessed via app state. Never import directly in routes.
+- EEGNet model loaded once via FastAPI lifespan handler; accessed via typed dependency injection (`EEGModelDep` in `dependencies/eeg_model.py`). Never import directly in routes.
+- Capabilities can use `get_instructions()` to dynamically inject runtime context into the agent system prompt (e.g., `ClassificationCapability` injects active brain context). Use sync functions for non-I/O injections.
 
 ## Data Patterns
 
