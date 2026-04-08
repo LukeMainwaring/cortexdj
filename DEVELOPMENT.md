@@ -98,6 +98,20 @@ uv run --directory backend compare-models
 
 Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is the default runtime backend. Set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model instead.
 
+### GPU Training (Modal)
+
+Full LOSO with CBraMod takes 12+ hours on Apple Silicon. Use [Modal](https://modal.com) for a one-off GPU run (~1 hour on A10G, ~$1-2):
+
+```bash
+pip install modal && modal setup   # one-time
+modal run backend/scripts/modal_train.py                  # full training on A10G
+modal run backend/scripts/modal_train.py -- --quick       # quick test run
+modal run backend/scripts/modal_train.py --gpu a100       # faster GPU
+modal run backend/scripts/modal_train.py --command compare-models  # compare both
+```
+
+Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
+
 ### Database Seeding
 
 ```bash

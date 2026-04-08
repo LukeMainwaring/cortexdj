@@ -34,6 +34,9 @@ uv run --directory backend train-model --model eegnet
 # Compare EEGNet vs CBraMod on DEAP
 uv run --directory backend compare-models
 
+# GPU training via Modal (pip install modal && modal setup first)
+modal run backend/scripts/modal_train.py
+
 # Seed database with EEG sessions (requires DEAP data)
 uv run --directory backend seed-sessions
 
