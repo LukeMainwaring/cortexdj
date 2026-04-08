@@ -25,11 +25,17 @@ uv run --directory backend pre-commit run --all-files
 # Train CBraMod model with LOSO CV (default; requires DEAP — see backend/data/DEAP_SETUP.md)
 uv run --directory backend train-model
 
+# Quick dev run (10 epochs, 3 folds)
+uv run --directory backend train-model --quick
+
 # Train EEGNet instead
 uv run --directory backend train-model --model eegnet
 
 # Compare EEGNet vs CBraMod on DEAP
 uv run --directory backend compare-models
+
+# GPU training via Modal (pip install modal && modal setup first)
+modal run backend/scripts/modal_train.py
 
 # Seed database with EEG sessions (requires DEAP data)
 uv run --directory backend seed-sessions

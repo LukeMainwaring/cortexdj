@@ -11,6 +11,8 @@ DEAP preprocessed format: .dat pickle files per participant with:
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import pickle
 from pathlib import Path
 from typing import Any, Literal
@@ -22,6 +24,11 @@ from scipy.signal import resample
 from torch.utils.data import Dataset
 
 from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE, extract_features
+
+logger = logging.getLogger(__name__)
+
+# Cache version — bump when feature extraction logic changes
+_CACHE_VERSION = "v1"
 
 NUM_EEG_CHANNELS = 32
 SEGMENT_SAMPLES = DEFAULT_SAMPLING_RATE * 4  # 4-second segments (512 samples at 128Hz)
@@ -74,10 +81,23 @@ def _extract_participant_id(file_path: Path) -> int:
     return int(file_path.stem[1:])
 
 
+def _cache_key(files: list[Path], mode: str, extra: str = "") -> str:
+    """Build a cache key from source file paths and their mtimes."""
+    parts = [_CACHE_VERSION, mode, extra]
+    for f in sorted(files):
+        parts.append(f"{f.name}:{f.stat().st_mtime_ns}")
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
+
+
+def _cache_dir(data_dir: Path) -> Path:
+    return data_dir / ".cache"
+
+
 class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
     """DEAP dataset returning DE features for EEGNet training.
 
     The 3-second baseline period is stripped by load_deap_participant().
+    Caches extracted features to disk for faster subsequent loads.
     """
 
     def __init__(
@@ -104,8 +124,59 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
             )
             raise FileNotFoundError(msg)
 
+        if self._try_load_cache(files):
+            return
+
         for file_path in files:
             self._load_participant(file_path)
+
+        self._save_cache(files)
+
+    def _cache_path(self, files: list[Path]) -> Path:
+        key = _cache_key(files, "features", str(self.segment_samples))
+        return _cache_dir(self.data_dir) / f"features_{key}.npz"
+
+    def _try_load_cache(self, files: list[Path]) -> bool:
+        path = self._cache_path(files)
+        if not path.exists():
+            return False
+        try:
+            data = np.load(path, allow_pickle=False)
+            n = int(data["n_samples"])
+            feature_dim = int(data["feature_dim"])
+            all_features = data["features"].reshape(n, feature_dim)
+            arousal_labels = data["arousal_labels"]
+            valence_labels = data["valence_labels"]
+            pid_array = data["participant_ids"]
+            for i in range(n):
+                self.samples.append((all_features[i], int(arousal_labels[i]), int(valence_labels[i])))
+                self.participant_ids.append(int(pid_array[i]))
+            logger.info(f"Loaded {n} cached feature segments from {path.name}")
+            return True
+        except Exception as e:
+            logger.warning(f"Cache load failed, recomputing features: {e}")
+            return False
+
+    def _save_cache(self, files: list[Path]) -> None:
+        path = self._cache_path(files)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        n = len(self.samples)
+        if n == 0:
+            return
+        feature_dim = self.samples[0][0].shape[0]
+        all_features = np.array([s[0] for s in self.samples])
+        arousal_labels = np.array([s[1] for s in self.samples])
+        valence_labels = np.array([s[2] for s in self.samples])
+        np.savez(
+            path,
+            features=all_features,
+            arousal_labels=arousal_labels,
+            valence_labels=valence_labels,
+            participant_ids=np.array(self.participant_ids),
+            n_samples=n,
+            feature_dim=feature_dim,
+        )
+        logger.info(f"Cached {n} feature segments to {path.name}")
 
     def _load_participant(self, file_path: Path) -> None:
         participant_id = _extract_participant_id(file_path)
@@ -145,6 +216,7 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
 
     Resamples from 128Hz to 200Hz (CBraMod target) and returns raw
     (n_channels, n_times) tensors instead of DE features.
+    Caches resampled segments to disk for faster subsequent loads.
     """
 
     def __init__(
@@ -173,8 +245,61 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
             )
             raise FileNotFoundError(msg)
 
+        if self._try_load_cache(files):
+            return
+
         for file_path in files:
             self._load_participant(file_path)
+
+        self._save_cache(files)
+
+    def _cache_path(self, files: list[Path]) -> Path:
+        key = _cache_key(files, "raw", str(self.target_sfreq))
+        return _cache_dir(self.data_dir) / f"raw_{key}.npz"
+
+    def _try_load_cache(self, files: list[Path]) -> bool:
+        path = self._cache_path(files)
+        if not path.exists():
+            return False
+        try:
+            data = np.load(path, allow_pickle=False)
+            n = int(data["n_samples"])
+            n_channels = int(data["n_channels"])
+            n_times = int(data["n_times"])
+            all_segments = data["segments"].reshape(n, n_channels, n_times)
+            arousal_labels = data["arousal_labels"]
+            valence_labels = data["valence_labels"]
+            pid_array = data["participant_ids"]
+            for i in range(n):
+                self.samples.append((all_segments[i], int(arousal_labels[i]), int(valence_labels[i])))
+                self.participant_ids.append(int(pid_array[i]))
+            logger.info(f"Loaded {n} cached raw segments from {path.name}")
+            return True
+        except Exception as e:
+            logger.warning(f"Cache load failed, recomputing raw segments: {e}")
+            return False
+
+    def _save_cache(self, files: list[Path]) -> None:
+        path = self._cache_path(files)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        n = len(self.samples)
+        if n == 0:
+            return
+        seg0 = self.samples[0][0]
+        all_segments = np.array([s[0] for s in self.samples])
+        arousal_labels = np.array([s[1] for s in self.samples])
+        valence_labels = np.array([s[2] for s in self.samples])
+        np.savez(
+            path,
+            segments=all_segments,
+            arousal_labels=arousal_labels,
+            valence_labels=valence_labels,
+            participant_ids=np.array(self.participant_ids),
+            n_samples=n,
+            n_channels=seg0.shape[0],
+            n_times=seg0.shape[1],
+        )
+        logger.info(f"Cached {n} raw segments to {path.name}")
 
     def _load_participant(self, file_path: Path) -> None:
         participant_id = _extract_participant_id(file_path)

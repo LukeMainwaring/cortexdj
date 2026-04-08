@@ -80,20 +80,37 @@ See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instru
 Two model backends are available:
 
 ```bash
-# CBraMod pretrained with LOSO CV (default)
+# CBraMod pretrained with LOSO CV (default — 50 epochs, all 32 folds)
 uv run --directory backend train-model
+
+# Quick dev run (10 epochs, 3 folds)
+uv run --directory backend train-model --quick
 
 # EEGNet instead
 uv run --directory backend train-model --model eegnet
 
-# Limit LOSO folds for faster dev iteration
-uv run --directory backend train-model --max-folds 3
+# Custom configuration
+uv run --directory backend train-model --epochs 100 --batch-size 128 --max-folds 5
 
 # Compare both models (loads checkpoints by default, --retrain to train fresh)
 uv run --directory backend compare-models
 ```
 
 Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is the default runtime backend. Set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model instead.
+
+### GPU Training (Modal)
+
+Full LOSO with CBraMod takes 12+ hours on Apple Silicon. Use [Modal](https://modal.com) for a one-off GPU run (~1 hour on A10G, ~$1-2):
+
+```bash
+pip install modal && modal setup   # one-time
+modal run backend/scripts/modal_train.py                  # full training on A10G
+modal run backend/scripts/modal_train.py -- --quick       # quick test run
+modal run backend/scripts/modal_train.py --gpu a100       # faster GPU
+modal run backend/scripts/modal_train.py --command compare-models  # compare both
+```
+
+Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
 
 ### Database Seeding
 
