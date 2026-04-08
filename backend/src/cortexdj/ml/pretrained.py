@@ -116,10 +116,7 @@ def load_pretrained_dual_head(
         out = backbone(dummy, return_features=True)
         embed_dim = out["features"].shape[-1]
 
-    logger.info(
-        f"Loaded CBraMod pretrained encoder: {n_chans}ch, {n_times} samples @ {sfreq}Hz, "
-        f"embed_dim={embed_dim}"
-    )
+    logger.info(f"Loaded CBraMod pretrained encoder: {n_chans}ch, {n_times} samples @ {sfreq}Hz, embed_dim={embed_dim}")
 
     model = PretrainedDualHead(backbone, embed_dim=embed_dim)
     model.freeze_backbone()

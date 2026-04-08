@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Literal
 
 import numpy as np
+from sqlalchemy import select
 
 from cortexdj.core.config import get_settings
 from cortexdj.dependencies.db import get_async_sqlalchemy_session
@@ -30,7 +31,7 @@ from cortexdj.ml.dataset import (
     load_synthetic_participant,
     scores_to_quadrant,
 )
-from cortexdj.ml.predict import EEGPredictionResult, load_model, predict_segment
+from cortexdj.ml.predict import EEGModel, EEGPredictionResult, load_model, predict_segment
 from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE, compute_band_powers
 from cortexdj.models.eeg_segment import EegSegment
 from cortexdj.models.session import Session
@@ -110,7 +111,7 @@ def _load_participant_data(
 async def seed_participant(
     participant_id: int,
     data_dir: Path,
-    model: object | None,
+    model: EEGModel | None,
     source: Literal["synthetic", "deap"] = "synthetic",
 ) -> int:
     result = _load_participant_data(participant_id, data_dir, source)
@@ -139,8 +140,6 @@ async def seed_participant(
             arousal = float(labels[trial_idx, 1])
 
             track_title, track_artist = STIMULUS_TRACKS[trial_idx % len(STIMULUS_TRACKS)]
-            from sqlalchemy import select
-
             result_row = await db.execute(select(Track).where(Track.title == track_title, Track.artist == track_artist))
             existing_track = result_row.scalar_one_or_none()
 
@@ -166,7 +165,7 @@ async def seed_participant(
                 segment_data = trial_data[:, start:end]
 
                 if model is not None:
-                    prediction = predict_segment(segment_data, model)  # type: ignore[arg-type]
+                    prediction = predict_segment(segment_data, model)
                 else:
                     band_powers = compute_band_powers(segment_data)
                     prediction = EEGPredictionResult(

@@ -34,9 +34,7 @@ AROUSAL_THRESHOLD = 5.0
 VALENCE_THRESHOLD = 5.0
 
 # DEAP constants
-DEAP_TOTAL_CHANNELS = 40  # 32 EEG + 8 peripheral
 DEAP_BASELINE_SAMPLES = 384  # 3 seconds at 128Hz
-DEAP_SAMPLING_RATE = 128
 
 # CBraMod target sampling rate
 CBRAMOD_SAMPLING_RATE = 200
@@ -76,6 +74,7 @@ def load_deap_participant(
       - data: (40, 32, 7680) — 40 trials, 32 EEG channels, 60s at 128Hz
       - labels: (40, 4) — [valence, arousal, dominance, liking]
     """
+    # DEAP is a trusted academic dataset that users explicitly download and place locally
     with open(file_path, "rb") as f:
         participant = pickle.load(f, encoding="latin1")  # noqa: S301
 
@@ -152,8 +151,8 @@ class EEGEmotionDataset(Dataset[tuple[torch.Tensor, int, int]]):
 class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
     """DEAP dataset returning DE features for EEGNet training.
 
-    Same interface as EEGEmotionDataset but loads from DEAP .dat files.
-    Applies baseline normalization (subtract per-channel mean of 3s baseline).
+    Same interface as EEGEmotionDataset but loads from DEAP preprocessed .dat files.
+    The 3-second baseline period is stripped by load_deap_participant().
     """
 
     def __init__(

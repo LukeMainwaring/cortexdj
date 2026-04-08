@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import logging
 import time
 from typing import Literal
@@ -28,6 +29,7 @@ from cortexdj.ml.dataset import (
     load_dataset,
 )
 from cortexdj.ml.model import EEGNetClassifier
+from cortexdj.ml.predict import EEGModel
 from cortexdj.ml.pretrained import PretrainedDualHead, load_pretrained_dual_head
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -35,7 +37,6 @@ logger = logging.getLogger(__name__)
 
 # Type for any dataset that has participant_ids
 type ParticipantDataset = EEGEmotionDataset | DEAPFeatureDataset | DEAPRawDataset
-type EEGModel = EEGNetClassifier | PretrainedDualHead
 
 
 def make_loso_splits(
@@ -64,6 +65,9 @@ def make_grouped_splits(
 ) -> list[tuple[list[int], list[int]]]:
     """Create participant-grouped K-fold splits (no data leakage)."""
     unique_ids = sorted(set(dataset.participant_ids))
+    if n_folds > len(unique_ids):
+        msg = f"n_folds ({n_folds}) exceeds number of participants ({len(unique_ids)})"
+        raise ValueError(msg)
     fold_size = len(unique_ids) // n_folds
 
     splits: list[tuple[list[int], list[int]]] = []
@@ -123,7 +127,7 @@ def train_fold_eegnet(
     criterion = nn.CrossEntropyLoss()
 
     best_val_acc = 0.0
-    best_state: dict[str, torch.Tensor] = {}
+    best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
     for epoch in range(epochs):
         model.train()
@@ -181,8 +185,6 @@ def train_fold_pretrained(
     weights (avoids re-downloading).
     """
     # Deep copy so each fold starts fresh, reusing cached backbone weights
-    import copy
-
     model = copy.deepcopy(base_model).to(device)
     model.freeze_backbone()
     criterion = nn.CrossEntropyLoss()
@@ -191,7 +193,7 @@ def train_fold_pretrained(
     phase2_epochs = epochs - phase1_epochs
 
     best_val_acc = 0.0
-    best_state: dict[str, torch.Tensor] = {}
+    best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
     # Phase 1: frozen backbone
     head_params = list(model.arousal_head.parameters()) + list(model.valence_head.parameters())

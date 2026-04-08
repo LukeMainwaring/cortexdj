@@ -17,9 +17,7 @@ def _make_mock_encoder(embed_dim: int = 64) -> nn.Module:
             self.linear = nn.Linear(32, embed_dim)
             self._embed_dim = embed_dim
 
-        def forward(
-            self, x: torch.Tensor, return_features: bool = False
-        ) -> dict[str, torch.Tensor] | torch.Tensor:
+        def forward(self, x: torch.Tensor, return_features: bool = False) -> dict[str, torch.Tensor] | torch.Tensor:
             # x: (batch, n_chans, n_times)
             pooled = x.mean(dim=2)  # (batch, n_chans)
             features = self.linear(pooled).unsqueeze(1)  # (batch, 1, embed_dim)
