@@ -90,8 +90,9 @@ function SpotifyPageContent() {
       <div>
         <h2 className="font-semibold text-lg">Spotify Integration</h2>
         <p className="text-muted-foreground text-sm">
-          Connect your Spotify account to let CortexDJ create brain-state
-          playlists and access your listening history for EEG correlation.
+          Connect your Spotify account to let CortexDJ curate playlists from
+          your brain-state data and cross-reference your library with EEG
+          sessions.
         </p>
       </div>
 
@@ -129,7 +130,8 @@ function SpotifyPageContent() {
               <div className="rounded-md bg-muted/50 p-4">
                 <p className="font-medium text-sm">What CortexDJ can do:</p>
                 <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground text-sm">
-                  <li>Create brain-state playlists on your Spotify account</li>
+                  <li>Create and add to playlists on your Spotify account</li>
+                  <li>Browse your playlists and saved tracks</li>
                   <li>View your recently played tracks for EEG correlation</li>
                 </ul>
               </div>
@@ -147,17 +149,8 @@ function SpotifyPageContent() {
           ) : (
             <>
               <div className="rounded-md bg-muted/50 p-4">
-                <p className="font-medium text-sm">
-                  When you connect, CortexDJ will be able to:
-                </p>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground text-sm">
-                  <li>Create playlists based on your brain-state data</li>
-                  <li>Access your recent listening history</li>
-                </ul>
-                <p className="mt-3 text-muted-foreground text-xs">
-                  CortexDJ requests access to create playlists and view your
-                  listening history. It cannot modify your existing playlists or
-                  account settings.
+                <p className="text-muted-foreground text-xs">
+                  All playlist changes require your explicit confirmation.
                 </p>
               </div>
               <Button disabled={isConnectPending} onClick={handleConnect}>
