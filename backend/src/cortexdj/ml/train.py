@@ -334,6 +334,8 @@ def train_fold_pretrained(
             break
 
     # Phase 2: full fine-tuning — warmup + cosine decay
+    # Restore best Phase 1 weights so we don't start from a degraded state
+    model.load_state_dict(best_state)
     model.unfreeze_backbone()
     finetune_wd = config.weight_decay * FINETUNE_WEIGHT_DECAY_MULTIPLIER
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.finetune_lr, weight_decay=finetune_wd)
@@ -542,12 +544,12 @@ def train(config: TrainingConfig) -> None:
 
 
 def _std(values: list[float]) -> float:
-    """Population standard deviation."""
+    """Sample standard deviation (Bessel-corrected)."""
     n = len(values)
     if n < 2:
         return 0.0
     mean = sum(values) / n
-    return math.sqrt(sum((v - mean) ** 2 for v in values) / n)
+    return math.sqrt(sum((v - mean) ** 2 for v in values) / (n - 1))
 
 
 def _print_results_table(
@@ -636,6 +638,10 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
     if config.seed is not None:
         _set_seed(config.seed)
 
+    torch.set_float32_matmul_precision("high")
+    if config.seed is None:
+        torch.backends.cudnn.benchmark = True
+
     results = {}
 
     for model_type in ("eegnet", "cbramod"):
@@ -649,7 +655,7 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
         if config.cv_mode == "loso":
             splits = make_loso_splits(dataset, max_folds=config.max_folds)
         else:
-            splits = make_grouped_splits(dataset)
+            splits = make_grouped_splits(dataset, n_folds=config.n_folds)
 
         device = _get_device()
         all_metrics: list[dict[str, float]] = []

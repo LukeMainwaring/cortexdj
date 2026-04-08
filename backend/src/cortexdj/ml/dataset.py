@@ -153,8 +153,8 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
                 self.participant_ids.append(int(pid_array[i]))
             logger.info(f"Loaded {n} cached feature segments from {path.name}")
             return True
-        except Exception:
-            logger.warning("Cache load failed, recomputing features")
+        except Exception as e:
+            logger.warning(f"Cache load failed, recomputing features: {e}")
             return False
 
     def _save_cache(self, files: list[Path]) -> None:
@@ -275,8 +275,8 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
                 self.participant_ids.append(int(pid_array[i]))
             logger.info(f"Loaded {n} cached raw segments from {path.name}")
             return True
-        except Exception:
-            logger.warning("Cache load failed, recomputing raw segments")
+        except Exception as e:
+            logger.warning(f"Cache load failed, recomputing raw segments: {e}")
             return False
 
     def _save_cache(self, files: list[Path]) -> None:
