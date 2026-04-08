@@ -22,7 +22,6 @@ graph TB
 
     subgraph Storage ["Storage"]
         PG[(PostgreSQL)]
-        Synth[Synthetic EEG Data]
         DEAP[DEAP Dataset]
     end
 
@@ -30,10 +29,8 @@ graph TB
     UI --> TQ -->|REST| Backend
     Agent --> Tools
     Tools --> EEGNet -->|Arousal/Valence Classification| PG
-    Tools --> Preprocess -->|Band Power Analysis| Synth
     Tools --> Preprocess -->|Band Power Analysis| DEAP
     Tools --> Spotify -->|Playlist Curation| PG
-    PG --- Synth
     PG --- DEAP
 ```
 
@@ -43,7 +40,7 @@ graph TB
 2. **Dual model backends** classify arousal (low/high) and valence (low/high) for each 4-second EEG segment, mapping to four emotional quadrants: relaxed, calm, excited, stressed
    - **EEGNet** (custom, 25K params): operates on hand-crafted DE features — fast, lightweight
    - **CBraMod** (pretrained, 4.9M params): operates on raw EEG via pretrained transformer encoder fine-tuned on DEAP — higher accuracy
-3. **DEAP dataset** provides real EEG benchmark data (32 participants, 40 music video trials) evaluated with leave-one-subject-out cross-validation. Synthetic data is also supported for zero-setup development.
+3. **DEAP dataset** provides real EEG benchmark data (32 participants, 40 music video trials) evaluated with leave-one-subject-out cross-validation.
 4. **Pydantic AI agent** orchestrates session analysis, brain state explanation, and Spotify playlist curation through natural language conversation
 5. **Session analysis** provides detailed brain state breakdowns with per-segment timelines, band power distributions, and associated track metadata
 6. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
@@ -52,7 +49,7 @@ graph TB
 
 ### Why Dual Models + Agent?
 
-- **EEGNet** (custom dual-head): Compact CNN designed for EEG data, adapted with separate arousal and valence classification heads. Learns spatial and temporal EEG patterns from differential entropy features. Default for quick-start with synthetic data.
+- **EEGNet** (custom dual-head): Compact CNN designed for EEG data, adapted with separate arousal and valence classification heads. Learns spatial and temporal EEG patterns from differential entropy features.
 - **CBraMod** (pretrained dual-head): Transformer encoder pretrained on the TUEG corpus, fine-tuned with custom dual arousal/valence heads on DEAP. Flexible channel count via asymmetric conditional positional encoding — supports 32-channel DEAP and future 4-channel Muse 2 BCI.
 - **Agent**: Orchestrates classification, analysis, and playlist curation. A query like _"build me a relaxation playlist"_ triggers brain state querying, track filtering by arousal/valence, and Spotify integration — multi-step reasoning that a static pipeline can't do.
 
@@ -87,7 +84,7 @@ cortexdj/
 │   │   │   └── history_processor.py # Summarizes large tool results to prevent token bloat
 │   │   ├── ml/
 │   │   │   ├── model.py             # EEGNet dual-head classifier (arousal + valence)
-│   │   │   ├── dataset.py           # EEG datasets (synthetic/DEAP, feature/raw modes)
+│   │   │   ├── dataset.py           # DEAP EEG datasets (feature/raw modes)
 │   │   │   ├── preprocessing.py     # Bandpass filtering, DE features, band powers
 │   │   │   ├── pretrained.py        # CBraMod pretrained dual-head wrapper
 │   │   │   ├── train.py             # Training with LOSO/grouped CV, model comparison
@@ -98,11 +95,10 @@ cortexdj/
 │   │   ├── routers/                  # agent (SSE), sessions, threads, health
 │   │   ├── dependencies/            # FastAPI DI (db sessions, EEG model)
 │   │   ├── migrations/              # Alembic
-│   │   ├── scripts/                 # generate_synthetic, seed_sessions
+│   │   ├── scripts/                 # seed_sessions
 │   │   └── core/config.py           # pydantic-settings
 │   ├── tests/                        # pytest (preprocessing, dataset, ML)
 │   ├── data/
-│   │   ├── synthetic/               # Generated EEG data (gitignored)
 │   │   ├── deap/                    # DEAP dataset .dat files (gitignored, see DEAP_SETUP.md)
 │   │   └── checkpoints/             # Model checkpoints (gitignored)
 │   ├── Dockerfile                    # Multi-stage (uv builder -> app -> local)
@@ -141,8 +137,8 @@ docker compose up -d
 uv sync --directory backend
 uv run --directory backend pre-commit install
 
-# Generate synthetic EEG data
-uv run --directory backend generate-synthetic
+# Download DEAP dataset (see backend/data/DEAP_SETUP.md)
+# Place .dat files in backend/data/deap/
 
 # Train the EEGNet model
 uv run --directory backend train-model
@@ -189,8 +185,8 @@ Both produce:
 ## Design Decisions
 
 - **Dual model backends.** Custom EEGNet on hand-crafted DE features for lightweight inference; CBraMod pretrained encoder (fine-tuned on DEAP) for higher accuracy. Both produce identical `EEGPredictionResult` outputs. Configurable via `EEG_MODEL_BACKEND`.
-- **DEAP dataset support.** Real EEG benchmark (32 participants, music + emotion labels). LOSO cross-validation for rigorous evaluation. Synthetic data remains the default for quick setup.
-- **Synthetic data for quick start.** Realistic EEG-like signals with controlled band power profiles for zero-setup development.
+- **DEAP dataset support.** Real EEG benchmark (32 participants, music + emotion labels). LOSO cross-validation for rigorous evaluation.
+- **DEAP-only training pipeline.** All training and seeding uses the DEAP dataset (freely available via Kaggle). Synthetic data generators will return for Muse 2 BCI development (4 channels, 256Hz, different montage) when Phase 3 begins.
 - **No pgvector.** EEG segments queried by arousal/valence scores using standard SQL — no embedding similarity search needed.
 - **Spotify is optional.** User-authenticated tools (library, playlist management) hidden via `prepare_tools` when not connected; public tools (search, track info) always available. Mutation tools require explicit user confirmation (`user_confirmed=True`) to prevent accidental writes.
 - **EEGNet architecture.** Custom dual-head PyTorch model with spatial and temporal convolutions — designed for EEG, not a generic CNN.

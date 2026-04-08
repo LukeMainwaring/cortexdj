@@ -71,13 +71,6 @@ pnpm -C frontend generate-client
 
 ## ML Development
 
-### Synthetic Data
-
-```bash
-uv run --directory backend generate-synthetic                    # 32 participants, 40 trials each
-uv run --directory backend generate-synthetic --participants 8   # fewer participants for quick testing
-```
-
 ### DEAP Dataset
 
 See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instructions. Place `.dat` files in `backend/data/deap/`.
@@ -87,17 +80,17 @@ See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instru
 Two model backends are available:
 
 ```bash
-# EEGNet on synthetic data (default, quick start)
+# EEGNet on DEAP (default)
 uv run --directory backend train-model
 
-# EEGNet on DEAP data
-uv run --directory backend train-model --source deap --model eegnet --cv loso
+# EEGNet with LOSO cross-validation
+uv run --directory backend train-model --model eegnet --cv loso
 
-# CBraMod pretrained on DEAP (fine-tuned, higher accuracy)
-uv run --directory backend train-model --source deap --model cbramod --cv loso
+# CBraMod pretrained (fine-tuned, higher accuracy)
+uv run --directory backend train-model --model cbramod --cv loso
 
 # Limit LOSO folds for faster dev iteration
-uv run --directory backend train-model --source deap --model cbramod --cv loso --max-folds 3
+uv run --directory backend train-model --model cbramod --cv loso --max-folds 3
 
 # Compare both models (loads checkpoints by default, --retrain to train fresh)
 uv run --directory backend compare-models
@@ -108,9 +101,8 @@ Model checkpoints saved to `backend/data/checkpoints/` (gitignored). Set `EEG_MO
 ### Database Seeding
 
 ```bash
-uv run --directory backend seed-sessions                          # seed synthetic data (all 32 participants)
+uv run --directory backend seed-sessions                          # seed all 32 DEAP participants
 uv run --directory backend seed-sessions --participants 1 2 3     # seed specific participants
-uv run --directory backend seed-sessions --source deap            # seed from DEAP dataset
 ```
 
 ## Common Commands

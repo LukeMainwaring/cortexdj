@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortexdj.core.paths import _BACKEND_ROOT, CHECKPOINTS_DIR, DEAP_DATA_DIR, SYNTHETIC_DATA_DIR
+from cortexdj.core.paths import _BACKEND_ROOT, CHECKPOINTS_DIR, DEAP_DATA_DIR
 
 
 class ApiSettings(BaseSettings):
@@ -47,7 +47,6 @@ class Settings(
 
     ENVIRONMENT: Literal["development", "production"] = "development"
     EEG_MODEL_BACKEND: Literal["eegnet", "cbramod"] = "eegnet"
-    SYNTHETIC_DATA_DIR: str = str(SYNTHETIC_DATA_DIR)
     DEAP_DATA_DIR: str = str(DEAP_DATA_DIR)
     CHECKPOINTS_DIR: str = str(CHECKPOINTS_DIR)
 

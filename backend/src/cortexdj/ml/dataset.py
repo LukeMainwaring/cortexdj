@@ -1,11 +1,7 @@
 """EEG dataset for emotion classification.
 
-Loads synthetic or DEAP data and extracts differential entropy features
-per segment for training/inference.
-
-Synthetic data format: .npz files per participant with:
-  - data: (n_trials, n_channels, n_samples)
-  - labels: (n_trials, 4) — [valence, arousal, dominance, liking]
+Loads DEAP data and extracts differential entropy features per segment
+for training/inference.
 
 DEAP preprocessed format: .dat pickle files per participant with:
   - data: (40, 40, 8064) — 40 trials, 40 channels (32 EEG + 8 peripheral), 8064 samples
@@ -52,16 +48,6 @@ def scores_to_quadrant(arousal: float, valence: float) -> str:
         return "calm"
 
 
-def load_synthetic_participant(
-    file_path: Path,
-) -> tuple[
-    npt.NDArray[np.floating[Any]],
-    npt.NDArray[np.floating[Any]],
-]:
-    npz = np.load(file_path)
-    return npz["data"], npz["labels"]
-
-
 def load_deap_participant(
     file_path: Path,
 ) -> tuple[
@@ -88,70 +74,9 @@ def _extract_participant_id(file_path: Path) -> int:
     return int(file_path.stem[1:])
 
 
-class EEGEmotionDataset(Dataset[tuple[torch.Tensor, int, int]]):
-    """PyTorch dataset that loads EEG data and extracts DE features per segment.
-
-    Each item yields (features_tensor, arousal_label, valence_label) where
-    labels are binary (0=low, 1=high).
-    """
-
-    def __init__(
-        self,
-        data_dir: str | Path,
-        participants: list[int] | None = None,
-        segment_samples: int = SEGMENT_SAMPLES,
-    ) -> None:
-        self.data_dir = Path(data_dir)
-        self.segment_samples = segment_samples
-        self.samples: list[tuple[npt.NDArray[np.floating[Any]], int, int]] = []
-        self.participant_ids: list[int] = []
-
-        if participants is None:
-            files = sorted(self.data_dir.glob("*.npz"))
-        else:
-            files = [self.data_dir / f"s{p:02d}.npz" for p in participants]
-            files = [f for f in files if f.exists()]
-
-        for file_path in files:
-            self._load_participant(file_path)
-
-    def _load_participant(self, file_path: Path) -> None:
-        participant_id = _extract_participant_id(file_path)
-        data, labels = load_synthetic_participant(file_path)
-        n_trials = data.shape[0]
-
-        for trial_idx in range(n_trials):
-            trial_data = data[trial_idx, :NUM_EEG_CHANNELS, :]  # (32, n_samples)
-            valence = float(labels[trial_idx, 0])
-            arousal = float(labels[trial_idx, 1])
-
-            arousal_label = 1 if arousal >= AROUSAL_THRESHOLD else 0
-            valence_label = 1 if valence >= VALENCE_THRESHOLD else 0
-
-            n_samples = trial_data.shape[1]
-            n_segments = n_samples // self.segment_samples
-
-            for seg_idx in range(n_segments):
-                start = seg_idx * self.segment_samples
-                end = start + self.segment_samples
-                segment = trial_data[:, start:end]
-
-                features = extract_features(segment)
-                self.samples.append((features, arousal_label, valence_label))
-                self.participant_ids.append(participant_id)
-
-    def __len__(self) -> int:
-        return len(self.samples)
-
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]:
-        features, arousal_label, valence_label = self.samples[idx]
-        return torch.tensor(features, dtype=torch.float32), arousal_label, valence_label
-
-
 class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
     """DEAP dataset returning DE features for EEGNet training.
 
-    Same interface as EEGEmotionDataset but loads from DEAP preprocessed .dat files.
     The 3-second baseline period is stripped by load_deap_participant().
     """
 
@@ -286,29 +211,19 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
 
 
 def load_dataset(
-    source: Literal["synthetic", "deap"] = "synthetic",
     mode: Literal["features", "raw"] = "features",
     data_dir: Path | None = None,
     participants: list[int] | None = None,
-) -> EEGEmotionDataset | DEAPFeatureDataset | DEAPRawDataset:
+) -> DEAPFeatureDataset | DEAPRawDataset:
     """Factory function for loading EEG datasets.
 
     Args:
-        source: Dataset source — "synthetic" or "deap".
         mode: "features" for DE feature vectors (EEGNet), "raw" for raw EEG (pretrained models).
         data_dir: Override default data directory.
         participants: List of participant IDs to load (None = all).
     """
-    from cortexdj.core.paths import DEAP_DATA_DIR, SYNTHETIC_DATA_DIR
+    from cortexdj.core.paths import DEAP_DATA_DIR
 
-    if source == "synthetic":
-        if mode == "raw":
-            msg = "Raw mode is not supported for synthetic data. Use mode='features'."
-            raise ValueError(msg)
-        resolved_dir = data_dir or SYNTHETIC_DATA_DIR
-        return EEGEmotionDataset(resolved_dir, participants=participants)
-
-    # source == "deap"
     resolved_dir = data_dir or DEAP_DATA_DIR
     if mode == "raw":
         return DEAPRawDataset(resolved_dir, participants=participants)

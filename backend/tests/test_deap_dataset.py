@@ -1,4 +1,4 @@
-"""Tests for DEAP dataset loading, feature extraction, and cross-validation splits."""
+"""Tests for dataset loading, feature extraction, and cross-validation splits."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from cortexdj.ml.dataset import (
     SEGMENT_SAMPLES,
     DEAPFeatureDataset,
     DEAPRawDataset,
-    EEGEmotionDataset,
     load_dataset,
     load_deap_participant,
 )
@@ -39,28 +38,12 @@ def _make_mock_deap_file(path: Path, participant_id: int, n_trials: int = _N_TRI
         pickle.dump({"data": data, "labels": labels}, f)
 
 
-def _make_mock_synthetic_file(path: Path, participant_id: int, n_trials: int = _N_TRIALS) -> None:
-    """Create a mock synthetic .npz file."""
-    data = _rng.standard_normal((n_trials, NUM_EEG_CHANNELS, 7680)).astype(np.float32)
-    labels = _rng.uniform(0, 9, (n_trials, 4)).astype(np.float32)
-    np.savez(path, data=data, labels=labels)
-
-
 @pytest.fixture
 def deap_dir(tmp_path: Path) -> Path:
     d = tmp_path / "deap"
     d.mkdir()
     for pid in range(1, 4):
         _make_mock_deap_file(d / f"s{pid:02d}.dat", pid)
-    return d
-
-
-@pytest.fixture
-def synthetic_dir(tmp_path: Path) -> Path:
-    d = tmp_path / "synthetic"
-    d.mkdir()
-    for pid in range(1, 4):
-        _make_mock_synthetic_file(d / f"s{pid:02d}.npz", pid)
     return d
 
 
@@ -133,33 +116,18 @@ class TestDEAPRawDataset:
         assert set(ds.participant_ids) == {1, 2, 3}
 
 
-class TestEEGEmotionDatasetParticipantIds:
-    def test_participant_ids_tracked(self, synthetic_dir: Path) -> None:
-        ds = EEGEmotionDataset(synthetic_dir)
-        assert len(ds.participant_ids) == len(ds)
-        assert set(ds.participant_ids) == {1, 2, 3}
-
-
 class TestLoadDatasetFactory:
-    def test_synthetic_features(self, synthetic_dir: Path) -> None:
-        ds = load_dataset(source="synthetic", data_dir=synthetic_dir)
-        assert isinstance(ds, EEGEmotionDataset)
-
-    def test_deap_features(self, deap_dir: Path) -> None:
-        ds = load_dataset(source="deap", mode="features", data_dir=deap_dir)
+    def test_features(self, deap_dir: Path) -> None:
+        ds = load_dataset(mode="features", data_dir=deap_dir)
         assert isinstance(ds, DEAPFeatureDataset)
 
-    def test_deap_raw(self, deap_dir: Path) -> None:
-        ds = load_dataset(source="deap", mode="raw", data_dir=deap_dir)
+    def test_raw(self, deap_dir: Path) -> None:
+        ds = load_dataset(mode="raw", data_dir=deap_dir)
         assert isinstance(ds, DEAPRawDataset)
 
-    def test_synthetic_raw_raises(self, synthetic_dir: Path) -> None:
-        with pytest.raises(ValueError, match="Raw mode is not supported"):
-            load_dataset(source="synthetic", mode="raw", data_dir=synthetic_dir)
-
-    def test_missing_deap_raises(self, tmp_path: Path) -> None:
+    def test_missing_dir_raises(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
-            load_dataset(source="deap", data_dir=tmp_path / "missing")
+            load_dataset(data_dir=tmp_path / "missing")
 
 
 class TestLOSOSplits:
