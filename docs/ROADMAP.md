@@ -21,6 +21,7 @@
 ## Phase 3: Live BCI Device Integration
 
 - Muse 2 headband support via muselsl/pylsl
+- Synthetic 4-channel EEG generator for hardware-free Muse pipeline development (4 channels at 256Hz, TP9/AF7/AF8/TP10 montage)
 - Real-time EEG stream ingestion endpoint
 - Live classification during Spotify playback
 - WebSocket stream for live brain state updates to frontend
@@ -40,6 +41,7 @@
 - Cross-session trend analysis (how brain responses change over time)
 - Transfer learning from DEAP pre-training to individual users
 - Attention visualization — which channels/timepoints drive predictions
+- Model ensemble — combine EEGNet (DE features) and CBraMod (raw EEG) predictions via probability averaging or learned weighting; genuine diversity from different input representations
 
 ### Pretrained Model Opportunity
 
@@ -73,7 +75,7 @@
 
 | Dataset | Size    | Participants | Stimulus       | Labels                                    | Access                |
 | ------- | ------- | ------------ | -------------- | ----------------------------------------- | --------------------- |
-| DEAP    | ~6.5 GB | 32           | Music videos   | Arousal, valence, liking, dominance (0-9) | Registration required |
+| DEAP    | ~6.5 GB | 32           | Music videos   | Arousal, valence, liking, dominance (0-9) | Freely available (Kaggle mirror) |
 | SEED    | ~1-2 GB | 15           | Film clips     | Positive, negative, neutral               | Freely available      |
 | AMIGOS  | ~2-3 GB | 40           | Video extracts | Arousal, valence                          | Registration required |
 

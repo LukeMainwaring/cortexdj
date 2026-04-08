@@ -5,7 +5,7 @@ CBraMod pretrained model (on raw EEG), with LOSO or grouped cross-validation.
 
 Usage:
     uv run train-model
-    uv run train-model --source deap --model cbramod --cv loso
+    uv run train-model --model cbramod --cv loso
     uv run compare-models
 """
 
@@ -25,7 +25,6 @@ from cortexdj.core.paths import CHECKPOINTS_DIR
 from cortexdj.ml.dataset import (
     DEAPFeatureDataset,
     DEAPRawDataset,
-    EEGEmotionDataset,
     load_dataset,
 )
 from cortexdj.ml.model import EEGNetClassifier
@@ -36,7 +35,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # Type for any dataset that has participant_ids
-type ParticipantDataset = EEGEmotionDataset | DEAPFeatureDataset | DEAPRawDataset
+type ParticipantDataset = DEAPFeatureDataset | DEAPRawDataset
 
 
 def make_loso_splits(
@@ -279,9 +278,8 @@ def train_fold_pretrained(
 
 def train(
     *,
-    source: Literal["synthetic", "deap"] = "synthetic",
-    model_type: Literal["eegnet", "cbramod"] = "eegnet",
-    cv_mode: Literal["loso", "grouped"] = "grouped",
+    model_type: Literal["eegnet", "cbramod"] = "cbramod",
+    cv_mode: Literal["loso", "grouped"] = "loso",
     epochs: int = 30,
     lr: float = 1e-3,
     finetune_lr: float = 1e-5,
@@ -291,17 +289,17 @@ def train(
 ) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
-    logger.info(f"Config: source={source}, model={model_type}, cv={cv_mode}")
+    logger.info(f"Config: model={model_type}, cv={cv_mode}")
 
     mode: Literal["features", "raw"] = "raw" if model_type == "cbramod" else "features"
 
     try:
-        dataset = load_dataset(source=source, mode=mode)
+        dataset = load_dataset(mode=mode)
     except FileNotFoundError as e:
         logger.error(str(e))
         return
 
-    logger.info(f"Loaded {len(dataset)} segments from {source} ({mode} mode)")
+    logger.info(f"Loaded {len(dataset)} segments ({mode} mode)")
 
     if len(dataset) == 0:
         logger.error("No data found.")
@@ -392,7 +390,6 @@ def train(
                     "best_fold_acc": best_overall_acc,
                     "n_folds": len(splits),
                     "cv_mode": cv_mode,
-                    "source": source,
                     "epochs": epochs,
                 },
             },
@@ -417,7 +414,6 @@ def _print_comparison_table(results: dict[str, dict[str, float]], source: str) -
 
 def compare(
     *,
-    source: Literal["deap"] = "deap",
     retrain: bool = False,
     epochs: int = 30,
     cv_mode: Literal["loso", "grouped"] = "loso",
@@ -445,18 +441,13 @@ def compare(
                     "valence_acc": m.get("avg_valence_acc", 0.0),
                     "avg_acc": m.get("avg_overall_acc", 0.0),
                 }
-                info = (
-                    f"source={m.get('source', '?')}, "
-                    f"cv={m.get('cv_mode', '?')}, "
-                    f"{m.get('n_folds', '?')} folds, "
-                    f"{m.get('epochs', '?')} epochs"
-                )
+                info = f"cv={m.get('cv_mode', '?')}, {m.get('n_folds', '?')} folds, {m.get('epochs', '?')} epochs"
                 logger.info(f"Loaded {model_type} checkpoint ({info})")
             else:
                 logger.warning(f"No checkpoint found for {model_type} at {path}")
 
         if len(results) >= 2:
-            _print_comparison_table(results, source)
+            _print_comparison_table(results, "deap")
             return
         elif results:
             logger.info("Only one checkpoint found. Retraining missing model(s)...\n")
@@ -472,7 +463,7 @@ def compare(
         logger.info(f"{'=' * 60}\n")
 
         mode: Literal["features", "raw"] = "raw" if model_type == "cbramod" else "features"
-        dataset = load_dataset(source=source, mode=mode)
+        dataset = load_dataset(mode=mode)
 
         if cv_mode == "loso":
             splits = make_loso_splits(dataset, max_folds=max_folds)
@@ -522,28 +513,22 @@ def compare(
             "avg_acc": sum(m["avg_acc"] for m in all_metrics) / len(splits),
         }
 
-    _print_comparison_table(results, source)
+    _print_comparison_table(results, "deap")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train EEG emotion classifier")
     parser.add_argument(
-        "--source",
-        choices=["synthetic", "deap"],
-        default="synthetic",
-        help="Dataset source (default: synthetic)",
-    )
-    parser.add_argument(
         "--model",
         choices=["eegnet", "cbramod"],
-        default="eegnet",
-        help="Model type (default: eegnet)",
+        default="cbramod",
+        help="Model type (default: cbramod)",
     )
     parser.add_argument(
         "--cv",
         choices=["loso", "grouped"],
-        default="grouped",
-        help="Cross-validation strategy (default: grouped)",
+        default="loso",
+        help="Cross-validation strategy (default: loso)",
     )
     parser.add_argument("--epochs", type=int, default=30, help="Training epochs per fold")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
@@ -564,7 +549,6 @@ def main() -> None:
     args = parser.parse_args()
 
     train(
-        source=args.source,
         model_type=args.model,
         cv_mode=args.cv,
         epochs=args.epochs,

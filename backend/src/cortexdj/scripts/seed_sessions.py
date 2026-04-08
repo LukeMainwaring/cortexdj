@@ -1,11 +1,10 @@
 """Seed the database with EEG session data.
 
-Loads synthetic .npz or DEAP .dat files, runs model inference on segments,
+Loads DEAP .dat files, runs model inference on segments,
 and populates sessions, eeg_segments, tracks, and session_tracks tables.
 
 Usage:
     uv run seed-sessions
-    uv run seed-sessions --source deap
     uv run seed-sessions --participants 1 2 3
 """
 
@@ -17,7 +16,6 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
 
 import numpy as np
 from sqlalchemy import select
@@ -28,7 +26,6 @@ from cortexdj.ml.dataset import (
     NUM_EEG_CHANNELS,
     SEGMENT_SAMPLES,
     load_deap_participant,
-    load_synthetic_participant,
     scores_to_quadrant,
 )
 from cortexdj.ml.predict import EEGModel, EEGPredictionResult, load_model, predict_segment
@@ -43,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 config = get_settings()
 
-# Synthetic stimulus track names (simulating DEAP-like music stimulus)
+# Stimulus track names for seeded sessions
 STIMULUS_TRACKS = [
     ("Weightless", "Marconi Union"),
     ("Clair de Lune", "Claude Debussy"),
@@ -91,30 +88,20 @@ STIMULUS_TRACKS = [
 def _load_participant_data(
     participant_id: int,
     data_dir: Path,
-    source: Literal["synthetic", "deap"],
 ) -> tuple[np.ndarray, np.ndarray] | None:
-    """Load participant data from the appropriate format."""
-    if source == "deap":
-        file_path = data_dir / f"s{participant_id:02d}.dat"
-        if not file_path.exists():
-            logger.warning(f"  File not found: {file_path}")
-            return None
-        return load_deap_participant(file_path)
-    else:
-        file_path = data_dir / f"s{participant_id:02d}.npz"
-        if not file_path.exists():
-            logger.warning(f"  File not found: {file_path}")
-            return None
-        return load_synthetic_participant(file_path)
+    file_path = data_dir / f"s{participant_id:02d}.dat"
+    if not file_path.exists():
+        logger.warning(f"  File not found: {file_path}")
+        return None
+    return load_deap_participant(file_path)
 
 
 async def seed_participant(
     participant_id: int,
     data_dir: Path,
     model: EEGModel | None,
-    source: Literal["synthetic", "deap"] = "synthetic",
 ) -> int:
-    result = _load_participant_data(participant_id, data_dir, source)
+    result = _load_participant_data(participant_id, data_dir)
     if result is None:
         return 0
 
@@ -127,7 +114,7 @@ async def seed_participant(
         session = Session(
             id=session_id,
             participant_id=f"P{participant_id:02d}",
-            dataset_source=source,
+            dataset_source="deap",
             recorded_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
             duration_seconds=float(n_trials * 60),
             metadata_extra={"n_trials": n_trials, "sampling_rate": DEFAULT_SAMPLING_RATE},
@@ -216,33 +203,24 @@ async def seed_participant(
 async def seed_all(
     participants: list[int],
     data_dir: str | None,
-    source: Literal["synthetic", "deap"] = "synthetic",
 ) -> None:
-    if data_dir:
-        resolved_dir = Path(data_dir)
-    elif source == "deap":
-        resolved_dir = Path(config.DEAP_DATA_DIR)
-    else:
-        resolved_dir = Path(config.SYNTHETIC_DATA_DIR)
+    resolved_dir = Path(data_dir) if data_dir else Path(config.DEAP_DATA_DIR)
 
     if not resolved_dir.exists():
         logger.error(f"Data directory not found: {resolved_dir}")
-        if source == "deap":
-            logger.error("See backend/data/DEAP_SETUP.md for download instructions.")
-        else:
-            logger.error("Run `uv run generate-synthetic` first to create data.")
+        logger.error("See backend/data/DEAP_SETUP.md for download instructions.")
         return
 
     model = None
     try:
         model = load_model()
-        logger.info(f"Using trained model for classification (source={source})")
+        logger.info("Using trained model for classification")
     except FileNotFoundError:
         logger.info("No trained model found. Using ground truth labels for seeding.")
 
     total_seeded = 0
     for p in participants:
-        count = await seed_participant(p, resolved_dir, model, source=source)
+        count = await seed_participant(p, resolved_dir, model)
         if count > 0:
             logger.info(f"  [{p}] Seeded {count} trials")
             total_seeded += count
@@ -252,14 +230,8 @@ async def seed_all(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed CortexDJ database with EEG data")
-    parser.add_argument(
-        "--source",
-        choices=["synthetic", "deap"],
-        default="synthetic",
-        help="Dataset source (default: synthetic)",
-    )
     parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
     parser.add_argument("--data-dir", type=str, default=None)
     args = parser.parse_args()
 
-    asyncio.run(seed_all(args.participants, args.data_dir, source=args.source))
+    asyncio.run(seed_all(args.participants, args.data_dir))

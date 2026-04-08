@@ -55,7 +55,6 @@ target-version = "py313"
 select = ["I", "F401"]
 
 [project.scripts]
-generate-synthetic = "cortexdj.scripts.generate_synthetic:main"
 seed-sessions = "cortexdj.scripts.seed_sessions:main"
 train-model = "cortexdj.ml.train:main"
 compare-models = "cortexdj.ml.train:compare_main"

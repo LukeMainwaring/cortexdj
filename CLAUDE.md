@@ -22,22 +22,17 @@ docker compose up -d
 # Pre-commit hooks (covers type checking, linting, and formatting)
 uv run --directory backend pre-commit run --all-files
 
-# Generate synthetic EEG data
-uv run --directory backend generate-synthetic
-
-# Train EEGNet model (synthetic data, default)
+# Train CBraMod model with LOSO CV (default; requires DEAP — see backend/data/DEAP_SETUP.md)
 uv run --directory backend train-model
 
-# Train on DEAP dataset (requires DEAP download — see backend/data/DEAP_SETUP.md)
-uv run --directory backend train-model --source deap --model eegnet
-uv run --directory backend train-model --source deap --model cbramod --cv loso
+# Train EEGNet instead
+uv run --directory backend train-model --model eegnet
 
 # Compare EEGNet vs CBraMod on DEAP
 uv run --directory backend compare-models
 
-# Seed database with EEG sessions
+# Seed database with EEG sessions (requires DEAP data)
 uv run --directory backend seed-sessions
-uv run --directory backend seed-sessions --source deap
 
 # Create local database migration
 ./backend/scripts/create-db-revision-docker.sh "<migration_message>"
@@ -104,7 +99,6 @@ Next.js 16 with App Router, adapted from the SampleSpace project.
 - This project uses Pydantic AI for agent orchestration.
 - Uses Vercel AI SDK's `useChat` for streaming chat (frontend only).
 - Backend port: 8003, Frontend port: 3003, PostgreSQL port: 5433
-- Synthetic EEG data is gitignored -- use `uv run generate-synthetic` to create.
 - Model checkpoints are gitignored -- use `uv run train-model` to train.
 - After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`.
 - Do not manually edit files in `frontend/api/generated/`.

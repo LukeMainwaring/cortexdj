@@ -17,7 +17,6 @@ node_modules/
 out/
 
 # Data & models
-backend/data/synthetic/
 backend/data/checkpoints/
 backend/data/deap/
 *.h5
