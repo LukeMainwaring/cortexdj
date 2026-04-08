@@ -46,7 +46,7 @@ class Settings(
     )
 
     ENVIRONMENT: Literal["development", "production"] = "development"
-    EEG_MODEL_BACKEND: Literal["eegnet", "cbramod"] = "eegnet"
+    EEG_MODEL_BACKEND: Literal["eegnet", "cbramod"] = "cbramod"
     DEAP_DATA_DIR: str = str(DEAP_DATA_DIR)
     CHECKPOINTS_DIR: str = str(CHECKPOINTS_DIR)
 

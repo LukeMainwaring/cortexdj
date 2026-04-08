@@ -80,23 +80,20 @@ See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instru
 Two model backends are available:
 
 ```bash
-# EEGNet on DEAP (default)
+# CBraMod pretrained with LOSO CV (default)
 uv run --directory backend train-model
 
-# EEGNet with LOSO cross-validation
-uv run --directory backend train-model --model eegnet --cv loso
-
-# CBraMod pretrained (fine-tuned, higher accuracy)
-uv run --directory backend train-model --model cbramod --cv loso
+# EEGNet instead
+uv run --directory backend train-model --model eegnet
 
 # Limit LOSO folds for faster dev iteration
-uv run --directory backend train-model --model cbramod --cv loso --max-folds 3
+uv run --directory backend train-model --max-folds 3
 
 # Compare both models (loads checkpoints by default, --retrain to train fresh)
 uv run --directory backend compare-models
 ```
 
-Model checkpoints saved to `backend/data/checkpoints/` (gitignored). Set `EEG_MODEL_BACKEND=cbramod` in `.env` to use the pretrained model at runtime.
+Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is the default runtime backend. Set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model instead.
 
 ### Database Seeding
 

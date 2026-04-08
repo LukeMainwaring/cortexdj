@@ -41,6 +41,7 @@
 - Cross-session trend analysis (how brain responses change over time)
 - Transfer learning from DEAP pre-training to individual users
 - Attention visualization — which channels/timepoints drive predictions
+- Model ensemble — combine EEGNet (DE features) and CBraMod (raw EEG) predictions via probability averaging or learned weighting; genuine diversity from different input representations
 
 ### Pretrained Model Opportunity
 

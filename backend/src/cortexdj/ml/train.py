@@ -278,8 +278,8 @@ def train_fold_pretrained(
 
 def train(
     *,
-    model_type: Literal["eegnet", "cbramod"] = "eegnet",
-    cv_mode: Literal["loso", "grouped"] = "grouped",
+    model_type: Literal["eegnet", "cbramod"] = "cbramod",
+    cv_mode: Literal["loso", "grouped"] = "loso",
     epochs: int = 30,
     lr: float = 1e-3,
     finetune_lr: float = 1e-5,
@@ -521,14 +521,14 @@ def main() -> None:
     parser.add_argument(
         "--model",
         choices=["eegnet", "cbramod"],
-        default="eegnet",
-        help="Model type (default: eegnet)",
+        default="cbramod",
+        help="Model type (default: cbramod)",
     )
     parser.add_argument(
         "--cv",
         choices=["loso", "grouped"],
-        default="grouped",
-        help="Cross-validation strategy (default: grouped)",
+        default="loso",
+        help="Cross-validation strategy (default: loso)",
     )
     parser.add_argument("--epochs", type=int, default=30, help="Training epochs per fold")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")

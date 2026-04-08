@@ -22,12 +22,11 @@ docker compose up -d
 # Pre-commit hooks (covers type checking, linting, and formatting)
 uv run --directory backend pre-commit run --all-files
 
-# Train EEGNet model (requires DEAP download — see backend/data/DEAP_SETUP.md)
+# Train CBraMod model with LOSO CV (default; requires DEAP — see backend/data/DEAP_SETUP.md)
 uv run --directory backend train-model
 
-# Train with specific model/CV options
+# Train EEGNet instead
 uv run --directory backend train-model --model eegnet
-uv run --directory backend train-model --model cbramod --cv loso
 
 # Compare EEGNet vs CBraMod on DEAP
 uv run --directory backend compare-models
