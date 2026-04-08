@@ -80,10 +80,11 @@ cortexdj/
 │   │   │   └── history_processor.py # Summarizes large tool results to prevent token bloat
 │   │   ├── ml/
 │   │   │   ├── model.py             # EEGNet dual-head classifier (arousal + valence)
-│   │   │   ├── dataset.py           # EEG emotion dataset (synthetic/DEAP)
+│   │   │   ├── dataset.py           # EEG datasets (synthetic/DEAP, feature/raw modes)
 │   │   │   ├── preprocessing.py     # Bandpass filtering, DE features, band powers
-│   │   │   ├── train.py             # Training with 5-fold cross-validation
-│   │   │   └── predict.py           # Inference wrapper
+│   │   │   ├── pretrained.py        # CBraMod pretrained dual-head wrapper
+│   │   │   ├── train.py             # Training with LOSO/grouped CV, model comparison
+│   │   │   └── predict.py           # Inference wrapper (EEGNet + CBraMod)
 │   │   ├── models/                   # Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message
 │   │   ├── schemas/                  # Pydantic request/response schemas
 │   │   ├── services/                 # eeg_processing, spotify, session, thread, title_generator
@@ -95,6 +96,7 @@ cortexdj/
 │   ├── tests/                        # pytest (preprocessing, dataset, ML)
 │   ├── data/
 │   │   ├── synthetic/               # Generated EEG data (gitignored)
+│   │   ├── deap/                    # DEAP dataset .dat files (gitignored, see DEAP_SETUP.md)
 │   │   └── checkpoints/             # Model checkpoints (gitignored)
 │   ├── Dockerfile                    # Multi-stage (uv builder -> app -> local)
 │   └── pyproject.toml
@@ -153,27 +155,35 @@ pnpm -C frontend generate-client
 
 ## EEG Pipeline
 
+Two model backends are supported — selectable via `EEG_MODEL_BACKEND` env var:
+
 ```
-EEG Signal (32 channels @ 128 Hz)
-    |
-    ├── Bandpass Filter ──→ 5 frequency bands (delta/theta/alpha/beta/gamma)
-    |
-    ├── Differential Entropy ──→ 160-dim feature vector (32 channels x 5 bands)
-    |
-    └── EEGNet Classifier ──→ Dual-head predictions
-                                ├── Arousal (low/high)
-                                └── Valence (low/high)
-                                        |
-                                        └── Emotion Quadrant
-                                            ├── Relaxed (low arousal, high valence)
-                                            ├── Calm (low arousal, low valence)
-                                            ├── Excited (high arousal, high valence)
-                                            └── Stressed (high arousal, low valence)
+Pipeline A: Custom EEGNet (default)
+  EEG Signal (32 channels @ 128 Hz)
+      ├── Bandpass Filter ──→ 5 frequency bands
+      ├── Differential Entropy ──→ 160-dim feature vector
+      └── EEGNet Classifier ──→ Dual-head predictions
+
+Pipeline B: CBraMod Pretrained (fine-tuned)
+  EEG Signal (32 channels @ 128 Hz)
+      ├── Resample ──→ 200 Hz (CBraMod target)
+      └── CBraMod Encoder + Dual Heads ──→ Predictions
+
+Both produce:
+  ├── Arousal (low/high)
+  └── Valence (low/high)
+          └── Emotion Quadrant
+              ├── Relaxed (low arousal, high valence)
+              ├── Calm (low arousal, low valence)
+              ├── Excited (high arousal, high valence)
+              └── Stressed (high arousal, low valence)
 ```
 
 ## Design Decisions
 
-- **Synthetic data for MVP.** Realistic EEG-like signals with controlled band power profiles. Real dataset support (DEAP, SEED) documented in [Roadmap](docs/ROADMAP.md).
+- **Dual model backends.** Custom EEGNet on hand-crafted DE features for lightweight inference; CBraMod pretrained encoder (fine-tuned on DEAP) for higher accuracy. Both produce identical `EEGPredictionResult` outputs. Configurable via `EEG_MODEL_BACKEND`.
+- **DEAP dataset support.** Real EEG benchmark (32 participants, music + emotion labels). LOSO cross-validation for rigorous evaluation. Synthetic data remains the default for quick setup.
+- **Synthetic data for quick start.** Realistic EEG-like signals with controlled band power profiles for zero-setup development.
 - **No pgvector.** EEG segments queried by arousal/valence scores using standard SQL — no embedding similarity search needed.
 - **Spotify is optional.** User-authenticated tools (library, playlist management) hidden via `prepare_tools` when not connected; public tools (search, track info) always available. Mutation tools require explicit user confirmation (`user_confirmed=True`) to prevent accidental writes.
 - **EEGNet architecture.** Custom dual-head PyTorch model with spatial and temporal convolutions — designed for EEG, not a generic CNN.

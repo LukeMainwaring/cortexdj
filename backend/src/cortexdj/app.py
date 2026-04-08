@@ -35,9 +35,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         from cortexdj.ml.predict import load_model
 
-        eeg_model = load_model()
+        model_type = config.EEG_MODEL_BACKEND
+        eeg_model = load_model(model_type=model_type)
         app.state.eeg_model = eeg_model
-        logger.info("EEGNet model loaded successfully")
+        logger.info(f"{model_type} model loaded successfully")
     except FileNotFoundError:
         logger.warning("No EEG model checkpoint found. Run `uv run train-model` first.")
         app.state.eeg_model = None

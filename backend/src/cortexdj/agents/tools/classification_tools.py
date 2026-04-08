@@ -10,26 +10,37 @@ from cortexdj.core.paths import CHECKPOINTS_DIR
 
 
 async def get_model_info(ctx: RunContext[AgentDeps]) -> str:
-    """Get information about the trained EEGNet model.
+    """Get information about the loaded EEG classification model.
 
     Returns the model architecture, parameter count, and training metrics.
     """
+    from cortexdj.ml.pretrained import PretrainedDualHead
+
     model = ctx.deps.eeg_model
     if model is None:
         return "No EEG model loaded. Run `uv run train-model` to train the model."
 
+    is_pretrained = isinstance(model, PretrainedDualHead)
     param_count = sum(p.numel() for p in model.parameters())
     trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    checkpoint_path = CHECKPOINTS_DIR / "eegnet_best.pt"
+    checkpoint_name = "cbramod_best.pt" if is_pretrained else "eegnet_best.pt"
+    checkpoint_path = CHECKPOINTS_DIR / checkpoint_name
     metrics = {}
     if checkpoint_path.exists():
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
         metrics = checkpoint.get("metrics", {})
 
+    if is_pretrained:
+        architecture = "CBraMod Pretrained + Dual-Head Fine-Tuned"
+        input_desc = "Raw EEG (32 channels x 800 samples at 200Hz)"
+    else:
+        architecture = "EEGNet Dual-Head Classifier"
+        input_desc = "Differential entropy features (32 channels x 5 bands = 160 features)"
+
     info = {
-        "architecture": "EEGNet Dual-Head Classifier",
-        "input": "Differential entropy features (32 channels x 5 bands = 160 features)",
+        "architecture": architecture,
+        "input": input_desc,
         "outputs": {
             "arousal_head": "Binary classification (low/high arousal)",
             "valence_head": "Binary classification (low/high valence)",

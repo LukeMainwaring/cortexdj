@@ -1,10 +1,11 @@
 """Seed the database with EEG session data.
 
-Loads synthetic .npz files, runs EEGNet inference on segments,
+Loads synthetic .npz or DEAP .dat files, runs model inference on segments,
 and populates sessions, eeg_segments, tracks, and session_tracks tables.
 
 Usage:
     uv run seed-sessions
+    uv run seed-sessions --source deap
     uv run seed-sessions --participants 1 2 3
 """
 
@@ -16,12 +17,19 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 
 from cortexdj.core.config import get_settings
 from cortexdj.dependencies.db import get_async_sqlalchemy_session
-from cortexdj.ml.dataset import NUM_EEG_CHANNELS, SEGMENT_SAMPLES, scores_to_quadrant
+from cortexdj.ml.dataset import (
+    NUM_EEG_CHANNELS,
+    SEGMENT_SAMPLES,
+    load_deap_participant,
+    load_synthetic_participant,
+    scores_to_quadrant,
+)
 from cortexdj.ml.predict import EEGPredictionResult, load_model, predict_segment
 from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE, compute_band_powers
 from cortexdj.models.eeg_segment import EegSegment
@@ -79,19 +87,37 @@ STIMULUS_TRACKS = [
 ]
 
 
+def _load_participant_data(
+    participant_id: int,
+    data_dir: Path,
+    source: Literal["synthetic", "deap"],
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Load participant data from the appropriate format."""
+    if source == "deap":
+        file_path = data_dir / f"s{participant_id:02d}.dat"
+        if not file_path.exists():
+            logger.warning(f"  File not found: {file_path}")
+            return None
+        return load_deap_participant(file_path)
+    else:
+        file_path = data_dir / f"s{participant_id:02d}.npz"
+        if not file_path.exists():
+            logger.warning(f"  File not found: {file_path}")
+            return None
+        return load_synthetic_participant(file_path)
+
+
 async def seed_participant(
     participant_id: int,
     data_dir: Path,
     model: object | None,
+    source: Literal["synthetic", "deap"] = "synthetic",
 ) -> int:
-    file_path = data_dir / f"s{participant_id:02d}.npz"
-    if not file_path.exists():
-        logger.warning(f"  File not found: {file_path}")
+    result = _load_participant_data(participant_id, data_dir, source)
+    if result is None:
         return 0
 
-    npz = np.load(file_path)
-    data = npz["data"]  # (n_trials, n_channels, n_samples)
-    labels = npz["labels"]  # (n_trials, 4)
+    data, labels = result
     n_trials = data.shape[0]
 
     seeded = 0
@@ -100,7 +126,7 @@ async def seed_participant(
         session = Session(
             id=session_id,
             participant_id=f"P{participant_id:02d}",
-            dataset_source="synthetic",
+            dataset_source=source,
             recorded_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
             duration_seconds=float(n_trials * 60),
             metadata_extra={"n_trials": n_trials, "sampling_rate": DEFAULT_SAMPLING_RATE},
@@ -113,12 +139,10 @@ async def seed_participant(
             arousal = float(labels[trial_idx, 1])
 
             track_title, track_artist = STIMULUS_TRACKS[trial_idx % len(STIMULUS_TRACKS)]
-            existing_track = None
-            # Simple dedup by title+artist
             from sqlalchemy import select
 
-            result = await db.execute(select(Track).where(Track.title == track_title, Track.artist == track_artist))
-            existing_track = result.scalar_one_or_none()
+            result_row = await db.execute(select(Track).where(Track.title == track_title, Track.artist == track_artist))
+            existing_track = result_row.scalar_one_or_none()
 
             if existing_track is None:
                 track = Track(
@@ -190,24 +214,36 @@ async def seed_participant(
     return seeded
 
 
-async def seed_all(participants: list[int], data_dir: str | None) -> None:
-    resolved_dir = Path(data_dir) if data_dir else Path(config.SYNTHETIC_DATA_DIR)
+async def seed_all(
+    participants: list[int],
+    data_dir: str | None,
+    source: Literal["synthetic", "deap"] = "synthetic",
+) -> None:
+    if data_dir:
+        resolved_dir = Path(data_dir)
+    elif source == "deap":
+        resolved_dir = Path(config.DEAP_DATA_DIR)
+    else:
+        resolved_dir = Path(config.SYNTHETIC_DATA_DIR)
 
     if not resolved_dir.exists():
         logger.error(f"Data directory not found: {resolved_dir}")
-        logger.error("Run `uv run generate-synthetic` first to create data.")
+        if source == "deap":
+            logger.error("See backend/data/DEAP_SETUP.md for download instructions.")
+        else:
+            logger.error("Run `uv run generate-synthetic` first to create data.")
         return
 
     model = None
     try:
         model = load_model()
-        logger.info("Using trained EEGNet model for classification")
+        logger.info(f"Using trained model for classification (source={source})")
     except FileNotFoundError:
         logger.info("No trained model found. Using ground truth labels for seeding.")
 
     total_seeded = 0
     for p in participants:
-        count = await seed_participant(p, resolved_dir, model)
+        count = await seed_participant(p, resolved_dir, model, source=source)
         if count > 0:
             logger.info(f"  [{p}] Seeded {count} trials")
             total_seeded += count
@@ -217,8 +253,14 @@ async def seed_all(participants: list[int], data_dir: str | None) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed CortexDJ database with EEG data")
+    parser.add_argument(
+        "--source",
+        choices=["synthetic", "deap"],
+        default="synthetic",
+        help="Dataset source (default: synthetic)",
+    )
     parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
     parser.add_argument("--data-dir", type=str, default=None)
     args = parser.parse_args()
 
-    asyncio.run(seed_all(args.participants, args.data_dir))
+    asyncio.run(seed_all(args.participants, args.data_dir, source=args.source))

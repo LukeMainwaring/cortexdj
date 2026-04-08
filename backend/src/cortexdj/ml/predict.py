@@ -8,15 +8,22 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import torch
+from scipy.signal import resample
 
 from cortexdj.core.paths import CHECKPOINTS_DIR
-from cortexdj.ml.dataset import scores_to_quadrant
+from cortexdj.ml.dataset import CBRAMOD_SEGMENT_SAMPLES, scores_to_quadrant
 from cortexdj.ml.model import EEGNetClassifier
 from cortexdj.ml.preprocessing import compute_band_powers, extract_features
+from cortexdj.ml.pretrained import PretrainedDualHead, load_pretrained_dual_head
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CHECKPOINT = CHECKPOINTS_DIR / "eegnet_best.pt"
+type EEGModel = EEGNetClassifier | PretrainedDualHead
+
+CHECKPOINT_PATHS: dict[str, Path] = {
+    "eegnet": CHECKPOINTS_DIR / "eegnet_best.pt",
+    "cbramod": CHECKPOINTS_DIR / "cbramod_best.pt",
+}
 
 
 @dataclass
@@ -29,32 +36,59 @@ class EEGPredictionResult:
     band_powers: dict[str, float]
 
 
-def load_model(checkpoint_path: str | Path | None = None) -> EEGNetClassifier:
-    path = Path(checkpoint_path) if checkpoint_path else DEFAULT_CHECKPOINT
+def load_model(
+    checkpoint_path: str | Path | None = None,
+    model_type: str | None = None,
+) -> EEGModel:
+    """Load a trained model from checkpoint.
+
+    If model_type is not specified, reads it from the checkpoint's
+    'model_type' field (falling back to 'eegnet' for legacy checkpoints).
+    """
+    if checkpoint_path:
+        path = Path(checkpoint_path)
+    elif model_type:
+        path = CHECKPOINT_PATHS.get(model_type, CHECKPOINT_PATHS["eegnet"])
+    else:
+        path = CHECKPOINT_PATHS["eegnet"]
 
     if not path.exists():
         msg = f"Checkpoint not found: {path}. Run `uv run train-model` first."
         raise FileNotFoundError(msg)
 
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    model = EEGNetClassifier()
-    model.load_state_dict(checkpoint["model_state_dict"])
-    model.eval()
+    resolved_type = model_type or checkpoint.get("model_type", "eegnet")
 
-    logger.info(f"Loaded EEGNet from {path}")
+    if resolved_type == "cbramod":
+        model: EEGModel = load_pretrained_dual_head()
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+        logger.info(f"Loaded CBraMod from {path}")
+    else:
+        model = EEGNetClassifier()
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+        logger.info(f"Loaded EEGNet from {path}")
+
     return model
 
 
 def predict_segment(
     eeg_data: npt.NDArray[np.floating[Any]],
-    model: EEGNetClassifier,
+    model: EEGModel,
 ) -> EEGPredictionResult:
     """Run inference on a single EEG segment (n_channels x n_samples)."""
-    features = extract_features(eeg_data)
-    features_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)
+    if isinstance(model, PretrainedDualHead):
+        # Raw EEG path: resample 128Hz -> 200Hz for CBraMod
+        resampled = resample(eeg_data, CBRAMOD_SEGMENT_SAMPLES, axis=1)
+        input_tensor = torch.tensor(resampled, dtype=torch.float32).unsqueeze(0)
+    else:
+        # DE features path for EEGNet
+        features = extract_features(eeg_data)
+        input_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)
 
     with torch.no_grad():
-        arousal_logits, valence_logits = model(features_tensor)
+        arousal_logits, valence_logits = model(input_tensor)
 
     arousal_probs = torch.softmax(arousal_logits[0], dim=0)
     valence_probs = torch.softmax(valence_logits[0], dim=0)

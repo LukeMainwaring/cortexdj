@@ -25,11 +25,19 @@ uv run --directory backend pre-commit run --all-files
 # Generate synthetic EEG data
 uv run --directory backend generate-synthetic
 
-# Train EEGNet model
+# Train EEGNet model (synthetic data, default)
 uv run --directory backend train-model
+
+# Train on DEAP dataset (requires DEAP download — see backend/data/DEAP_SETUP.md)
+uv run --directory backend train-model --source deap --model eegnet
+uv run --directory backend train-model --source deap --model cbramod --cv loso
+
+# Compare EEGNet vs CBraMod on DEAP
+uv run --directory backend compare-models
 
 # Seed database with EEG sessions
 uv run --directory backend seed-sessions
+uv run --directory backend seed-sessions --source deap
 
 # Create local database migration
 ./backend/scripts/create-db-revision-docker.sh "<migration_message>"
