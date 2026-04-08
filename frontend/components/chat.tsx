@@ -4,11 +4,12 @@ import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DefaultChatTransport } from "ai";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getThreadMessagesQueryKey,
   listThreadsQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";
+import { useThreadBrainContext } from "@/api/hooks/threads";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import type { ChatMessage } from "@/lib/types";
 import { ChatActionsProvider } from "./chat-actions-provider";
@@ -28,6 +29,8 @@ export function Chat({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [threadExists, setThreadExists] = useState(initialMessages.length > 0);
+  const { data: brainContext } = useThreadBrainContext(id, threadExists);
   const { setDataStream } = useDataStream();
 
   const transport = useMemo(
@@ -48,6 +51,7 @@ export function Chat({
         setDataStream((ds) => (ds ? [...ds, dataPart] : []));
       },
       onFinish: () => {
+        setThreadExists(true);
         queryClient.invalidateQueries({ queryKey: listThreadsQueryKey() });
         queryClient.invalidateQueries({
           queryKey: getThreadMessagesQueryKey({
@@ -87,7 +91,7 @@ export function Chat({
 
   return (
     <div className="flex h-dvh min-w-0 flex-col bg-background">
-      <ChatHeader />
+      <ChatHeader brainContext={brainContext} />
 
       <ChatActionsProvider sendMessage={sendChatMessage}>
         <Messages

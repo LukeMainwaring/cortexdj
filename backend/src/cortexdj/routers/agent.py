@@ -16,6 +16,7 @@ from starlette.responses import Response
 from cortexdj.agents.brain_agent import brain_agent
 from cortexdj.agents.deps import AgentDeps
 from cortexdj.dependencies.db import AsyncPostgresSessionDep
+from cortexdj.dependencies.eeg_model import EEGModelDep
 from cortexdj.models.message import Message
 from cortexdj.models.thread import Thread
 from cortexdj.schemas.agent_type import AgentType
@@ -29,15 +30,11 @@ logger = logging.getLogger(__name__)
 agent_router = APIRouter(prefix="/agent", tags=["agent"])
 
 
-def _get_eeg_model(request: Request):  # type: ignore[no-untyped-def]
-    """Get EEG model from app state (loaded in lifespan)."""
-    return getattr(request.app.state, "eeg_model", None)
-
-
 @agent_router.post("/chat")
 async def stream_chat(
     request: Request,
     db: AsyncPostgresSessionDep,
+    eeg_model: EEGModelDep,
 ) -> Response:
     """Brain assistant streaming endpoint.
 
@@ -48,7 +45,6 @@ async def stream_chat(
     run_input = VercelAIAdapter.build_run_input(body)
     thread_id = run_input.id
 
-    eeg_model = _get_eeg_model(request)
     spotify_client = await get_user_spotify_client(db) or get_spotify_client()
 
     thread = await Thread.get(db, thread_id, AgentType.CHAT.value)

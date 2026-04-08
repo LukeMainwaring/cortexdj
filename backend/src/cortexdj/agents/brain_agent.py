@@ -52,7 +52,6 @@ You have access to a database of EEG recording sessions where participants liste
 - For playlist building, explain the brain-music connection
 - Include session/segment IDs in responses for reference
 - Proactively call set_brain_context when the user references a session or mood
-- If brain context is set, use it to personalize recommendations
 - NEVER generate URLs or markdown links — use plain text and bold
 """.strip()
 

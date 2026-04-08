@@ -1,11 +1,11 @@
 "use client";
 
 import type { UseChatHelpers } from "@ai-sdk/react";
-import { isToolUIPart } from "ai";
+import { type DataUIPart, isDataUIPart, isToolUIPart } from "ai";
 import equal from "fast-deep-equal";
 import Image from "next/image";
 import { memo } from "react";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, CustomUIDataTypes } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
 import { useDataStream } from "./data-stream-provider";
 import { BouncingDots } from "./elements/bouncing-dots";
@@ -13,6 +13,13 @@ import { MessageContent } from "./elements/message";
 import { Response } from "./elements/response";
 import { ToolCall } from "./elements/tool-call";
 import { MessageActions } from "./message-actions";
+
+function DataPartRenderer({ part }: { part: DataUIPart<CustomUIDataTypes> }) {
+  switch (part.type) {
+    default:
+      return null;
+  }
+}
 
 const AssistantAvatar = ({ isLoading }: { isLoading?: boolean }) => (
   <div
@@ -48,7 +55,8 @@ const PurePreviewMessage = ({
     (p) => p.type === "text" && p.text?.trim(),
   );
   const hasToolParts = message.parts?.some((p) => isToolUIPart(p));
-  const hasVisibleContent = hasTextParts || hasToolParts;
+  const hasDataParts = message.parts?.some((p) => isDataUIPart(p));
+  const hasVisibleContent = hasTextParts || hasToolParts || hasDataParts;
 
   return (
     <div
@@ -107,6 +115,9 @@ const PurePreviewMessage = ({
                   part={part}
                 />
               );
+            }
+            if (isDataUIPart(part)) {
+              return <DataPartRenderer key={key} part={part} />;
             }
             return null;
           })}
