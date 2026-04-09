@@ -103,14 +103,33 @@ Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is 
 Full LOSO with CBraMod takes 12+ hours on Apple Silicon. Use [Modal](https://modal.com) for a one-off GPU run (~1 hour on A10G, ~$1-2):
 
 ```bash
-pip install modal && modal setup   # one-time
-modal run backend/scripts/modal_train.py                  # full training on A10G
-modal run backend/scripts/modal_train.py -- --quick       # quick test run
-modal run backend/scripts/modal_train.py --gpu a100       # faster GPU
-modal run backend/scripts/modal_train.py --command compare-models  # compare both
+# One-time setup — auth + DEAP Volume seed
+# (modal is a regular backend dep, installed via `uv sync --directory backend`)
+modal setup
+modal volume create cortexdj-deap
+
+# Upload one .dat per invocation so each gets a fresh S3 token (bulk uploads
+# blow past the ~1hr presigned URL TTL on slow uplinks). Idempotent: rerun
+# the loop after a drop and it skips files already in the volume. We exclude
+# .cache/ — it's regenerable preprocessing output and the GPU container will
+# rebuild it on first run, then commit it back to the volume.
+caffeinate -dim bash -c 'for f in backend/data/deap/s*.dat; do
+    echo "Uploading $(basename "$f")..."
+    modal volume put cortexdj-deap "$f" "/$(basename "$f")"
+done'
+modal volume ls cortexdj-deap /   # sanity check — should list 32 .dat files
+
+# Training runs
+modal run backend/scripts/modal_train.py                                      # full training on A10G
+modal run backend/scripts/modal_train.py --args="--quick"                     # quick test run
+modal run backend/scripts/modal_train.py --args="--model eegnet"              # train EEGNet instead
+modal run backend/scripts/modal_train.py --gpu a100                           # faster GPU
+modal run backend/scripts/modal_train.py --command compare-models             # compare both
 ```
 
-Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
+DEAP source files (~3.1 GB of `.dat`) live in a persistent `cortexdj-deap` Modal Volume seeded once via the loop above. Subsequent training runs attach the volume instantly instead of re-uploading. The first GPU run regenerates `data/deap/.cache/*.npz` (preprocessing cache) inside the volume; `modal_train.py` calls `deap_volume.commit()` after training so that cache persists for later runs. Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
+
+CUDA runs auto-configure themselves: batch size defaults to 128 (vs. 64 on MPS/CPU), bf16 mixed precision is enabled, `cudnn.benchmark` is on, and DataLoader uses 8 workers with `prefetch_factor=4`. No extra flags are needed for the common case — `modal run backend/scripts/modal_train.py` is the happy path. Override with `--args="--batch-size 192"` etc. if you want to push the A10G harder.
 
 ### Database Seeding
 
