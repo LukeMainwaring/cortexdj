@@ -439,21 +439,22 @@ def train(config: TrainingConfig) -> None:
 
     # Backend optimizations
     torch.set_float32_matmul_precision("high")
-    # cudnn.benchmark is safe here: LOSO feeds fixed-shape batches
-    # (batch × 32 × 800 for CBraMod, batch × 160 for EEGNet), so cudnn
-    # picks one kernel on first iter and sticks with it — deterministic
-    # for a given seed + shape, and ~10-15% faster on transformer-ish ops.
+    # cudnn.benchmark is safe for LOSO: train/val loaders feed near-fixed shapes
+    # (batch × 32 × 800 for CBraMod, batch × 160 for EEGNet). The tail batch of
+    # each loader may be smaller, so cudnn autotunes twice and caches both —
+    # still ~10-15% faster than the default heuristic on transformer-ish ops.
     if device.type == "cuda":
         torch.backends.cudnn.benchmark = True
 
+    # Resolve into a local so we don't mutate the caller's config dataclass.
+    batch_size = config.batch_size if config.batch_size is not None else _default_batch_size_for(device)
     if config.batch_size is None:
-        config.batch_size = _default_batch_size_for(device)
-        logger.info(f"Auto-selected batch_size={config.batch_size} for device={device.type}")
+        logger.info(f"Auto-selected batch_size={batch_size} for device={device.type}")
 
     logger.info(f"Using device: {device}")
     logger.info(
         f"Config: model={config.model_type}, cv={config.cv_mode}, "
-        f"epochs={config.epochs}, lr={config.lr}, batch_size={config.batch_size}"
+        f"epochs={config.epochs}, lr={config.lr}, batch_size={batch_size}"
     )
 
     mode: Literal["features", "raw"] = "raw" if config.model_type == "cbramod" else "features"
@@ -499,13 +500,13 @@ def train(config: TrainingConfig) -> None:
         val_subset = Subset(dataset, val_indices)
         train_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
             train_subset,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             shuffle=True,
             **dl_kwargs,  # type: ignore[arg-type]
         )
         val_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
             val_subset,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             **dl_kwargs,  # type: ignore[arg-type]
         )
@@ -570,7 +571,7 @@ def train(config: TrainingConfig) -> None:
                     "epochs": config.epochs,
                     "lr": config.lr,
                     "finetune_lr": config.finetune_lr,
-                    "batch_size": config.batch_size,
+                    "batch_size": batch_size,
                     "weight_decay": config.weight_decay,
                     "max_grad_norm": config.max_grad_norm,
                     "patience": config.patience,
@@ -684,9 +685,10 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
     if device.type == "cuda":
         torch.backends.cudnn.benchmark = True
 
+    # Resolve into a local so we don't mutate the caller's config dataclass.
+    batch_size = config.batch_size if config.batch_size is not None else _default_batch_size_for(device)
     if config.batch_size is None:
-        config.batch_size = _default_batch_size_for(device)
-        logger.info(f"Auto-selected batch_size={config.batch_size} for device={device.type}")
+        logger.info(f"Auto-selected batch_size={batch_size} for device={device.type}")
 
     results = {}
 
@@ -712,7 +714,7 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
             epochs=config.epochs,
             lr=config.lr,
             finetune_lr=config.finetune_lr,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             weight_decay=config.weight_decay,
             max_grad_norm=config.max_grad_norm,
             patience=config.patience,
@@ -730,13 +732,13 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
             logger.info(f"--- Fold {fold_idx + 1}/{len(splits)} ---")
             train_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
                 Subset(dataset, train_indices),
-                batch_size=config.batch_size,
+                batch_size=batch_size,
                 shuffle=True,
                 **dl_kwargs,  # type: ignore[arg-type]
             )
             val_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
                 Subset(dataset, val_indices),
-                batch_size=config.batch_size,
+                batch_size=batch_size,
                 shuffle=False,
                 **dl_kwargs,  # type: ignore[arg-type]
             )
