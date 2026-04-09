@@ -129,6 +129,8 @@ modal run backend/scripts/modal_train.py --command compare-models             # 
 
 DEAP source files (~3.1 GB of `.dat`) live in a persistent `cortexdj-deap` Modal Volume seeded once via the loop above. Subsequent training runs attach the volume instantly instead of re-uploading. The first GPU run regenerates `data/deap/.cache/*.npz` (preprocessing cache) inside the volume; `modal_train.py` calls `deap_volume.commit()` after training so that cache persists for later runs. Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
 
+CUDA runs auto-configure themselves: batch size defaults to 128 (vs. 64 on MPS/CPU), bf16 mixed precision is enabled, `cudnn.benchmark` is on, and DataLoader uses 8 workers with `prefetch_factor=4`. No extra flags are needed for the common case — `modal run backend/scripts/modal_train.py` is the happy path. Override with `--args="--batch-size 192"` etc. if you want to push the A10G harder.
+
 ### Database Seeding
 
 ```bash

@@ -16183,7 +16183,7 @@ Read a file from the Sandbox and return its contents as bytes.
         contents = sandbox.filesystem.read_bytes("/tmp/hello.bin")
         print(contents.decode("utf-8"))
         ```
-        
+
 ### read_text
 
 ```python
@@ -16209,7 +16209,7 @@ Read a file from the Sandbox and return its contents as a UTF-8 string.
         contents = sandbox.filesystem.read_text("/tmp/hello.txt")
         print(contents)
         ```
-        
+
 ### copy_to_local
 
 ```python
@@ -16239,7 +16239,7 @@ Copy a file from the Sandbox to a local path.
 ", "/tmp/hello.txt")
         sandbox.filesystem.copy_to_local("/tmp/hello.txt", "/tmp/local-hello.txt")
         ```
-        
+
 ### write_bytes
 
 ```python
@@ -16265,7 +16265,7 @@ Write binary content to a file in the Sandbox.
         sandbox.filesystem.write_bytes(b"Hello, world!
 ", "/tmp/hello.bin")
         ```
-        
+
 ### write_text
 
 ```python
@@ -16291,7 +16291,7 @@ Write UTF-8 text to a file in the Sandbox.
         sandbox.filesystem.write_text("Hello, world!
 ", "/tmp/hello.txt")
         ```
-        
+
 ### copy_from_local
 
 ```python
@@ -16325,7 +16325,7 @@ Copy a local file into the Sandbox.
 ")
         sandbox.filesystem.copy_from_local(local_path, "/tmp/hello.txt")
         ```
-        
+
 ## open
 
 ```python
