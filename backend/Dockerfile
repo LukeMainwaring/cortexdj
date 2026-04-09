@@ -18,20 +18,22 @@ WORKDIR /app
 # Copy the venv
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy the application (scripts and src)
 COPY scripts/ /app/scripts/
-COPY src/ /app/src/
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/src"
 
 FROM app AS local
 
+# src/ comes from a bind mount in docker-compose.yml
 COPY tests/ /app/tests/
 
 # Run the app
 CMD ["./scripts/run_local.sh"]
 
 FROM app AS hosted
+
+# src/ baked in for production (no bind mount available)
+COPY src/ /app/src/
 
 # Run the app
 CMD ["./scripts/run_hosted.sh"]
