@@ -34,7 +34,7 @@ uv run --directory backend train-model --model eegnet
 # Compare EEGNet vs CBraMod on DEAP
 uv run --directory backend compare-models
 
-# GPU training via Modal (pip install modal && modal setup first)
+# GPU training via Modal (run `modal setup` once to authenticate)
 modal run backend/scripts/modal_train.py
 
 # Seed database with EEG sessions (requires DEAP data)
@@ -108,3 +108,4 @@ Next.js 16 with App Router, adapted from the SampleSpace project.
 - Model checkpoints are gitignored -- use `uv run train-model` to train.
 - After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`.
 - Do not manually edit files in `frontend/api/generated/`.
+- Working with Modal? See `.claude/rules/backend/modal.md` first — Modal's API has changed substantially in the 1.x series and your training data may be stale.
