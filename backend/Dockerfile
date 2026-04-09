@@ -32,6 +32,7 @@ CMD ["./scripts/run_local.sh"]
 
 FROM app AS hosted
 
+# src/ baked in for production (no bind mount available)
 COPY src/ /app/src/
 
 # Run the app
