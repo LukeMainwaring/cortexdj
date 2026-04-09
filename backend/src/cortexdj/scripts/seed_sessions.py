@@ -203,6 +203,7 @@ async def seed_participant(
 async def seed_all(
     participants: list[int],
     data_dir: str | None,
+    model_type: str,
 ) -> None:
     resolved_dir = Path(data_dir) if data_dir else Path(config.DEAP_DATA_DIR)
 
@@ -213,8 +214,8 @@ async def seed_all(
 
     model = None
     try:
-        model = load_model()
-        logger.info("Using trained model for classification")
+        model = load_model(model_type=model_type)
+        logger.info(f"Using trained {model_type} model for classification")
     except FileNotFoundError:
         logger.info("No trained model found. Using ground truth labels for seeding.")
 
@@ -232,6 +233,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Seed CortexDJ database with EEG data")
     parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
     parser.add_argument("--data-dir", type=str, default=None)
+    parser.add_argument(
+        "--model",
+        choices=["eegnet", "cbramod"],
+        default="cbramod",
+        help="Model checkpoint to use for classification (default: cbramod)",
+    )
     args = parser.parse_args()
 
-    asyncio.run(seed_all(args.participants, args.data_dir))
+    asyncio.run(seed_all(args.participants, args.data_dir, args.model))

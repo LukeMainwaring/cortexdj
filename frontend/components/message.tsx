@@ -1,7 +1,7 @@
 "use client";
 
 import type { UseChatHelpers } from "@ai-sdk/react";
-import { type DataUIPart, isDataUIPart, isToolUIPart } from "ai";
+import { type DataUIPart, getToolName, isDataUIPart, isToolUIPart } from "ai";
 import equal from "fast-deep-equal";
 import Image from "next/image";
 import { memo } from "react";
@@ -13,6 +13,17 @@ import { MessageContent } from "./elements/message";
 import { Response } from "./elements/response";
 import { ToolCall } from "./elements/tool-call";
 import { MessageActions } from "./message-actions";
+import { SessionVisualization } from "./session-visualization";
+
+function extractSessionId(input: unknown): string | null {
+  if (input && typeof input === "object" && "session_id" in input) {
+    const value = (input as { session_id: unknown }).session_id;
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+  return null;
+}
 
 function DataPartRenderer({ part }: { part: DataUIPart<CustomUIDataTypes> }) {
   switch (part.type) {
@@ -107,12 +118,20 @@ const PurePreviewMessage = ({
               );
             }
             if (isToolUIPart(part)) {
+              const toolName = getToolName(part);
+              const sessionId =
+                toolName === "analyze_session" &&
+                part.state === "output-available"
+                  ? extractSessionId(part.input)
+                  : null;
               return (
-                <ToolCall
-                  isStreaming={isLoading && !hasTextParts}
-                  key={key}
-                  part={part}
-                />
+                <div className="flex flex-col gap-2" key={key}>
+                  <ToolCall
+                    isStreaming={isLoading && !hasTextParts}
+                    part={part}
+                  />
+                  {sessionId && <SessionVisualization sessionId={sessionId} />}
+                </div>
               );
             }
             if (isDataUIPart(part)) {
