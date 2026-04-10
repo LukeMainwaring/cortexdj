@@ -10,9 +10,9 @@
 | CBraMod | 4.9M | Criss-cross transformer | Flexible | 200 Hz | TUEG (largest public EEG corpus) | Tiny, fast convergence (~1 epoch), any channel count |
 | BENDR | 157M | Conv + Transformer (wav2vec-inspired) | 20 | 250 Hz | Contrastive predictive coding | Best cross-subject generalization |
 | BIOT | 3.2M | Linear attention transformer | 16-18 | Variable | TUH Abnormal + SHHS | Sleep/epilepsy focus |
-| Labram | 5.9M | Vision transformer | 128 (fixed) | Variable | SSL on large-scale EEG | Standard 10-20 montage only |
-| REVE | 72-400M | Masked autoencoder | Flexible | Variable | 60K+ hours, 92 datasets, 25K subjects | Best for low-data, cross-config transfer |
-| LUNA | Variable | CNN+FFT + cross-attention + RoPE Transformer | Flexible | Variable | SSL on EEG | Topology-invariant, channel-agnostic |
+| LaBraM | 5.9M | Vision transformer | 128 (fixed) | Variable | SSL on large-scale EEG | Standard 10-20 montage only |
+| REVE | 12M / 69M / 408M | Masked autoencoder | Flexible | Variable | 60K+ hours, 92 datasets, 25K subjects | Best for low-data, cross-config transfer |
+| LUNA | 7M / 43M / 311M | CNN+FFT + cross-attention + RoPE Transformer | Flexible | Variable | TUEG + Siena (~21K hours) | Topology-invariant, channel-agnostic |
 | SignalJEPA | 3.5M | Conv encoder + Transformer | Flexible (via chs_info) | Variable | Joint-embedding predictive | Compact, strong embeddings |
 
 ## Per-Model Notes
@@ -25,11 +25,11 @@
 
 **BIOT** — Lightweight (3.2M) with linear attention for efficiency. However, it's pretrained on sleep staging and epilepsy detection data (TUH Abnormal, SHHS), making it less relevant for emotion recognition. Lower priority.
 
-**Labram** — Uses a fixed 128-channel standard 10-20 montage. This is incompatible with both DEAP (32 channels) and Muse 2 (4 channels). Not viable for CortexDJ.
+**LaBraM** — Uses a fixed 128-channel standard 10-20 montage. This is incompatible with both DEAP (32 channels) and Muse 2 (4 channels). Not viable for CortexDJ.
 
-**REVE** — The most thoroughly pretrained model, trained on 60,000+ hours of EEG from 92 datasets and 25,000 subjects. Its 4D Fourier positional encoding enables cross-configuration transfer — meaning it can handle different electrode setups without retraining. Achieves state-of-the-art via linear probing alone (no heavy fine-tuning needed). The base variant (72M) is large but the linear probing capability means you may not need full fine-tuning.
+**REVE** — The most thoroughly pretrained model, trained on 60,000+ hours of EEG from 92 datasets and 25,000 subjects. Its 4D Fourier positional encoding enables cross-configuration transfer — meaning it can handle different electrode setups without retraining. Achieves state-of-the-art via linear probing alone (no heavy fine-tuning needed). Available in Small (12M), Base (69M), and Large (408M) variants. Note: REVE's emotion-recognition benchmark is FACED, not DEAP — so any emotion-recognition numbers from the paper don't directly translate to CortexDJ's use case and would need to be measured on DEAP.
 
-**LUNA** — Topology-invariant architecture using CNN+FFT patch extraction, channel-unification via cross-attention, and RoPE Transformer. Handles varying channel counts by design. Available in base/large/huge sizes. Good fallback if CBraMod underperforms on variable-channel scenarios.
+**LUNA** — Topology-invariant architecture using 1D conv + GroupNorm + GELU for temporal patches, fused with FFT (magnitude + phase) features, then channel-unification via learned-query cross-attention and a temporal transformer with RoPE. Linear (not quadratic) in channel count, ~300× FLOP reduction vs. naive attention. Available in Base (7M), Large (43M), and Huge (311M). Caveat for CortexDJ: LUNA's selling point is efficiency and topology-agnosticism, not raw emotion accuracy — it reports 39.18% on SEED-V vs. CBraMod's 40.91%. So CBraMod remains the stronger pretrained baseline for this project's valence/arousal use case; LUNA is only interesting as a Muse 2 fallback if CBraMod's 32ch→4ch transfer degrades badly.
 
 **SignalJEPA** — Compact (3.5M) model using joint-embedding predictive architecture. Produces strong embedding representations useful for downstream analysis. Less studied for emotion classification specifically, but its embeddings could power cross-session trend analysis and similarity-based features.
 
@@ -56,7 +56,7 @@
 | EEGPT | Capable but 25.5M params and requires 58 channels — needs interpolation for 32ch data |
 | BENDR | Excellent generalization but 157M params prohibitive for real-time BCI |
 | BIOT | Wrong domain focus (sleep/epilepsy, not emotion recognition) |
-| Labram | Fixed 128-channel requirement is incompatible with all CortexDJ data sources |
+| LaBraM | Fixed 128-channel requirement is incompatible with all CortexDJ data sources |
 
 ## Key API Patterns
 
@@ -126,7 +126,7 @@ model = CBraMod.from_pretrained("username/cortexdj-emotion-cbramod")
 
 2. **Channel mapping** — DEAP uses 32 channels in a specific montage. Models with flexible channel encoding (CBraMod, REVE, LUNA) handle this via positional encoding, but accuracy impact needs measurement.
 
-3. **32ch to 4ch transfer degradation** — While CBraMod and LUNA support arbitrary channel counts, performance with only 4 channels (Muse 2) may degrade substantially. REVE shows 0.824 accuracy at 64 channels dropping to 0.660 at 1 channel. Need to benchmark at 4 channels specifically.
+3. **32ch to 4ch transfer degradation** — While CBraMod and LUNA support arbitrary channel counts, performance with only 4 channels (Muse 2) may degrade substantially. None of CBraMod/REVE/LUNA publish a 4-channel ablation in their papers, so this needs to be measured directly on DEAP with channels masked down to the Muse 2 montage (TP9/AF7/AF8/TP10).
 
 4. **Real-time latency budget** — Phase 3 requires classification during live Spotify playback. CBraMod (4.9M params) is the smallest transformer option. Need to measure CPU inference latency for 4-second segments to confirm <500ms is achievable.
 

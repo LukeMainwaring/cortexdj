@@ -2,38 +2,21 @@
 
 > Idea backlog. Promoted ideas move to [ROADMAP.md](ROADMAP.md).
 
-## Real-Time BCI
-
-- **Adaptive playlist** — skip or queue tracks based on live brain state (stressed -> switch to calmer music)
-- **Session recording** — record live EEG during Spotify listening, save to database for later analysis
-- **Calibration flow** — 5-minute baseline recording to personalize the model
-
 ## Advanced ML
 
-- **Multi-task learning** — predict arousal, valence, AND specific emotions (happy, sad, angry, fearful) simultaneously
-- **Temporal context** — LSTM or Transformer layer to capture how brain states evolve within a session
+- **Temporal context** — LSTM or Transformer layer to capture how brain states evolve within a session (partially covered by the Phase 4 CNN-Transformer hybrid item in ROADMAP.md)
 - **Contrastive learning** — learn embeddings where similar brain states cluster (SupCon on EEG) — or leverage BENDR/SignalJEPA which already encode contrastive structure
-- **Foundation model A/B testing** — run multiple pretrained models in parallel, compare which best predicts user's Spotify skip behavior as ground truth
-- **Ensemble stacking** — combine embeddings from multiple pretrained models (e.g., CBraMod + SignalJEPA) as input to a lightweight emotion classifier
+- **Foundation model A/B testing** — run multiple pretrained models in parallel, compare which best predicts user's Spotify skip behavior as ground truth (research experiment — belongs in `docs/pretrained-models-analysis.md` rather than the roadmap)
+- **Ensemble stacking** — combine embeddings from multiple pretrained models (e.g., CBraMod + SignalJEPA) as input to a lightweight emotion classifier (covered by the Phase 4 "Model ensemble" item)
 
 ## Spotify Intelligence
 
-- **Audio feature correlation** — correlate Spotify audio features (energy, danceability, acousticness) with brain states
-- **Discovery mode** — play new tracks and classify brain response to build a preference model
-- **Genre brain mapping** — build a map of which genres activate which brain states
-- **Social playlists** — "music that makes both of us relaxed" from two users' brain data
-- **Time-of-day patterns** — learn that user prefers calming music in the morning, energizing at noon
-
-## Visualization
-
-- **Emotion trajectory** — arousal/valence scatter plot animated over time, tracing a path through the four emotion quadrants (the shipped `SessionVisualization` shows arousal and valence as separate time-series lines, not as a 2D trajectory)
-- **True time-frequency spectrogram** — per-channel STFT heatmap (frequency on y-axis, color = power), distinct from the stacked 5-band area chart already shipped
-- **Session comparison dashboard** — side-by-side session visualizations
-- **Export reports** — PDF/image export of session analysis for sharing
+- **Discovery mode** — play new tracks and classify brain response to build a preference model (blocks on Phase 3 live BCI)
+- **Social playlists** — "music that makes both of us relaxed" from two users' brain data (blocks on Phase 6 multi-user auth)
+- **Time-of-day patterns** — learn that user prefers calming music in the morning, energizing at noon (needs longitudinal per-user history)
 
 ## Platform
 
-- **Public demo mode** — pre-loaded sessions anyone can explore without EEG hardware
 - **API access** — REST API for third-party integrations (other music apps, research tools)
 - **Model marketplace** — share pre-trained models via braindecode's `push_to_hub()` / `from_pretrained()` HuggingFace integration
 - **Research mode** — export data in BIDS format for academic use

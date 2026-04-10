@@ -6,8 +6,6 @@ export type ClientOptions = {
 
 /**
  * BrainContext
- *
- * Brain state context for a conversation thread.
  */
 export type BrainContext = {
     /**
@@ -50,8 +48,6 @@ export type HealthCheckResponse = {
 
 /**
  * SegmentListResponse
- *
- * Response containing list of segments for a session.
  */
 export type SegmentListResponse = {
     /**
@@ -62,12 +58,11 @@ export type SegmentListResponse = {
      * Total
      */
     total: number;
+    trajectory_summary?: TrajectorySummary | null;
 };
 
 /**
  * SegmentSchema
- *
- * Full segment representation.
  */
 export type SegmentSchema = {
     /**
@@ -122,8 +117,6 @@ export type SegmentSchema = {
 
 /**
  * SessionListResponse
- *
- * Response containing list of sessions.
  */
 export type SessionListResponse = {
     /**
@@ -138,8 +131,6 @@ export type SessionListResponse = {
 
 /**
  * SessionSchema
- *
- * Full session representation.
  */
 export type SessionSchema = {
     /**
@@ -175,9 +166,29 @@ export type SessionSchema = {
 };
 
 /**
+ * SmoothedPoint
+ */
+export type SmoothedPoint = {
+    /**
+     * Start Time
+     */
+    start_time: number;
+    /**
+     * Arousal
+     */
+    arousal: number;
+    /**
+     * Valence
+     */
+    valence: number;
+    /**
+     * Quadrant
+     */
+    quadrant: string;
+};
+
+/**
  * SpotifyConnectionStatus
- *
- * Response for Spotify connection status.
  */
 export type SpotifyConnectionStatus = {
     /**
@@ -188,8 +199,6 @@ export type SpotifyConnectionStatus = {
 
 /**
  * ThreadDeleteResponse
- *
- * Response for successful thread delete operations.
  */
 export type ThreadDeleteResponse = {
     /**
@@ -200,8 +209,6 @@ export type ThreadDeleteResponse = {
 
 /**
  * ThreadListResponse
- *
- * Response containing list of threads.
  */
 export type ThreadListResponse = {
     /**
@@ -212,8 +219,6 @@ export type ThreadListResponse = {
 
 /**
  * ThreadMessagesResponse
- *
- * Response containing thread messages.
  */
 export type ThreadMessagesResponse = {
     /**
@@ -231,8 +236,6 @@ export type ThreadMessagesResponse = {
 
 /**
  * ThreadRenameRequest
- *
- * Request to rename a thread.
  */
 export type ThreadRenameRequest = {
     /**
@@ -243,8 +246,6 @@ export type ThreadRenameRequest = {
 
 /**
  * ThreadRenameResponse
- *
- * Response for successful thread rename operations.
  */
 export type ThreadRenameResponse = {
     /**
@@ -259,8 +260,6 @@ export type ThreadRenameResponse = {
 
 /**
  * ThreadSummary
- *
- * Summary of a thread for list view.
  */
 export type ThreadSummary = {
     /**
@@ -284,6 +283,67 @@ export type ThreadSummary = {
      * Updated At
      */
     updated_at: string;
+};
+
+/**
+ * TrajectorySummary
+ */
+export type TrajectorySummary = {
+    /**
+     * Dwell Fractions
+     */
+    dwell_fractions: {
+        [key: string]: number;
+    };
+    /**
+     * Dominant Quadrant
+     */
+    dominant_quadrant: string;
+    /**
+     * Transition Count
+     */
+    transition_count: number;
+    /**
+     * Transitions
+     */
+    transitions: Array<TransitionEvent>;
+    /**
+     * Centroid
+     */
+    centroid: [
+        number,
+        number
+    ];
+    /**
+     * Dispersion
+     */
+    dispersion: number;
+    /**
+     * Path Length
+     */
+    path_length: number;
+    /**
+     * Smoothed
+     */
+    smoothed: Array<SmoothedPoint>;
+};
+
+/**
+ * TransitionEvent
+ */
+export type TransitionEvent = {
+    /**
+     * Time
+     */
+    time: number;
+    /**
+     * From Quadrant
+     */
+    from_quadrant: string;
+    /**
+     * To Quadrant
+     */
+    to_quadrant: string;
 };
 
 /**
@@ -461,15 +521,19 @@ export type ConnectSpotifyResponse = ConnectSpotifyResponses[keyof ConnectSpotif
 export type SpotifyCallbackData = {
     body?: never;
     path?: never;
-    query: {
+    query?: {
         /**
          * Code
          */
-        code: string;
+        code?: string | null;
         /**
          * State
          */
-        state: string | null;
+        state?: string | null;
+        /**
+         * Error
+         */
+        error?: string | null;
     };
     url: '/api/spotify/callback';
 };

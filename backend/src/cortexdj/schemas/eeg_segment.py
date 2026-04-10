@@ -26,6 +26,31 @@ class SegmentSchema(BaseSchema):
     created_at: datetime
 
 
+class TransitionEvent(BaseSchema):
+    time: float
+    from_quadrant: str
+    to_quadrant: str
+
+
+class SmoothedPoint(BaseSchema):
+    start_time: float
+    arousal: float
+    valence: float
+    quadrant: str
+
+
+class TrajectorySummary(BaseSchema):
+    dwell_fractions: dict[str, float]
+    dominant_quadrant: str
+    transition_count: int
+    transitions: list[TransitionEvent]
+    centroid: tuple[float, float]
+    dispersion: float
+    path_length: float
+    smoothed: list[SmoothedPoint]
+
+
 class SegmentListResponse(BaseSchema):
     segments: list[SegmentSchema]
     total: int
+    trajectory_summary: TrajectorySummary | None = None
