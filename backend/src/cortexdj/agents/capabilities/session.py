@@ -35,5 +35,5 @@ class SessionCapability(AbstractCapability[AgentDeps]):
         ts.tool(analyze_session)
         return ts
 
-    def get_instructions(self) -> object:
+    def get_instructions(self) -> str:
         return _TRAJECTORY_INSTRUCTIONS

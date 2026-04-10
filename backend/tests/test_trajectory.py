@@ -14,9 +14,7 @@ from cortexdj.services.trajectory import (
 )
 
 
-def _segment(
-    index: int, arousal: float, valence: float, state: str, start: float
-) -> EegSegment:
+def _segment(index: int, arousal: float, valence: float, state: str, start: float) -> EegSegment:
     return EegSegment(
         id=f"seg-{index}",
         session_id="s",
@@ -92,10 +90,11 @@ class TestComputeTrajectorySummary:
         assert summary.transitions[1].from_quadrant == "excited"
         assert summary.transitions[1].to_quadrant == "relaxed"
 
-        expected_vc = (0.2 + 0.2 + 0.8 + 0.8) / 4
         expected_ac = (0.2 + 0.2 + 0.8 + 0.2) / 4
-        assert isclose(summary.centroid[0], round(expected_vc, 4))
-        assert isclose(summary.centroid[1], round(expected_ac, 4))
+        expected_vc = (0.2 + 0.2 + 0.8 + 0.8) / 4
+        # Centroid is (arousal, valence) to match the codebase-wide ordering.
+        assert isclose(summary.centroid[0], round(expected_ac, 4))
+        assert isclose(summary.centroid[1], round(expected_vc, 4))
 
         # Path length: three edges between four points in (valence, arousal)
         expected_path = (

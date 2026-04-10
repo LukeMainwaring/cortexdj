@@ -24,8 +24,8 @@ async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any
     if session is None:
         return None
 
-    summary = await EegSegment.get_session_summary(db, session_id)
     segments = await EegSegment.get_by_session(db, session_id)
+    summary = EegSegment.summarize_segments(session_id, segments)
     trajectory_summary = compute_trajectory_summary(segments)
     session_tracks = await SessionTrack.get_by_session(db, session_id)
 
@@ -54,6 +54,12 @@ async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any
             "duration_seconds": session.duration_seconds,
         },
         "summary": summary,
-        "trajectory_summary": (trajectory_summary.model_dump(mode="json") if trajectory_summary else None),
+        # Exclude `smoothed` here: it's dense per-segment data that bloats the
+        # agent context but isn't cited by SessionCapability's narration
+        # instructions. The frontend fetches it separately via
+        # GET /sessions/{id}/segments for the trajectory chart.
+        "trajectory_summary": (
+            trajectory_summary.model_dump(mode="json", exclude={"smoothed"}) if trajectory_summary else None
+        ),
         "tracks": track_details,
     }

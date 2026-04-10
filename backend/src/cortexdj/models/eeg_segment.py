@@ -39,9 +39,8 @@ class EegSegment(Base):
         return result.scalars().all()
 
     @classmethod
-    async def get_session_summary(cls, db: AsyncSession, session_id: str) -> dict[str, Any]:
-        """Aggregate segment classifications into a session-level summary."""
-        segments = await cls.get_by_session(db, session_id)
+    def summarize_segments(cls, session_id: str, segments: Sequence[EegSegment]) -> dict[str, Any]:
+        """Aggregate a pre-fetched segment list into a session-level summary."""
         if not segments:
             return {"error": "No segments found"}
 
@@ -61,3 +60,8 @@ class EegSegment(Base):
             "state_distribution": state_counts,
             "duration_seconds": segments[-1].end_time - segments[0].start_time,
         }
+
+    @classmethod
+    async def get_session_summary(cls, db: AsyncSession, session_id: str) -> dict[str, Any]:
+        segments = await cls.get_by_session(db, session_id)
+        return cls.summarize_segments(session_id, segments)

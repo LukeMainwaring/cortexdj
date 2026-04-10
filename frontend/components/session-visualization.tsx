@@ -103,7 +103,7 @@ function HeaderBadges({
       <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
         <span className="font-medium">Centroid:</span>
         <span>
-          V {summary.centroid[0].toFixed(2)} · A{" "}
+          A {summary.centroid[0].toFixed(2)} · V{" "}
           {summary.centroid[1].toFixed(2)}
         </span>
       </span>
