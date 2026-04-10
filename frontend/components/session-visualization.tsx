@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { memo, useMemo } from "react";
 import {
   Area,
@@ -13,25 +12,38 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getSessionSegmentsOptions } from "@/api/generated/@tanstack/react-query.gen";
 import type { SegmentSchema } from "@/api/generated/types.gen";
-
-// Ensure generated client is configured with baseURL
-import "@/api/client";
+import { useSessionSegments } from "@/api/hooks/sessions";
 
 type Props = {
   sessionId: string;
 };
 
-const BAND_COLORS: Record<string, string> = {
+const TOOLTIP_CONTENT_STYLE = {
+  backgroundColor: "var(--popover)",
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  fontSize: 12,
+} as const;
+
+const tooltipValueFormatter = (value: unknown, name: unknown) =>
+  [
+    typeof value === "number" ? value.toFixed(3) : String(value),
+    String(name),
+  ] as [string, string];
+
+const tooltipLabelFormatter = (label: unknown) => `t = ${String(label)}s`;
+
+const BAND_ORDER = ["delta", "theta", "alpha", "beta", "gamma"] as const;
+type Band = (typeof BAND_ORDER)[number];
+
+const BAND_COLORS: Record<Band, string> = {
   delta: "#6366f1", // indigo
   theta: "#06b6d4", // cyan
   alpha: "#10b981", // emerald
   beta: "#f59e0b", // amber
   gamma: "#ef4444", // red
 };
-
-const BAND_ORDER = ["delta", "theta", "alpha", "beta", "gamma"] as const;
 
 type TimelineRow = {
   time: number;
@@ -91,17 +103,7 @@ function PureSessionVisualization({ sessionId }: Props) {
     isLoading,
     isError,
     error,
-  } = useQuery({
-    ...getSessionSegmentsOptions({ path: { session_id: sessionId } }),
-    retry: (failureCount, err) => {
-      if (
-        (err as { response?: { status?: number } })?.response?.status === 404
-      ) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
+  } = useSessionSegments(sessionId);
 
   const rows = useMemo(
     () => (segmentsData?.segments ? buildRows(segmentsData.segments) : []),
@@ -122,8 +124,7 @@ function PureSessionVisualization({ sessionId }: Props) {
   }
 
   if (isError) {
-    const status = (error as { response?: { status?: number } })?.response
-      ?.status;
+    const status = error?.response?.status;
     const message =
       status === 404
         ? `Session ${sessionId.slice(0, 8)}… not found.`
@@ -197,17 +198,9 @@ function PureSessionVisualization({ sessionId }: Props) {
               width={32}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--popover))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 6,
-                fontSize: 12,
-              }}
-              formatter={(value, name) => [
-                typeof value === "number" ? value.toFixed(3) : String(value),
-                String(name),
-              ]}
-              labelFormatter={(label) => `t = ${String(label)}s`}
+              contentStyle={TOOLTIP_CONTENT_STYLE}
+              formatter={tooltipValueFormatter}
+              labelFormatter={tooltipLabelFormatter}
             />
             <Legend
               iconSize={10}
@@ -263,17 +256,9 @@ function PureSessionVisualization({ sessionId }: Props) {
               width={36}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--popover))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 6,
-                fontSize: 12,
-              }}
-              formatter={(value, name) => [
-                typeof value === "number" ? value.toFixed(3) : String(value),
-                String(name),
-              ]}
-              labelFormatter={(label) => `t = ${String(label)}s`}
+              contentStyle={TOOLTIP_CONTENT_STYLE}
+              formatter={tooltipValueFormatter}
+              labelFormatter={tooltipLabelFormatter}
             />
             <Legend
               iconSize={10}
