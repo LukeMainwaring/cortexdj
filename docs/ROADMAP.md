@@ -12,15 +12,16 @@
 - Emotion trajectory — 2D arousal/valence scatter animated over time, tracing a path through the four emotion quadrants (extends `SessionVisualization`, which currently renders them as separate time-series lines)
 - True time-frequency spectrogram — per-channel STFT heatmap (frequency on y-axis, color = power), distinct from the stacked band-power area chart already shipped
 - Session comparison dashboard — side-by-side `SessionVisualization` renders for two session IDs
+- Topographic scalp heatmap — per-channel band-power interpolated over the 10-20 montage (DEAP's 32-channel recordings only; not meaningful for Muse 2's 4 electrodes)
 - Export reports — PDF/image export of session analysis for sharing
 
 ## Phase 2: Real EEG Datasets
 
-- SEED dataset support (15 participants, film clips, freely available)
-- AMIGOS dataset support (40 participants, audio stimuli)
+- SEED dataset support (15 participants, film clips; available on request from BCMI/SJTU) — adds discrete emotion labels (positive/neutral/negative) alongside DEAP's continuous valence/arousal
+- AMIGOS dataset support (40 participants, short + long video clips)
 - Dataset-agnostic data loader with format autodetection (.dat, .mat, .edf)
 - MNE-Python raw data preprocessing (ICA artifact removal, re-referencing)
-- Evaluate REVE on DEAP — pretrained on 92 datasets, 25K subjects; may outperform CBraMod
+- Evaluate REVE on DEAP — pretrained on 60K+ hours / 92 datasets / 25K subjects; note REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement
 
 ## Phase 3: Live BCI Device Integration
 
@@ -29,7 +30,6 @@
 - Real-time EEG stream ingestion endpoint
 - Live classification during Spotify playback
 - WebSocket stream for live brain state updates to frontend (the existing inline `<SessionVisualization>` chart is the target render surface — point the live stream at it)
-- Topographic brain-map view (per-channel scalp heatmap) — complements the existing arousal/valence + band-power timeline
 - Evaluate CBraMod real-time inference latency for live classification (<500ms target)
 - Benchmark 32ch->4ch transfer accuracy degradation (CBraMod, REVE, LUNA)
 - Calibration flow — 5-minute baseline recording to personalize the classifier per user (prereq for adaptive playlist quality)
@@ -39,13 +39,12 @@
 ## Phase 4: Advanced ML
 
 - EEG data augmentation — Gaussian noise injection, temporal jittering/random cropping, channel dropout
-- CNN-Transformer hybrid (CBraMod, EEGPT, BENDR are production-ready options)
-- Personalized models — few-shot fine-tuning of pretrained encoder on individual user data
+- Evaluate additional pretrained encoders beyond CBraMod — EEGPT, BENDR, REVE — as drop-in replacements for the current backend
+- Personalized fine-tuning — few-shot adaptation of the CBraMod encoder (pretrained on TUEG) to individual users on top of DEAP fine-tuning
 - Cross-session trend analysis — track embedding trajectories across sessions
-- Transfer learning from DEAP pre-training to individual users
 - Attention visualization — extract transformer attention weights for channel/timepoint importance maps
 - Model ensemble — combine EEGNet (DE features) and CBraMod (raw EEG) predictions
-- Multi-task learning — add discrete emotion heads (happy/sad/angry/fearful) alongside existing arousal/valence heads (DEAP ships discrete labels; incremental dual-head extension)
+- Discrete emotion classification once SEED support lands (Phase 2) — add a positive/neutral/negative head alongside the existing arousal/valence heads (DEAP itself only ships continuous valence/arousal/dominance/liking ratings, so this depends on a dataset with categorical labels)
 
 ## Phase 5: Spotify Deep Integration
 
