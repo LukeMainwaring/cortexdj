@@ -17,8 +17,8 @@
 - Synthetic 4-channel EEG generator for hardware-free Muse pipeline development (4 channels at 256Hz, TP9/AF7/AF8/TP10 montage)
 - Real-time EEG stream ingestion endpoint
 - Live classification during Spotify playback
-- WebSocket stream for live brain state updates to frontend
-- EEG waveform visualization component (time-series + topographic map)
+- WebSocket stream for live brain state updates to frontend (the existing inline `<SessionVisualization>` chart is the target render surface — point the live stream at it)
+- Topographic brain-map view (per-channel scalp heatmap) — complements the existing arousal/valence + band-power timeline
 - Evaluate CBraMod real-time inference latency for live classification (<500ms target)
 - Benchmark 32ch->4ch transfer accuracy degradation (CBraMod, REVE, LUNA)
 
@@ -51,4 +51,4 @@
 
 - Expand pytest suite — add async integration tests with model mocking
 - Add WebSocket support for real-time brain state streaming
-- Frontend EEG visualization (recharts or d3 for time-series, brain topomaps)
+- Frontend test infrastructure (currently zero coverage on `frontend/components/`)

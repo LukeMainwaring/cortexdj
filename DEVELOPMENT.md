@@ -134,8 +134,9 @@ CUDA runs auto-configure themselves: batch size defaults to 128 (vs. 64 on MPS/C
 ### Database Seeding
 
 ```bash
-uv run --directory backend seed-sessions                          # seed all 32 DEAP participants
+uv run --directory backend seed-sessions                          # seed all 32 DEAP participants (cbramod by default)
 uv run --directory backend seed-sessions --participants 1 2 3     # seed specific participants
+uv run --directory backend seed-sessions --model eegnet           # use lightweight EEGNet checkpoint instead
 ```
 
 ## Common Commands

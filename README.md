@@ -43,9 +43,10 @@ graph TB
 3. **DEAP dataset** provides real EEG benchmark data (32 participants, 40 music video trials) evaluated with leave-one-subject-out cross-validation.
 4. **Pydantic AI agent** orchestrates session analysis, brain state explanation, and Spotify playlist curation through natural language conversation
 5. **Session analysis** provides detailed brain state breakdowns with per-segment timelines, band power distributions, and associated track metadata
-6. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
-7. **Spotify integration** provides search, library access, and playlist management tools — user-authenticated tools are hidden when Spotify is not connected
-8. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display; a history processor summarizes large tool results from prior turns to prevent token bloat
+6. **Inline EEG visualization** — when the agent calls `analyze_session`, the chat UI renders an arousal/valence timeline and stacked frequency-band-power chart inline beneath the tool call, so the user sees the brain activity instead of reading raw JSON
+7. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
+8. **Spotify integration** provides search, library access, and playlist management tools — user-authenticated tools are hidden when Spotify is not connected
+9. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display; a history processor summarizes large tool results from prior turns to prevent token bloat
 
 ### Why Dual Models + Agent?
 
@@ -59,6 +60,7 @@ graph TB
 |-------|-----------|
 | Frontend | Next.js 16, Tailwind CSS, shadcn/ui, TanStack Query |
 | Chat UI | Vercel AI SDK (`useChat`), Streamdown |
+| Visualization | Recharts (EEG timeline + band-power charts) |
 | Backend | FastAPI, Pydantic v2, async SQLAlchemy |
 | Agent | Pydantic AI with OpenAI |
 | ML | PyTorch (EEGNet), braindecode (CBraMod pretrained), MNE-Python, scipy |
@@ -105,7 +107,7 @@ cortexdj/
 │   └── pyproject.toml
 ├── frontend/                         # Next.js chat UI
 │   ├── app/(chat)/                  # Chat page + API proxy route
-│   ├── components/                  # chat, messages, greeting, brain-context-badge
+│   ├── components/                  # chat, messages, greeting, brain-context-badge, session-visualization
 │   └── api/                         # Generated client + hooks
 ├── docker-compose.yml               # PostgreSQL + backend
 └── README.md
@@ -192,4 +194,5 @@ Both produce:
 - **EEGNet architecture.** Custom dual-head PyTorch model with spatial and temporal convolutions — designed for EEG, not a generic CNN.
 - **Thread-backed brain context.** Persistent per-thread JSONB column storing dominant mood, arousal, valence — survives page refreshes. Dynamically injected into the agent system prompt via `get_instructions()` so the agent is immediately context-aware.
 - **History processor.** Large tool results (track lists, playlists) are automatically summarized in prior conversation turns, keeping the current turn's data intact while preventing token bloat in multi-turn sessions.
+- **Inline tool visualization.** The chat message renderer detects `analyze_session` tool calls and renders a `<SessionVisualization>` component (recharts) directly beneath the existing tool-call collapsible. The component fetches `/api/sessions/{id}/segments` via a wrapped TanStack Query hook (`useSessionSegments`) so the agent's tool output stays unchanged and decoupled from the UI.
 - **Agentic orchestration.** The agent decides which tools to call per query, enabling multi-step reasoning (analyze session -> explain brain state -> build playlist).

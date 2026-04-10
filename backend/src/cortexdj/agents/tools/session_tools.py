@@ -22,7 +22,7 @@ async def list_sessions(ctx: RunContext[AgentDeps], limit: int = 20) -> str:
     lines = [f"**{total} EEG sessions available** (showing {len(sessions)}):\n"]
     for s in sessions:
         lines.append(
-            f"- **{s.id[:8]}...** | Participant {s.participant_id} | "
+            f"- `{s.id}` | Participant {s.participant_id} | "
             f"{s.dataset_source} | {s.duration_seconds:.0f}s | "
             f"{s.recorded_at.strftime('%Y-%m-%d %H:%M')}"
         )

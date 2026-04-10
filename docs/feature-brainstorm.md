@@ -26,8 +26,8 @@
 
 ## Visualization
 
-- **Time-frequency spectrograms** — show how band powers evolve over a session
-- **Emotion trajectory** — arousal/valence scatter plot animated over time
+- **Emotion trajectory** — arousal/valence scatter plot animated over time, tracing a path through the four emotion quadrants (the shipped `SessionVisualization` shows arousal and valence as separate time-series lines, not as a 2D trajectory)
+- **True time-frequency spectrogram** — per-channel STFT heatmap (frequency on y-axis, color = power), distinct from the stacked 5-band area chart already shipped
 - **Session comparison dashboard** — side-by-side session visualizations
 - **Export reports** — PDF/image export of session analysis for sharing
 
