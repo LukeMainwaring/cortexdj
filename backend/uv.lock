@@ -489,6 +489,7 @@ dependencies = [
 dev = [
     { name = "mypy" },
     { name = "pre-commit" },
+    { name = "pydantic-evals" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -517,6 +518,7 @@ requires-dist = [
 dev = [
     { name = "mypy", specifier = ">=1.20.0" },
     { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pydantic-evals", specifier = ">=1.79.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.15.10" },
 ]

@@ -8,8 +8,7 @@ import logging
 
 import logfire
 from pydantic_ai import Agent
-from pydantic_ai.capabilities import HistoryProcessor
-from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
 
 from cortexdj.agents.capabilities.classification import ClassificationCapability
 from cortexdj.agents.capabilities.insight import InsightCapability
@@ -17,6 +16,7 @@ from cortexdj.agents.capabilities.playlist import PlaylistCapability
 from cortexdj.agents.capabilities.session import SessionCapability
 from cortexdj.agents.deps import AgentDeps
 from cortexdj.agents.history_processor import summarize_tool_results
+from cortexdj.agents.hooks import build_brain_agent_hooks
 from cortexdj.core.config import get_settings
 
 logfire.configure(service_name="cortexdj")
@@ -75,8 +75,19 @@ You have access to a database of EEG recording sessions where participants liste
 
 _model = OpenAIResponsesModel(model_name=config.AGENT_MODEL)
 
+# Reasoning is opt-in via AGENT_REASONING_EFFORT env var. When unset, the
+# agent behaves exactly as before (no thinking parts, default effort). Enable
+# via `AGENT_REASONING_EFFORT=medium` and validate against the eval suite at
+# backend/tests/evals/test_brain_agent_evals.py before committing the change.
+_model_settings: OpenAIResponsesModelSettings | None = (
+    OpenAIResponsesModelSettings(openai_reasoning_effort=config.AGENT_REASONING_EFFORT)
+    if config.AGENT_REASONING_EFFORT is not None
+    else None
+)
+
 brain_agent = Agent(
     model=_model,
+    model_settings=_model_settings,
     deps_type=AgentDeps,
     instructions=SYSTEM_PROMPT,
     capabilities=[
@@ -84,6 +95,7 @@ brain_agent = Agent(
         InsightCapability(),
         PlaylistCapability(),
         ClassificationCapability(),
-        HistoryProcessor(summarize_tool_results),
+        build_brain_agent_hooks(),
     ],
+    history_processors=[summarize_tool_results],
 )

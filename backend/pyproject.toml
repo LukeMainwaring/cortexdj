@@ -31,6 +31,7 @@ dependencies = [
 dev = [
   "mypy>=1.20.0",
   "pre-commit>=4.5.1",
+  "pydantic-evals>=1.79.0",
   "pytest>=9.0.3",
   "ruff>=0.15.10",
 ]
@@ -39,7 +40,9 @@ dev = [
 markers = [
     "main: marks tests for main demo examples",
     "additional: marks tests for additional demo examples",
+    "eval: marks tests that call a real LLM (opt-in; run with `pytest -m eval`)",
 ]
+addopts = "-m 'not eval'"
 
 [tool.mypy]
 strict = true
