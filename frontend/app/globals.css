@@ -65,6 +65,10 @@
   --shadow-2xl: 0px 4px 10px 0px hsl(0 0% 0% / 0.25);
   --tracking-normal: 0.01em;
   --spacing: 0.25rem;
+  --quadrant-relaxed: oklch(0.78 0.13 160);
+  --quadrant-calm: oklch(0.78 0.1 220);
+  --quadrant-excited: oklch(0.72 0.19 25);
+  --quadrant-stressed: oklch(0.78 0.15 70);
 }
 
 .dark {
@@ -123,6 +127,10 @@
   --shadow-xl:
     0px 6px 15px 0px hsl(0 0% 0% / 0.3), 0px 8px 10px -1px hsl(0 0% 0% / 0.3);
   --shadow-2xl: 0px 6px 15px 0px hsl(0 0% 0% / 0.75);
+  --quadrant-relaxed: oklch(0.68 0.14 160);
+  --quadrant-calm: oklch(0.66 0.12 220);
+  --quadrant-excited: oklch(0.64 0.2 25);
+  --quadrant-stressed: oklch(0.7 0.16 70);
 }
 
 @theme inline {
@@ -150,6 +158,10 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-quadrant-relaxed: var(--quadrant-relaxed);
+  --color-quadrant-calm: var(--quadrant-calm);
+  --color-quadrant-excited: var(--quadrant-excited);
+  --color-quadrant-stressed: var(--quadrant-stressed);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

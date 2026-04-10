@@ -4,7 +4,7 @@ import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
 import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
 
-export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
+export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
      * You can provide a client instance returned by `createClient()` instead of
      * individual options. This might be also useful if you want to implement a
@@ -68,7 +68,7 @@ export const getSession = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Get Session Segments
  *
- * Get all EEG segments for a session.
+ * Get all EEG segments for a session, plus a trajectory summary.
  */
 export const getSessionSegments = <ThrowOnError extends boolean = false>(options: Options<GetSessionSegmentsData, ThrowOnError>) => (options.client ?? client).get<GetSessionSegmentsResponses, GetSessionSegmentsErrors, ThrowOnError>({
     responseType: 'json',
@@ -80,9 +80,6 @@ export const getSessionSegments = <ThrowOnError extends boolean = false>(options
  * Connect Spotify
  *
  * Get the Spotify authorization URL to start OAuth flow.
- *
- * Returns:
- * Dict containing the auth_url to redirect the user to.
  */
 export const connectSpotify = <ThrowOnError extends boolean = false>(options?: Options<ConnectSpotifyData, ThrowOnError>) => (options?.client ?? client).get<ConnectSpotifyResponses, unknown, ThrowOnError>({
     responseType: 'json',
@@ -93,11 +90,9 @@ export const connectSpotify = <ThrowOnError extends boolean = false>(options?: O
 /**
  * Spotify Callback
  *
- * Handle Spotify OAuth callback.
- *
- * Exchanges the authorization code for access tokens and stores them.
+ * Handle Spotify OAuth callback and exchange code for tokens.
  */
-export const spotifyCallback = <ThrowOnError extends boolean = false>(options: Options<SpotifyCallbackData, ThrowOnError>) => (options.client ?? client).get<SpotifyCallbackResponses, SpotifyCallbackErrors, ThrowOnError>({
+export const spotifyCallback = <ThrowOnError extends boolean = false>(options?: Options<SpotifyCallbackData, ThrowOnError>) => (options?.client ?? client).get<SpotifyCallbackResponses, SpotifyCallbackErrors, ThrowOnError>({
     responseType: 'json',
     url: '/api/spotify/callback',
     ...options

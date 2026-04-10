@@ -185,7 +185,7 @@ export const getSessionSegmentsQueryKey = (options: Options<GetSessionSegmentsDa
 /**
  * Get Session Segments
  *
- * Get all EEG segments for a session.
+ * Get all EEG segments for a session, plus a trajectory summary.
  */
 export const getSessionSegmentsOptions = (options: Options<GetSessionSegmentsData>) => queryOptions<GetSessionSegmentsResponse, AxiosError<GetSessionSegmentsError>, GetSessionSegmentsResponse, ReturnType<typeof getSessionSegmentsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -206,9 +206,6 @@ export const connectSpotifyQueryKey = (options?: Options<ConnectSpotifyData>) =>
  * Connect Spotify
  *
  * Get the Spotify authorization URL to start OAuth flow.
- *
- * Returns:
- * Dict containing the auth_url to redirect the user to.
  */
 export const connectSpotifyOptions = (options?: Options<ConnectSpotifyData>) => queryOptions<ConnectSpotifyResponse, AxiosError<DefaultError>, ConnectSpotifyResponse, ReturnType<typeof connectSpotifyQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -223,16 +220,14 @@ export const connectSpotifyOptions = (options?: Options<ConnectSpotifyData>) => 
     queryKey: connectSpotifyQueryKey(options)
 });
 
-export const spotifyCallbackQueryKey = (options: Options<SpotifyCallbackData>) => createQueryKey('spotifyCallback', options);
+export const spotifyCallbackQueryKey = (options?: Options<SpotifyCallbackData>) => createQueryKey('spotifyCallback', options);
 
 /**
  * Spotify Callback
  *
- * Handle Spotify OAuth callback.
- *
- * Exchanges the authorization code for access tokens and stores them.
+ * Handle Spotify OAuth callback and exchange code for tokens.
  */
-export const spotifyCallbackOptions = (options: Options<SpotifyCallbackData>) => queryOptions<unknown, AxiosError<SpotifyCallbackError>, unknown, ReturnType<typeof spotifyCallbackQueryKey>>({
+export const spotifyCallbackOptions = (options?: Options<SpotifyCallbackData>) => queryOptions<unknown, AxiosError<SpotifyCallbackError>, unknown, ReturnType<typeof spotifyCallbackQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await spotifyCallback({
             ...options,

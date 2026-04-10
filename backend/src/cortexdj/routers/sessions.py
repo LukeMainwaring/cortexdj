@@ -5,6 +5,7 @@ from cortexdj.models.eeg_segment import EegSegment
 from cortexdj.schemas.eeg_segment import SegmentListResponse, SegmentSchema
 from cortexdj.schemas.session import SessionListResponse, SessionSchema
 from cortexdj.services import session as session_service
+from cortexdj.services.trajectory import compute_trajectory_summary
 
 sessions_router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -30,9 +31,10 @@ async def get_session(db: AsyncPostgresSessionDep, session_id: str) -> SessionSc
 
 @sessions_router.get("/{session_id}/segments")
 async def get_session_segments(db: AsyncPostgresSessionDep, session_id: str) -> SegmentListResponse:
-    """Get all EEG segments for a session."""
+    """Get all EEG segments for a session, plus a trajectory summary."""
     segments = await EegSegment.get_by_session(db, session_id)
     return SegmentListResponse(
         segments=[SegmentSchema.model_validate(s) for s in segments],
         total=len(segments),
+        trajectory_summary=compute_trajectory_summary(segments),
     )

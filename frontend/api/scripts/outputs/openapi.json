@@ -150,7 +150,7 @@
           "sessions"
         ],
         "summary": "Get Session Segments",
-        "description": "Get all EEG segments for a session.",
+        "description": "Get all EEG segments for a session, plus a trajectory summary.",
         "operationId": "getSessionSegments",
         "parameters": [
           {
@@ -193,7 +193,7 @@
           "spotify"
         ],
         "summary": "Connect Spotify",
-        "description": "Get the Spotify authorization URL to start OAuth flow.\n\nReturns:\n    Dict containing the auth_url to redirect the user to.",
+        "description": "Get the Spotify authorization URL to start OAuth flow.",
         "operationId": "connectSpotify",
         "responses": {
           "200": {
@@ -219,22 +219,29 @@
           "spotify"
         ],
         "summary": "Spotify Callback",
-        "description": "Handle Spotify OAuth callback.\n\nExchanges the authorization code for access tokens and stores them.",
+        "description": "Handle Spotify OAuth callback and exchange code for tokens.",
         "operationId": "spotifyCallback",
         "parameters": [
           {
             "name": "code",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Code"
             }
           },
           {
             "name": "state",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "anyOf": [
                 {
@@ -245,6 +252,22 @@
                 }
               ],
               "title": "State"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
             }
           }
         ],
@@ -524,8 +547,7 @@
           }
         },
         "type": "object",
-        "title": "BrainContext",
-        "description": "Brain state context for a conversation thread."
+        "title": "BrainContext"
       },
       "HTTPValidationError": {
         "properties": {
@@ -565,6 +587,16 @@
           "total": {
             "type": "integer",
             "title": "Total"
+          },
+          "trajectory_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrajectorySummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -572,8 +604,7 @@
           "segments",
           "total"
         ],
-        "title": "SegmentListResponse",
-        "description": "Response containing list of segments for a session."
+        "title": "SegmentListResponse"
       },
       "SegmentSchema": {
         "properties": {
@@ -647,8 +678,7 @@
           "band_powers",
           "created_at"
         ],
-        "title": "SegmentSchema",
-        "description": "Full segment representation."
+        "title": "SegmentSchema"
       },
       "SessionListResponse": {
         "properties": {
@@ -669,8 +699,7 @@
           "sessions",
           "total"
         ],
-        "title": "SessionListResponse",
-        "description": "Response containing list of sessions."
+        "title": "SessionListResponse"
       },
       "SessionSchema": {
         "properties": {
@@ -722,8 +751,35 @@
           "duration_seconds",
           "created_at"
         ],
-        "title": "SessionSchema",
-        "description": "Full session representation."
+        "title": "SessionSchema"
+      },
+      "SmoothedPoint": {
+        "properties": {
+          "start_time": {
+            "type": "number",
+            "title": "Start Time"
+          },
+          "arousal": {
+            "type": "number",
+            "title": "Arousal"
+          },
+          "valence": {
+            "type": "number",
+            "title": "Valence"
+          },
+          "quadrant": {
+            "type": "string",
+            "title": "Quadrant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_time",
+          "arousal",
+          "valence",
+          "quadrant"
+        ],
+        "title": "SmoothedPoint"
       },
       "SpotifyConnectionStatus": {
         "properties": {
@@ -736,8 +792,7 @@
         "required": [
           "connected"
         ],
-        "title": "SpotifyConnectionStatus",
-        "description": "Response for Spotify connection status."
+        "title": "SpotifyConnectionStatus"
       },
       "ThreadDeleteResponse": {
         "properties": {
@@ -750,8 +805,7 @@
         "required": [
           "message"
         ],
-        "title": "ThreadDeleteResponse",
-        "description": "Response for successful thread delete operations."
+        "title": "ThreadDeleteResponse"
       },
       "ThreadListResponse": {
         "properties": {
@@ -767,8 +821,7 @@
         "required": [
           "threads"
         ],
-        "title": "ThreadListResponse",
-        "description": "Response containing list of threads."
+        "title": "ThreadListResponse"
       },
       "ThreadMessagesResponse": {
         "properties": {
@@ -800,8 +853,7 @@
           "thread_id",
           "messages"
         ],
-        "title": "ThreadMessagesResponse",
-        "description": "Response containing thread messages."
+        "title": "ThreadMessagesResponse"
       },
       "ThreadRenameRequest": {
         "properties": {
@@ -816,8 +868,7 @@
         "required": [
           "title"
         ],
-        "title": "ThreadRenameRequest",
-        "description": "Request to rename a thread."
+        "title": "ThreadRenameRequest"
       },
       "ThreadRenameResponse": {
         "properties": {
@@ -835,8 +886,7 @@
           "thread_id",
           "title"
         ],
-        "title": "ThreadRenameResponse",
-        "description": "Response for successful thread rename operations."
+        "title": "ThreadRenameResponse"
       },
       "ThreadSummary": {
         "properties": {
@@ -888,8 +938,97 @@
           "created_at",
           "updated_at"
         ],
-        "title": "ThreadSummary",
-        "description": "Summary of a thread for list view."
+        "title": "ThreadSummary"
+      },
+      "TrajectorySummary": {
+        "properties": {
+          "dwell_fractions": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Dwell Fractions"
+          },
+          "dominant_quadrant": {
+            "type": "string",
+            "title": "Dominant Quadrant"
+          },
+          "transition_count": {
+            "type": "integer",
+            "title": "Transition Count"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/TransitionEvent"
+            },
+            "type": "array",
+            "title": "Transitions"
+          },
+          "centroid": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Centroid"
+          },
+          "dispersion": {
+            "type": "number",
+            "title": "Dispersion"
+          },
+          "path_length": {
+            "type": "number",
+            "title": "Path Length"
+          },
+          "smoothed": {
+            "items": {
+              "$ref": "#/components/schemas/SmoothedPoint"
+            },
+            "type": "array",
+            "title": "Smoothed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dwell_fractions",
+          "dominant_quadrant",
+          "transition_count",
+          "transitions",
+          "centroid",
+          "dispersion",
+          "path_length",
+          "smoothed"
+        ],
+        "title": "TrajectorySummary"
+      },
+      "TransitionEvent": {
+        "properties": {
+          "time": {
+            "type": "number",
+            "title": "Time"
+          },
+          "from_quadrant": {
+            "type": "string",
+            "title": "From Quadrant"
+          },
+          "to_quadrant": {
+            "type": "string",
+            "title": "To Quadrant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "time",
+          "from_quadrant",
+          "to_quadrant"
+        ],
+        "title": "TransitionEvent"
       },
       "ValidationError": {
         "properties": {
