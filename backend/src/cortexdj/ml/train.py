@@ -55,6 +55,11 @@ logger = logging.getLogger(__name__)
 # ── Default hyperparameters ──────────────────────────────────────────────────
 # These represent best-effort quality defaults. Use --quick for fast iteration.
 DEFAULT_EPOCHS = 50
+# EEGNet on CUDA gets a longer budget: the tiny model under-utilizes the GPU
+# anyway, so the extra epochs cost a negligible fraction of a Modal run but
+# give cosine annealing more room to find a flat minimum on the wider post-v3
+# backbone. Early stopping (patience=10) still caps easy folds.
+DEFAULT_EPOCHS_EEGNET_CUDA = 100
 DEFAULT_LR = 1e-3
 DEFAULT_FINETUNE_LR = 1e-5
 # Batch size is resolved per-device at runtime (see _default_batch_size_for).
@@ -71,13 +76,27 @@ DEFAULT_SEED = 42
 # Small label smoothing composes with class weights as an extra regularizer
 # against confident-majority-class collapse. 0.05 is conservative.
 DEFAULT_LABEL_SMOOTHING = 0.05
-# Checkpoint schema version — bump when the saved metrics/config layout changes.
+# DE feature augmentation (training split only, EEGNet only). These help the
+# wider post-v3 model actually use its capacity on DEAP's ~4.5K segments —
+# without them the bigger backbone would just memorize. Scale-aware noise uses
+# each sample's own std so the injected magnitude adapts to DE value range
+# (which differs markedly between delta/gamma bands). Conservative defaults;
+# set to 0.0 to disable.
+DEFAULT_DE_NOISE_STD = 0.05
+DEFAULT_DE_MASK_PROB = 0.10
+# Checkpoint schema version — bump when the saved metrics/config layout changes
+# OR when a model's on-disk weight shapes change (`predict.EEGModel` loads
+# state_dicts directly, so a shape mismatch would be a silent loader crash).
 # v1: pre-collapse-fix checkpoints (unweighted CE, `avg_*_acc` metric keys only).
 # v2: post-fix checkpoints with class weights, macro-F1, per-class recall. The
 #     reader refuses to interpret v1's metrics because the `avg_*_acc` numbers
 #     are majority-class collapse and silently mixing them into a comparison
 #     table is the exact bait we want to avoid.
-CHECKPOINT_SCHEMA_VERSION = 2
+# v3: EEGNet capacity bump (spatial 16→32, temporal 32→64, hidden_dim 128→256)
+#     + DE feature augmentation defaults. Old v2 EEGNet checkpoints have
+#     incompatible weight shapes and will render as zeros in `compare-models`
+#     with the existing "retrain recommended" warning.
+CHECKPOINT_SCHEMA_VERSION = 3
 
 # Fine-tune phase uses stronger weight decay (standard for pretrained models)
 FINETUNE_WEIGHT_DECAY_MULTIPLIER = 100
@@ -113,6 +132,10 @@ class TrainingConfig:
     seed: int | None = DEFAULT_SEED
     no_early_stop: bool = False
     label_smoothing: float = DEFAULT_LABEL_SMOOTHING
+    # EEGNet-only DE feature augmentation — see DEFAULT_DE_* comments above.
+    # Ignored by CBraMod (which trains on raw EEG, not DE features).
+    de_noise_std: float = DEFAULT_DE_NOISE_STD
+    de_mask_prob: float = DEFAULT_DE_MASK_PROB
     # Default to per-subject median split: DEAP's 1-9 Likert self-reports
     # vary a lot in per-subject scale, so thresholding at each subject's
     # own median both removes rating-scale bias and gives roughly balanced
@@ -156,6 +179,32 @@ def _default_batch_size_for(device: torch.device) -> int:
     if device.type == "mps":
         return DEFAULT_BATCH_SIZE_MPS
     return DEFAULT_BATCH_SIZE_CPU
+
+
+def _default_epochs_for(device: torch.device, model_type: Literal["eegnet", "cbramod"]) -> int:
+    """CUDA + EEGNet gets the extended budget; everything else stays at DEFAULT_EPOCHS."""
+    if device.type == "cuda" and model_type == "eegnet":
+        return DEFAULT_EPOCHS_EEGNET_CUDA
+    return DEFAULT_EPOCHS
+
+
+def _augment_de_features(x: torch.Tensor, noise_std: float, mask_prob: float) -> torch.Tensor:
+    """Scale-aware Gaussian noise + random feature mask-out on DE vectors.
+
+    Applied per-batch in the EEGNet training loop only — never on val/test.
+    `noise_std` is a fraction of each sample's own std (DE values span
+    multiple orders of magnitude across delta→gamma bands, so a flat noise
+    scale would under-perturb gamma and drown out delta). `mask_prob` is
+    applied before the spatial conv so it perturbs the (32 channels × 5
+    bands) grid the conv actually sees.
+    """
+    if noise_std > 0:
+        sample_std = x.std(dim=1, keepdim=True)
+        x = x + noise_std * sample_std * torch.randn_like(x)
+    if mask_prob > 0:
+        keep = (torch.rand_like(x) >= mask_prob).to(x.dtype)
+        x = x * keep
+    return x
 
 
 def _set_seed(seed: int) -> None:
@@ -386,6 +435,8 @@ def train_fold_eegnet(
             features = features.to(device, non_blocking=non_blocking)
             arousal_targets = arousal_labels.to(device, non_blocking=non_blocking)
             valence_targets = valence_labels.to(device, non_blocking=non_blocking)
+
+            features = _augment_de_features(features, config.de_noise_std, config.de_mask_prob)
 
             optimizer.zero_grad(set_to_none=True)
             if use_amp:
@@ -1313,6 +1364,25 @@ def _build_train_parser() -> argparse.ArgumentParser:
         help=f"Cross-entropy label smoothing (default: {DEFAULT_LABEL_SMOOTHING})",
     )
     parser.add_argument(
+        "--de-noise-std",
+        type=float,
+        default=DEFAULT_DE_NOISE_STD,
+        help=(
+            f"EEGNet-only: scale-aware Gaussian noise injected into DE features "
+            f"during training as a fraction of each sample's std. 0 disables. "
+            f"(default: {DEFAULT_DE_NOISE_STD})"
+        ),
+    )
+    parser.add_argument(
+        "--de-mask-prob",
+        type=float,
+        default=DEFAULT_DE_MASK_PROB,
+        help=(
+            f"EEGNet-only: per-feature mask-out probability applied to DE "
+            f"features during training. 0 disables. (default: {DEFAULT_DE_MASK_PROB})"
+        ),
+    )
+    parser.add_argument(
         "--quick",
         action="store_true",
         help=f"Fast dev mode: {QUICK_EPOCHS} epochs, {QUICK_MAX_FOLDS} folds (overrides --epochs/--max-folds if not explicitly set)",
@@ -1330,7 +1400,10 @@ def _resolve_config(args: argparse.Namespace) -> TrainingConfig:
         if max_folds is None:
             max_folds = QUICK_MAX_FOLDS
     if epochs is None:
-        epochs = DEFAULT_EPOCHS
+        # Device detection is static across the process, so resolving here
+        # matches what `train()` will see. EEGNet on CUDA picks up the
+        # extended 100-epoch budget automatically.
+        epochs = _default_epochs_for(_get_device(), args.model)
 
     return TrainingConfig(
         model_type=args.model,
@@ -1347,6 +1420,8 @@ def _resolve_config(args: argparse.Namespace) -> TrainingConfig:
         seed=None if args.no_seed else args.seed,
         no_early_stop=args.no_early_stop,
         label_smoothing=args.label_smoothing,
+        de_noise_std=args.de_noise_std,
+        de_mask_prob=args.de_mask_prob,
         label_split_strategy=args.label_split,
     )
 

@@ -33,33 +33,32 @@ class EEGNetClassifier(nn.Module):
     def __init__(
         self,
         n_features: int = FEATURE_DIM,
-        hidden_dim: int = 128,
+        hidden_dim: int = 256,
         dropout: float = 0.3,
+        spatial_filters: int = 32,
+        temporal_filters: int = 64,
     ) -> None:
         super().__init__()
 
-        # Reshape features to (batch, 1, n_channels, n_bands) for conv processing
         self.n_channels = NUM_CHANNELS
         self.n_bands = NUM_BANDS
 
-        # Spatial convolution across channels
         self.spatial_conv = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=(NUM_CHANNELS, 1)),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(1, spatial_filters, kernel_size=(NUM_CHANNELS, 1)),
+            nn.BatchNorm2d(spatial_filters),
             nn.ELU(),
             nn.Dropout(dropout),
         )
 
-        # Temporal convolution across bands
         self.temporal_conv = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=(1, NUM_BANDS)),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(spatial_filters, temporal_filters, kernel_size=(1, NUM_BANDS)),
+            nn.BatchNorm2d(temporal_filters),
             nn.ELU(),
             nn.Dropout(dropout),
         )
 
         self.backbone = nn.Sequential(
-            nn.Linear(32, hidden_dim),
+            nn.Linear(temporal_filters, hidden_dim),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
@@ -75,9 +74,9 @@ class EEGNetClassifier(nn.Module):
         if x.dim() == 2:
             x = x.view(-1, 1, self.n_channels, self.n_bands)
 
-        x = self.spatial_conv(x)  # (batch, 16, 1, n_bands)
-        x = self.temporal_conv(x)  # (batch, 32, 1, 1)
-        x = x.view(x.size(0), -1)  # (batch, 32)
+        x = self.spatial_conv(x)
+        x = self.temporal_conv(x)
+        x = x.view(x.size(0), -1)
 
         x = self.backbone(x)
 
