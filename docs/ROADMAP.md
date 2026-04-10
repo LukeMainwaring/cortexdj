@@ -9,7 +9,6 @@
 
 ## Visualization
 
-- Emotion trajectory — 2D arousal/valence scatter animated over time, tracing a path through the four emotion quadrants (extends `SessionVisualization`, which currently renders them as separate time-series lines)
 - True time-frequency spectrogram — per-channel STFT heatmap (frequency on y-axis, color = power), distinct from the stacked band-power area chart already shipped
 - Session comparison dashboard — side-by-side `SessionVisualization` renders for two session IDs
 - Topographic scalp heatmap — per-channel band-power interpolated over the 10-20 montage (DEAP's 32-channel recordings only; not meaningful for Muse 2's 4 electrodes)
