@@ -36,9 +36,7 @@ class _SyntheticFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
         # arousal and valence labels are uncorrelated at the sample level.
         # (`rng.shuffle` is a permutation, so the 70/30 count is preserved.)
         split = int(n * 0.7)
-        valence_labels = np.concatenate(
-            [np.zeros(split, dtype=np.int64), np.ones(n - split, dtype=np.int64)]
-        )
+        valence_labels = np.concatenate([np.zeros(split, dtype=np.int64), np.ones(n - split, dtype=np.int64)])
         rng.shuffle(valence_labels)
 
         # Plant a clean linear signal on feature[0] and feature[1].
@@ -85,12 +83,8 @@ def _collect_val_predictions(
 def test_train_fold_eegnet_does_not_collapse_to_constant() -> None:
     train_dataset = _SyntheticFeatureDataset(n=256, seed=1)
     val_dataset = _SyntheticFeatureDataset(n=64, seed=2)
-    train_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
-        train_dataset, batch_size=32, shuffle=True
-    )
-    val_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(
-        val_dataset, batch_size=32, shuffle=False
-    )
+    train_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    val_loader: DataLoader[tuple[torch.Tensor, int, int]] = DataLoader(val_dataset, batch_size=32, shuffle=False)
     config = TrainingConfig(
         model_type="eegnet",
         epochs=8,
@@ -106,12 +100,8 @@ def test_train_fold_eegnet_does_not_collapse_to_constant() -> None:
     # labels, no loader iteration.
     arousal_weights = class_weights_from_labels(train_dataset.arousal).to(device)
     valence_weights = class_weights_from_labels(train_dataset.valence).to(device)
-    arousal_criterion = nn.CrossEntropyLoss(
-        weight=arousal_weights, label_smoothing=config.label_smoothing
-    )
-    valence_criterion = nn.CrossEntropyLoss(
-        weight=valence_weights, label_smoothing=config.label_smoothing
-    )
+    arousal_criterion = nn.CrossEntropyLoss(weight=arousal_weights, label_smoothing=config.label_smoothing)
+    valence_criterion = nn.CrossEntropyLoss(weight=valence_weights, label_smoothing=config.label_smoothing)
 
     # Force CPU to keep the test fast and hermetic across runners. The
     # fold function takes `device` explicitly, so no monkeypatching needed.

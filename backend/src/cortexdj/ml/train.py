@@ -382,7 +382,7 @@ def train_fold_eegnet(
         train_total = 0
         nan_skipped = 0
 
-        for batch_idx, (features, arousal_labels, valence_labels) in enumerate(train_loader):
+        for features, arousal_labels, valence_labels in train_loader:
             features = features.to(device, non_blocking=non_blocking)
             arousal_targets = arousal_labels.to(device, non_blocking=non_blocking)
             valence_targets = valence_labels.to(device, non_blocking=non_blocking)
@@ -483,7 +483,7 @@ def train_fold_pretrained(
         train_total = 0
         nan_skipped = 0
 
-        for batch_idx, (features, arousal_labels, valence_labels) in enumerate(train_loader):
+        for features, arousal_labels, valence_labels in train_loader:
             features = features.to(device, non_blocking=non_blocking)
             arousal_targets = arousal_labels.to(device, non_blocking=non_blocking)
             valence_targets = valence_labels.to(device, non_blocking=non_blocking)
@@ -513,7 +513,12 @@ def train_fold_pretrained(
             train_total += features.size(0)
 
         if nan_skipped:
-            logger.warning("  Epoch %d: skipped %d non-finite-loss batches", epoch + 1, nan_skipped)
+            logger.warning(
+                "  [Phase 1] Epoch %d/%d: skipped %d non-finite-loss batches",
+                epoch + 1,
+                phase1_epochs,
+                nan_skipped,
+            )
 
         scheduler.step()
         val_metrics = _evaluate(model, val_loader, device)
@@ -550,7 +555,7 @@ def train_fold_pretrained(
         train_total = 0
         nan_skipped = 0
 
-        for batch_idx, (features, arousal_labels, valence_labels) in enumerate(train_loader):
+        for features, arousal_labels, valence_labels in train_loader:
             features = features.to(device, non_blocking=non_blocking)
             arousal_targets = arousal_labels.to(device, non_blocking=non_blocking)
             valence_targets = valence_labels.to(device, non_blocking=non_blocking)
@@ -580,7 +585,12 @@ def train_fold_pretrained(
             train_total += features.size(0)
 
         if nan_skipped:
-            logger.warning("  Epoch %d: skipped %d non-finite-loss batches", epoch + 1, nan_skipped)
+            logger.warning(
+                "  [Phase 2] Epoch %d/%d: skipped %d non-finite-loss batches",
+                epoch + 1,
+                phase2_epochs,
+                nan_skipped,
+            )
 
         scheduler.step()
         val_metrics = _evaluate(model, val_loader, device)
@@ -998,17 +1008,29 @@ _STALE_CHECKPOINT_ROW: dict[str, float] = {
 }
 
 
+def _is_stale_checkpoint(checkpoint: dict[str, object]) -> bool:
+    """True if the checkpoint predates `CHECKPOINT_SCHEMA_VERSION`.
+
+    Treats a missing, non-int, or below-cutoff `schema_version` as stale
+    — the three shapes a pre-fix or corrupted checkpoint can take. Used
+    by both `_checkpoint_comparison_row` (returns zeros) and the
+    `compare()` caller (logs a "retrain recommended" warning) so the
+    two sites can't drift out of sync.
+    """
+    schema = checkpoint.get("schema_version")
+    return not isinstance(schema, int) or schema < CHECKPOINT_SCHEMA_VERSION
+
+
 def _checkpoint_comparison_row(checkpoint: dict[str, object]) -> dict[str, float]:
     """Pull the compare-table scalar columns out of a loaded checkpoint.
 
-    Refuses pre-fix (schema < 2) checkpoints: returns zeros and lets the
-    caller log a "retrain recommended" warning. Pre-fix checkpoints had
-    `avg_*_acc` numbers dominated by majority-class collapse, and silently
-    mixing them into the comparison table is the exact bait we want to
-    avoid — the stale row should be loudly flagged instead.
+    Refuses pre-fix (`_is_stale_checkpoint`) checkpoints: returns zeros
+    and lets the caller log a "retrain recommended" warning. Pre-fix
+    checkpoints had `avg_*_acc` numbers dominated by majority-class
+    collapse, and silently mixing them into the comparison table is the
+    exact bait we want to avoid.
     """
-    schema = checkpoint.get("schema_version", 0)
-    if not isinstance(schema, int) or schema < CHECKPOINT_SCHEMA_VERSION:
+    if _is_stale_checkpoint(checkpoint):
         return dict(_STALE_CHECKPOINT_ROW)
 
     metrics = checkpoint.get("metrics", {})
@@ -1058,13 +1080,16 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
         for model_type, path in checkpoint_map.items():
             if path.exists():
                 checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-                schema = checkpoint.get("schema_version", 0)
-                m = checkpoint.get("metrics", {})
                 results[model_type] = _checkpoint_comparison_row(checkpoint)
-                info = f"cv={m.get('cv_mode', '?')}, {m.get('n_folds', '?')} folds, {m.get('epochs', '?')} epochs"
-                if isinstance(schema, int) and schema < CHECKPOINT_SCHEMA_VERSION:
+                m = checkpoint.get("metrics", {})
+                if isinstance(m, dict):
+                    info = f"cv={m.get('cv_mode', '?')}, {m.get('n_folds', '?')} folds, {m.get('epochs', '?')} epochs"
+                else:
+                    info = "metrics: <unreadable>"
+                if _is_stale_checkpoint(checkpoint):
+                    schema = checkpoint.get("schema_version", "<missing>")
                     logger.warning(
-                        "Loaded %s checkpoint (%s) — pre-fix schema v%s, retrain recommended. "
+                        "Loaded %s checkpoint (%s) — pre-fix schema %r, retrain recommended. "
                         "Comparison row will show zeros.",
                         model_type,
                         info,

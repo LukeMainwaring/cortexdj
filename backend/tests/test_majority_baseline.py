@@ -32,9 +32,7 @@ def _fake_dataset(
     # Features are never read by the majority baseline path, so we pack a
     # zero vector per sample just to keep the `samples` tuple shape honest.
     feature_stub = np.zeros((1,), dtype=np.float32)
-    ds.samples = [
-        (feature_stub, int(a), int(v)) for a, v in zip(arousal, valence, strict=True)
-    ]
+    ds.samples = [(feature_stub, int(a), int(v)) for a, v in zip(arousal, valence, strict=True)]
     ds.participant_ids = participant_ids
     return ds
 
@@ -69,14 +67,10 @@ class TestMajorityBaselineMetrics:
         n_subjects = 4
         low_per_subj = 77
         high_per_subj = 23
-        per_subject = np.concatenate(
-            [np.zeros(low_per_subj, dtype=np.int64), np.ones(high_per_subj, dtype=np.int64)]
-        )
+        per_subject = np.concatenate([np.zeros(low_per_subj, dtype=np.int64), np.ones(high_per_subj, dtype=np.int64)])
         arousal = np.tile(per_subject, n_subjects)
         valence = arousal.copy()
-        participant_ids = [
-            pid for pid in range(1, n_subjects + 1) for _ in range(low_per_subj + high_per_subj)
-        ]
+        participant_ids = [pid for pid in range(1, n_subjects + 1) for _ in range(low_per_subj + high_per_subj)]
 
         dataset = _fake_dataset(arousal, valence, participant_ids)
         config = TrainingConfig(cv_mode="loso", seed=None)
@@ -97,12 +91,8 @@ class TestMajorityBaselineMetrics:
         # two heads are actually being fit independently (not sharing state).
         n_subjects = 4
         per_subject = 100
-        arousal_per = np.concatenate(
-            [np.zeros(70, dtype=np.int64), np.ones(30, dtype=np.int64)]
-        )
-        valence_per = np.concatenate(
-            [np.zeros(30, dtype=np.int64), np.ones(70, dtype=np.int64)]
-        )
+        arousal_per = np.concatenate([np.zeros(70, dtype=np.int64), np.ones(30, dtype=np.int64)])
+        valence_per = np.concatenate([np.zeros(30, dtype=np.int64), np.ones(70, dtype=np.int64)])
         arousal = np.tile(arousal_per, n_subjects)
         valence = np.tile(valence_per, n_subjects)
         participant_ids = [pid for pid in range(1, n_subjects + 1) for _ in range(per_subject)]

@@ -106,6 +106,13 @@ def _compute_label_thresholds(files: list[Path], strategy: LabelSplitStrategy) -
     For `fixed_5`, every subject gets (5.0, 5.0). For `median_global`,
     every subject gets the pooled median. For `median_per_subject`, each
     subject gets their own median computed across their own 40 trials.
+
+    Note: the median strategies deserialize each `.dat` file twice on
+    a cold cache build — once here (for labels only) and once in
+    `_load_participant` (for labels + EEG data). This is intentional:
+    thresholds must be known *before* segment labels are written, and
+    the cold-cache path is fully amortized by the `.npz` cache on
+    subsequent runs. Don't "optimize" this loop away.
     """
     if strategy == "fixed_5":
         return {_extract_participant_id(f): (AROUSAL_THRESHOLD, VALENCE_THRESHOLD) for f in files}
