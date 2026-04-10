@@ -45,7 +45,7 @@ from cortexdj.ml.metrics import (
     per_class_recall,
     prediction_counts,
 )
-from cortexdj.ml.model import EEGNetClassifier
+from cortexdj.ml.model import NUM_BANDS, NUM_CHANNELS, EEGNetClassifier
 from cortexdj.ml.predict import EEGModel
 from cortexdj.ml.pretrained import PretrainedDualHead, load_pretrained_dual_head
 
@@ -76,12 +76,11 @@ DEFAULT_SEED = 42
 # Small label smoothing composes with class weights as an extra regularizer
 # against confident-majority-class collapse. 0.05 is conservative.
 DEFAULT_LABEL_SMOOTHING = 0.05
-# DE feature augmentation (training split only, EEGNet only). These help the
-# wider post-v3 model actually use its capacity on DEAP's ~4.5K segments —
-# without them the bigger backbone would just memorize. Scale-aware noise uses
-# each sample's own std so the injected magnitude adapts to DE value range
-# (which differs markedly between delta/gamma bands). Conservative defaults;
-# set to 0.0 to disable.
+# DE feature augmentation (training split only, EEGNet only). Regularizes the
+# wider post-v3 model on DEAP's ~4.5K segments — without it the bigger
+# backbone would just memorize. Noise is scaled per-band (delta through gamma
+# DE values span multiple orders of magnitude, so a pooled std would
+# under-perturb low-amplitude bands relative to gamma).
 DEFAULT_DE_NOISE_STD = 0.05
 DEFAULT_DE_MASK_PROB = 0.10
 # Checkpoint schema version — bump when the saved metrics/config layout changes
@@ -189,18 +188,20 @@ def _default_epochs_for(device: torch.device, model_type: Literal["eegnet", "cbr
 
 
 def _augment_de_features(x: torch.Tensor, noise_std: float, mask_prob: float) -> torch.Tensor:
-    """Scale-aware Gaussian noise + random feature mask-out on DE vectors.
+    """Per-band Gaussian noise + random feature mask-out on DE vectors.
 
     Applied per-batch in the EEGNet training loop only — never on val/test.
-    `noise_std` is a fraction of each sample's own std (DE values span
-    multiple orders of magnitude across delta→gamma bands, so a flat noise
-    scale would under-perturb gamma and drown out delta). `mask_prob` is
-    applied before the spatial conv so it perturbs the (32 channels × 5
-    bands) grid the conv actually sees.
+    The feature vector is band-major (see `preprocessing.extract_features`):
+    reshape to `(B, n_bands, n_channels)` so noise std is computed per-band
+    across channels, then broadcast back to the flat layout. A pooled
+    std would let gamma dominate and under-regularize delta.
     """
     if noise_std > 0:
-        sample_std = x.std(dim=1, keepdim=True)
-        x = x + noise_std * sample_std * torch.randn_like(x)
+        batch_size = x.shape[0]
+        per_band = x.view(batch_size, NUM_BANDS, NUM_CHANNELS)
+        band_std = per_band.std(dim=2, keepdim=True)
+        noise = noise_std * band_std * torch.randn_like(per_band)
+        x = (per_band + noise).view(batch_size, -1)
     if mask_prob > 0:
         keep = (torch.rand_like(x) >= mask_prob).to(x.dtype)
         x = x * keep
@@ -1368,9 +1369,8 @@ def _build_train_parser() -> argparse.ArgumentParser:
         type=float,
         default=DEFAULT_DE_NOISE_STD,
         help=(
-            f"EEGNet-only: scale-aware Gaussian noise injected into DE features "
-            f"during training as a fraction of each sample's std. 0 disables. "
-            f"(default: {DEFAULT_DE_NOISE_STD})"
+            f"EEGNet-only: per-band Gaussian noise on DE features during "
+            f"training, as a fraction of each band's std (default: {DEFAULT_DE_NOISE_STD})"
         ),
     )
     parser.add_argument(
@@ -1378,8 +1378,8 @@ def _build_train_parser() -> argparse.ArgumentParser:
         type=float,
         default=DEFAULT_DE_MASK_PROB,
         help=(
-            f"EEGNet-only: per-feature mask-out probability applied to DE "
-            f"features during training. 0 disables. (default: {DEFAULT_DE_MASK_PROB})"
+            f"EEGNet-only: per-feature mask-out probability on DE features "
+            f"during training (default: {DEFAULT_DE_MASK_PROB})"
         ),
     )
     parser.add_argument(

@@ -59,6 +59,22 @@ def load_model(
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     resolved_type = model_type or checkpoint.get("model_type", "eegnet")
 
+    # Lazy import to avoid a cycle: train imports `EEGModel` from this module.
+    # Stale-checkpoint guard: pre-v3 EEGNet checkpoints have incompatible
+    # weight shapes (the capacity bump changed spatial/temporal filter counts
+    # and hidden_dim), so `load_state_dict` would raise a cryptic size-mismatch
+    # error at app startup. Raise a clear retrain-me message instead.
+    from cortexdj.ml.train import CHECKPOINT_SCHEMA_VERSION
+
+    schema = checkpoint.get("schema_version")
+    if not isinstance(schema, int) or schema < CHECKPOINT_SCHEMA_VERSION:
+        msg = (
+            f"Checkpoint at {path} has pre-fix schema {schema!r} "
+            f"(current: v{CHECKPOINT_SCHEMA_VERSION}). Retrain with "
+            f"`uv run train-model --model {resolved_type}` and try again."
+        )
+        raise RuntimeError(msg)
+
     if resolved_type == "cbramod":
         model: EEGModel = load_pretrained_dual_head()
         model.load_state_dict(checkpoint["model_state_dict"])
