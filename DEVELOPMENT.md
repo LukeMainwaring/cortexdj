@@ -39,10 +39,13 @@ uv run --directory backend pre-commit run --all-files
 ## Tests
 
 ```bash
-uv run --directory backend pytest              # run all tests
+uv run --directory backend pytest              # unit tests (eval suite excluded)
 uv run --directory backend pytest -v           # verbose output
 uv run --directory backend pytest tests/test_preprocessing.py  # single file
+uv run --directory backend pytest -m eval      # real-model brain_agent eval suite (opt-in)
 ```
+
+The `eval` marker gates tests that call the real OpenAI API via `brain_agent` — the default `pytest` invocation excludes them via `addopts = "-m 'not eval'"`. Use them as a nightly safety net on `main` or manual spot-checks, not on every PR. See `.claude/rules/backend/pydantic-ai.md` and `backend/tests/evals/` for the suite layout.
 
 ## Database migrations
 

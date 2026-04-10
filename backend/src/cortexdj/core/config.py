@@ -16,6 +16,7 @@ class ApiSettings(BaseSettings):
 
 class AgentSettings(BaseSettings):
     AGENT_MODEL: str = "gpt-5.4-mini"
+    AGENT_REASONING_EFFORT: Literal["low", "medium", "high"] | None = None
 
 
 class PostgresSettings(BaseSettings):

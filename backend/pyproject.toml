@@ -18,7 +18,7 @@ dependencies = [
   "modal>=1.4.1",
   "numpy>=2.4.4",
   "psycopg[binary,pool]>=3.3.3",
-  "pydantic-ai>=1.77.0",
+  "pydantic-ai>=1.79.0",
   "pydantic>=2.12.5",
   "scipy>=1.17.1",
   "spotipy>=2.26.0",
@@ -31,15 +31,18 @@ dependencies = [
 dev = [
   "mypy>=1.20.0",
   "pre-commit>=4.5.1",
+  "pydantic-evals>=1.79.0",
   "pytest>=9.0.3",
-  "ruff>=0.15.9",
+  "ruff>=0.15.10",
 ]
 
 [tool.pytest.ini_options]
 markers = [
     "main: marks tests for main demo examples",
     "additional: marks tests for additional demo examples",
+    "eval: marks tests that call a real LLM (opt-in; run with `pytest -m eval`)",
 ]
+addopts = "-m 'not eval'"
 
 [tool.mypy]
 strict = true
