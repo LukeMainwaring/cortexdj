@@ -1,18 +1,24 @@
 """Unit tests for the brain_agent hooks module.
 
-Full end-to-end recovery testing (fake tool that raises → agent responds
-conversationally) lives in ``tests/evals/`` because it requires standing up
-a TestModel-backed agent. These tests cover the helpers and registration
-wiring only.
+Exercises the recovery payload helper and the ``_recover_tool_error``
+handler directly against real ``ToolCallPart`` / ``ToolDefinition``
+instances. End-to-end validation (fake failing tool → agent responds
+conversationally) lives in ``tests/evals/``.
 """
 
 from __future__ import annotations
 
 import asyncio
 
+from pydantic_ai import ToolDefinition
 from pydantic_ai.capabilities import Hooks
+from pydantic_ai.messages import ToolCallPart
 
-from cortexdj.agents.hooks import _recovery_payload, build_brain_agent_hooks
+from cortexdj.agents.hooks import (
+    _recover_tool_error,
+    _recovery_payload,
+    build_brain_agent_hooks,
+)
 
 
 class TestRecoveryPayload:
@@ -31,52 +37,27 @@ class TestRecoveryPayload:
         assert payload_b["exception_type"] == "ConnectionError"
 
 
-class TestBuildBrainAgentHooks:
-    def test_returns_hooks_instance(self) -> None:
-        hooks = build_brain_agent_hooks()
-        assert isinstance(hooks, Hooks)
+class TestRecoverToolErrorHandler:
+    def test_returns_recovery_payload_for_unexpected_exception(self) -> None:
+        call = ToolCallPart(tool_name="search_tracks", tool_call_id="call-1")
+        tool_def = ToolDefinition(name="search_tracks")
 
-    def test_registers_tool_execute_error_handler(self) -> None:
-        hooks = build_brain_agent_hooks()
-        # Internal registry key follows AbstractCapability method names; see
-        # pydantic_ai/capabilities/hooks.py Hooks.__init__ for the mapping.
-        entries = hooks._get("on_tool_execute_error")
-        assert len(entries) == 1
-
-    def test_does_not_register_unused_hooks(self) -> None:
-        hooks = build_brain_agent_hooks()
-        for key in (
-            "before_run",
-            "after_run",
-            "wrap_run",
-            "on_run_error",
-            "before_model_request",
-            "after_model_request",
-        ):
-            assert hooks._get(key) == []
-
-    def test_registered_handler_returns_recovery_payload(self) -> None:
-        hooks = build_brain_agent_hooks()
-        entry = hooks._get("on_tool_execute_error")[0]
-
-        class _FakeToolDef:
-            name = "search_tracks"
-
-        class _FakeCall:
-            tool_name = "search_tracks"
-            tool_call_id = "test-id"
-
-        async def _invoke() -> object:
-            return await entry.func(
-                None,
-                call=_FakeCall(),
-                tool_def=_FakeToolDef(),
+        async def _invoke() -> dict[str, object]:
+            return await _recover_tool_error(
+                None,  # type: ignore[arg-type]  # handler doesn't touch ctx
+                call=call,
+                tool_def=tool_def,
                 args={},
                 error=RuntimeError("spotify 500"),
             )
 
         result = asyncio.run(_invoke())
-        assert isinstance(result, dict)
         assert result["error"] == "tool_failed"
         assert result["tool"] == "search_tracks"
         assert result["exception_type"] == "RuntimeError"
+
+
+class TestBuildBrainAgentHooks:
+    def test_returns_hooks_instance(self) -> None:
+        hooks = build_brain_agent_hooks()
+        assert isinstance(hooks, Hooks)

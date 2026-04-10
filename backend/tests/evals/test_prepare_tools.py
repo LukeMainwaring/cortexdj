@@ -16,9 +16,11 @@ from __future__ import annotations
 
 import asyncio
 
+import spotipy
 from pydantic_ai.models.test import TestModel
 
 from cortexdj.agents.brain_agent import brain_agent
+from cortexdj.ml.predict import EEGModel
 from tests.evals.conftest import make_fake_deps
 
 
@@ -30,8 +32,8 @@ def _offered_tool_names(model: TestModel) -> set[str]:
 
 def _run_agent_with_test_model(
     *,
-    spotify_client: object | None,
-    eeg_model: object | None,
+    spotify_client: spotipy.Spotify | None,
+    eeg_model: EEGModel | None,
 ) -> TestModel:
     test_model = TestModel(call_tools=[], custom_output_text="ok")
     deps = make_fake_deps(spotify_client=spotify_client, eeg_model=eeg_model)
@@ -72,8 +74,9 @@ class TestPlaylistCapabilityPrepareTools:
         assert "build_mood_playlist" in offered
 
     def test_shows_user_spotify_tools_when_connected(self) -> None:
-        fake_spotify = object()  # PlaylistCapability only checks truthiness
-        model = _run_agent_with_test_model(spotify_client=fake_spotify, eeg_model=None)
+        from tests.evals.conftest import fake_spotify_client
+
+        model = _run_agent_with_test_model(spotify_client=fake_spotify_client(), eeg_model=None)
         offered = _offered_tool_names(model)
 
         assert "get_my_playlists" in offered
@@ -94,8 +97,9 @@ class TestClassificationCapabilityPrepareTools:
         assert "set_brain_context" in offered
 
     def test_shows_model_tools_when_eeg_model_loaded(self) -> None:
-        fake_eeg_model = object()  # ClassificationCapability only checks truthiness
-        model = _run_agent_with_test_model(spotify_client=None, eeg_model=fake_eeg_model)
+        from tests.evals.conftest import fake_eeg_model
+
+        model = _run_agent_with_test_model(spotify_client=None, eeg_model=fake_eeg_model())
         offered = _offered_tool_names(model)
 
         assert "get_model_info" in offered

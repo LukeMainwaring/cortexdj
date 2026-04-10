@@ -37,19 +37,17 @@ def _recovery_payload(tool_name: str, error: Exception) -> dict[str, Any]:
     }
 
 
+async def _recover_tool_error(
+    ctx: RunContext[AgentDeps],
+    *,
+    call: ToolCallPart,
+    tool_def: ToolDefinition,
+    args: Any,
+    error: Exception,
+) -> dict[str, Any]:
+    logger.exception(f"Unhandled exception in tool {tool_def.name}: {error!r}")
+    return _recovery_payload(tool_def.name, error)
+
+
 def build_brain_agent_hooks() -> Hooks[AgentDeps]:
-    hooks: Hooks[AgentDeps] = Hooks()
-
-    @hooks.on.tool_execute_error
-    async def _recover_tool_error(
-        ctx: RunContext[AgentDeps],
-        *,
-        call: ToolCallPart,
-        tool_def: ToolDefinition,
-        args: Any,
-        error: Exception,
-    ) -> dict[str, Any]:
-        logger.exception(f"Unhandled exception in tool {tool_def.name}: {error!r}")
-        return _recovery_payload(tool_def.name, error)
-
-    return hooks
+    return Hooks[AgentDeps](tool_execute_error=_recover_tool_error)

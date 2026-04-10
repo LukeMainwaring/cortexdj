@@ -31,7 +31,13 @@ from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from cortexdj.agents.brain_agent import brain_agent
-from tests.evals.conftest import make_fake_deps
+from tests.evals.conftest import fake_spotify_client, make_fake_deps
+
+
+@dataclass
+class BrainAgentInput:
+    prompt: str
+    with_spotify: bool = False
 
 
 @dataclass
@@ -40,17 +46,24 @@ class BrainAgentOutput:
     tool_calls: list[str] = field(default_factory=list)
 
 
-async def _run_brain_agent(user_prompt: str) -> BrainAgentOutput:
+async def _run_brain_agent(inputs: BrainAgentInput) -> BrainAgentOutput:
     """Execute brain_agent against its real configured model.
 
-    Uses fake deps (no DB, no Spotify, no EEG model) so tools that try
-    to hit those services will fail via the hooks recovery path. For
-    tool-routing evals that's fine — we only care *which* tools the
-    agent tried to call, not whether they succeeded.
+    Uses fake deps so tool bodies that try to hit a DB / real Spotify
+    will fail through the hooks recovery path — tool-routing evals only
+    care *which* tools the agent tried to call, not whether they
+    succeeded. ``with_spotify=True`` threads a ``MagicMock`` Spotify
+    client so ``PlaylistCapability.prepare_tools`` stops filtering the
+    user-authenticated tool set, which is required for any case that
+    asserts behavior around ``build_mood_playlist``, ``get_my_playlists``,
+    etc.
     """
-    deps = make_fake_deps(spotify_client=None, eeg_model=None)
+    deps = make_fake_deps(
+        spotify_client=fake_spotify_client() if inputs.with_spotify else None,
+        eeg_model=None,
+    )
     with brain_agent.override(deps=deps):
-        result = await brain_agent.run(user_prompt)
+        result = await brain_agent.run(inputs.prompt)
 
     tool_calls: list[str] = []
     for msg in result.all_messages():
@@ -62,83 +75,86 @@ async def _run_brain_agent(user_prompt: str) -> BrainAgentOutput:
 
 
 @dataclass
-class ExpectedToolCalled(Evaluator[str, BrainAgentOutput, None]):
+class ExpectedToolCalled(Evaluator[BrainAgentInput, BrainAgentOutput, None]):
     """Asserts that ``expected_tool`` was among the agent's tool calls."""
 
     expected_tool: str = ""
 
-    def evaluate(self, ctx: EvaluatorContext[str, BrainAgentOutput, None]) -> bool:
+    def evaluate(self, ctx: EvaluatorContext[BrainAgentInput, BrainAgentOutput, None]) -> bool:
         return self.expected_tool in ctx.output.tool_calls
 
 
 @dataclass
-class AnyOfToolsCalled(Evaluator[str, BrainAgentOutput, None]):
+class AnyOfToolsCalled(Evaluator[BrainAgentInput, BrainAgentOutput, None]):
     """Asserts that at least one of ``candidates`` was called."""
 
     candidates: tuple[str, ...] = ()
 
-    def evaluate(self, ctx: EvaluatorContext[str, BrainAgentOutput, None]) -> bool:
+    def evaluate(self, ctx: EvaluatorContext[BrainAgentInput, BrainAgentOutput, None]) -> bool:
         return any(c in ctx.output.tool_calls for c in self.candidates)
 
 
 @dataclass
-class NoToolCalled(Evaluator[str, BrainAgentOutput, None]):
+class NoToolCalled(Evaluator[BrainAgentInput, BrainAgentOutput, None]):
     """Asserts a forbidden tool was *not* called — used for prepare_tools gating."""
 
     forbidden: str = ""
 
-    def evaluate(self, ctx: EvaluatorContext[str, BrainAgentOutput, None]) -> bool:
+    def evaluate(self, ctx: EvaluatorContext[BrainAgentInput, BrainAgentOutput, None]) -> bool:
         return self.forbidden not in ctx.output.tool_calls
 
 
-_CASES: list[Case[str, BrainAgentOutput, None]] = [
+_CASES: list[Case[BrainAgentInput, BrainAgentOutput, None]] = [
     Case(
         name="analyze_specific_session",
-        inputs="Analyze session 3 for me — what was I feeling during it?",
+        inputs=BrainAgentInput(prompt="Analyze session 3 for me — what was I feeling during it?"),
         evaluators=(ExpectedToolCalled(expected_tool="analyze_session"),),
     ),
     Case(
         name="list_recent_sessions",
-        inputs="Show me my recent EEG sessions.",
+        inputs=BrainAgentInput(prompt="Show me my recent EEG sessions."),
         evaluators=(ExpectedToolCalled(expected_tool="list_sessions"),),
     ),
     Case(
         name="explain_brain_state",
-        inputs="What was going on in my brain during session 5?",
-        evaluators=(
-            AnyOfToolsCalled(candidates=("explain_brain_state", "analyze_session")),
-        ),
+        inputs=BrainAgentInput(prompt="What was going on in my brain during session 5?"),
+        evaluators=(AnyOfToolsCalled(candidates=("explain_brain_state", "analyze_session")),),
     ),
     Case(
         name="compare_two_sessions",
-        inputs="Compare sessions 3 and 4 and tell me which one was more relaxing.",
+        inputs=BrainAgentInput(prompt="Compare sessions 3 and 4 and tell me which one was more relaxing."),
         evaluators=(ExpectedToolCalled(expected_tool="compare_sessions"),),
     ),
     Case(
+        # Agent should propose the playlist name and wait for confirmation
+        # before calling build_mood_playlist; find_relaxing_tracks may fire
+        # as discovery. Spotify must be "connected" for PlaylistCapability
+        # to offer the user-authenticated tools — otherwise a passing
+        # result here would just mean "agent correctly refused because
+        # Spotify wasn't connected," which is a different behavior.
         name="build_relaxation_playlist_needs_confirmation",
-        inputs="Build me a relaxation playlist called 'Wind Down'.",
-        # Agent should propose and wait for user confirmation before calling
-        # build_mood_playlist; find_relaxing_tracks may be called as
-        # discovery. The forbidden path is calling build_mood_playlist on
-        # the first turn.
+        inputs=BrainAgentInput(
+            prompt="Build me a relaxation playlist called 'Wind Down'.",
+            with_spotify=True,
+        ),
         evaluators=(NoToolCalled(forbidden="build_mood_playlist"),),
     ),
     Case(
-        name="spotify_hidden_when_disconnected",
-        inputs="Show me my Spotify playlists.",
         # With spotify_client=None, get_my_playlists is filtered out by
         # PlaylistCapability.prepare_tools. The agent should not call it.
+        name="spotify_hidden_when_disconnected",
+        inputs=BrainAgentInput(prompt="Show me my Spotify playlists."),
         evaluators=(NoToolCalled(forbidden="get_my_playlists"),),
     ),
     Case(
         name="set_brain_context_on_session_mention",
-        inputs="Let's focus on session 2 for this conversation.",
+        inputs=BrainAgentInput(prompt="Let's focus on session 2 for this conversation."),
         evaluators=(ExpectedToolCalled(expected_tool="set_brain_context"),),
     ),
 ]
 
 
-_dataset: Dataset[str, BrainAgentOutput, None] = Dataset(
+_dataset: Dataset[BrainAgentInput, BrainAgentOutput, None] = Dataset(
     name="brain_agent_tool_routing",
     cases=_CASES,
 )
@@ -152,8 +168,6 @@ def test_brain_agent_tool_routing() -> None:
     assert not execution_failures, f"Eval execution errors: {execution_failures}"
 
     assertion_failures = [
-        case.name
-        for case in report.cases
-        if not all(a.value is True for a in case.assertions.values())
+        case.name for case in report.cases if not all(a.value is True for a in case.assertions.values())
     ]
     assert not assertion_failures, f"Eval assertion failures: {assertion_failures}"
