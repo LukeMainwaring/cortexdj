@@ -27,14 +27,33 @@ from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE, extract_features
 
 logger = logging.getLogger(__name__)
 
-# Cache version — bump when feature extraction logic changes
-_CACHE_VERSION = "v1"
+# Cache version — bump when feature extraction or labeling logic changes.
+# v2: label_split_strategy landed, cache keys include the strategy name.
+# v3: default strategy flipped to `median_per_subject`; bumping forces a
+#     one-time recompute on upgrade so existing `.npz` files under the old
+#     default don't silently mask the change.
+_CACHE_VERSION = "v3"
 
 NUM_EEG_CHANNELS = 32
 SEGMENT_SAMPLES = DEFAULT_SAMPLING_RATE * 4  # 4-second segments (512 samples at 128Hz)
 EMOTION_STATES = ["calm", "relaxed", "stressed", "excited"]
 AROUSAL_THRESHOLD = 5.0
 VALENCE_THRESHOLD = 5.0
+
+# Label binarization strategy.
+#
+# `fixed_5` matches the historical behavior: a trial's label is 1 iff the
+# 1-9 Likert self-report is >= 5. On DEAP this yields a ~25/75 skew on
+# both arousal and valence — the distribution that masked the original
+# training collapse behind 77%-accuracy majority-class predictions.
+#
+# `median_global` splits each axis at the global (across all 32
+# participants × 40 trials) median. Roughly balanced labels.
+#
+# `median_per_subject` splits each axis at that subject's own median of
+# their 40 trial self-reports. Balanced within each subject, which also
+# removes per-subject rating-scale bias — typical DEAP best practice.
+LabelSplitStrategy = Literal["fixed_5", "median_global", "median_per_subject"]
 
 # DEAP constants
 DEAP_BASELINE_SAMPLES = 384  # 3 seconds at 128Hz
@@ -81,6 +100,41 @@ def _extract_participant_id(file_path: Path) -> int:
     return int(file_path.stem[1:])
 
 
+def _compute_label_thresholds(files: list[Path], strategy: LabelSplitStrategy) -> dict[int, tuple[float, float]]:
+    """Return (arousal_threshold, valence_threshold) per participant.
+
+    For `fixed_5`, every subject gets (5.0, 5.0). For `median_global`,
+    every subject gets the pooled median. For `median_per_subject`, each
+    subject gets their own median computed across their own 40 trials.
+
+    Note: the median strategies deserialize each `.dat` file twice on
+    a cold cache build — once here (for labels only) and once in
+    `_load_participant` (for labels + EEG data). This is intentional:
+    thresholds must be known *before* segment labels are written, and
+    the cold-cache path is fully amortized by the `.npz` cache on
+    subsequent runs. Don't "optimize" this loop away.
+    """
+    if strategy == "fixed_5":
+        return {_extract_participant_id(f): (AROUSAL_THRESHOLD, VALENCE_THRESHOLD) for f in files}
+
+    per_subject_labels: dict[int, npt.NDArray[np.floating[Any]]] = {}
+    for file_path in files:
+        _data, labels = load_deap_participant(file_path)
+        per_subject_labels[_extract_participant_id(file_path)] = labels
+
+    if strategy == "median_global":
+        all_labels = np.concatenate(list(per_subject_labels.values()), axis=0)
+        valence_thr = float(np.median(all_labels[:, 0]))
+        arousal_thr = float(np.median(all_labels[:, 1]))
+        return {pid: (arousal_thr, valence_thr) for pid in per_subject_labels}
+
+    # median_per_subject
+    thresholds: dict[int, tuple[float, float]] = {}
+    for pid, labels in per_subject_labels.items():
+        thresholds[pid] = (float(np.median(labels[:, 1])), float(np.median(labels[:, 0])))
+    return thresholds
+
+
 def _cache_key(files: list[Path], mode: str, extra: str = "") -> str:
     """Build a cache key from source file paths and their mtimes."""
     parts = [_CACHE_VERSION, mode, extra]
@@ -105,9 +159,11 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
         data_dir: str | Path,
         participants: list[int] | None = None,
         segment_samples: int = SEGMENT_SAMPLES,
+        label_split_strategy: LabelSplitStrategy = "median_per_subject",
     ) -> None:
         self.data_dir = Path(data_dir)
         self.segment_samples = segment_samples
+        self.label_split_strategy: LabelSplitStrategy = label_split_strategy
         self.samples: list[tuple[npt.NDArray[np.floating[Any]], int, int]] = []
         self.participant_ids: list[int] = []
 
@@ -127,13 +183,14 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
         if self._try_load_cache(files):
             return
 
+        thresholds = _compute_label_thresholds(files, label_split_strategy)
         for file_path in files:
-            self._load_participant(file_path)
+            self._load_participant(file_path, thresholds)
 
         self._save_cache(files)
 
     def _cache_path(self, files: list[Path]) -> Path:
-        key = _cache_key(files, "features", str(self.segment_samples))
+        key = _cache_key(files, "features", f"{self.segment_samples}_{self.label_split_strategy}")
         return _cache_dir(self.data_dir) / f"features_{key}.npz"
 
     def _try_load_cache(self, files: list[Path]) -> bool:
@@ -178,8 +235,9 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
         )
         logger.info(f"Cached {n} feature segments to {path.name}")
 
-    def _load_participant(self, file_path: Path) -> None:
+    def _load_participant(self, file_path: Path, thresholds: dict[int, tuple[float, float]]) -> None:
         participant_id = _extract_participant_id(file_path)
+        arousal_thr, valence_thr = thresholds[participant_id]
         data, labels = load_deap_participant(file_path)
         n_trials = data.shape[0]
 
@@ -188,8 +246,8 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
             valence = float(labels[trial_idx, 0])
             arousal = float(labels[trial_idx, 1])
 
-            arousal_label = 1 if arousal >= AROUSAL_THRESHOLD else 0
-            valence_label = 1 if valence >= VALENCE_THRESHOLD else 0
+            arousal_label = 1 if arousal >= arousal_thr else 0
+            valence_label = 1 if valence >= valence_thr else 0
 
             n_samples = trial_data.shape[1]
             n_segments = n_samples // self.segment_samples
@@ -210,6 +268,15 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
         features, arousal_label, valence_label = self.samples[idx]
         return torch.tensor(features, dtype=torch.float32), arousal_label, valence_label
 
+    def get_labels(self, indices: list[int] | None = None) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+        """Return `(arousal_labels, valence_labels)` as int64 arrays.
+
+        If `indices` is provided, returns labels only for those sample
+        positions. Used by the training loop to compute per-fold class
+        weights without iterating the DataLoader.
+        """
+        return _extract_labels(self.samples, indices)
+
 
 class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
     """DEAP dataset returning raw EEG segments for pretrained model training.
@@ -224,11 +291,13 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
         data_dir: str | Path,
         participants: list[int] | None = None,
         target_sfreq: int = CBRAMOD_SAMPLING_RATE,
+        label_split_strategy: LabelSplitStrategy = "median_per_subject",
     ) -> None:
         self.data_dir = Path(data_dir)
         self.target_sfreq = target_sfreq
         self.source_segment_samples = SEGMENT_SAMPLES  # 512 at 128Hz
         self.target_segment_samples = target_sfreq * 4  # 800 at 200Hz
+        self.label_split_strategy: LabelSplitStrategy = label_split_strategy
         self.samples: list[tuple[npt.NDArray[np.floating[Any]], int, int]] = []
         self.participant_ids: list[int] = []
 
@@ -248,13 +317,14 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
         if self._try_load_cache(files):
             return
 
+        thresholds = _compute_label_thresholds(files, label_split_strategy)
         for file_path in files:
-            self._load_participant(file_path)
+            self._load_participant(file_path, thresholds)
 
         self._save_cache(files)
 
     def _cache_path(self, files: list[Path]) -> Path:
-        key = _cache_key(files, "raw", str(self.target_sfreq))
+        key = _cache_key(files, "raw", f"{self.target_sfreq}_{self.label_split_strategy}")
         return _cache_dir(self.data_dir) / f"raw_{key}.npz"
 
     def _try_load_cache(self, files: list[Path]) -> bool:
@@ -301,8 +371,9 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
         )
         logger.info(f"Cached {n} raw segments to {path.name}")
 
-    def _load_participant(self, file_path: Path) -> None:
+    def _load_participant(self, file_path: Path, thresholds: dict[int, tuple[float, float]]) -> None:
         participant_id = _extract_participant_id(file_path)
+        arousal_thr, valence_thr = thresholds[participant_id]
         data, labels = load_deap_participant(file_path)
         n_trials = data.shape[0]
 
@@ -311,8 +382,8 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
             valence = float(labels[trial_idx, 0])
             arousal = float(labels[trial_idx, 1])
 
-            arousal_label = 1 if arousal >= AROUSAL_THRESHOLD else 0
-            valence_label = 1 if valence >= VALENCE_THRESHOLD else 0
+            arousal_label = 1 if arousal >= arousal_thr else 0
+            valence_label = 1 if valence >= valence_thr else 0
 
             n_samples = trial_data.shape[1]
             n_segments = n_samples // self.source_segment_samples
@@ -334,11 +405,36 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
         segment, arousal_label, valence_label = self.samples[idx]
         return torch.tensor(segment, dtype=torch.float32), arousal_label, valence_label
 
+    def get_labels(self, indices: list[int] | None = None) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+        """Return `(arousal_labels, valence_labels)` as int64 arrays.
+
+        If `indices` is provided, returns labels only for those sample
+        positions. Used by the training loop to compute per-fold class
+        weights without iterating the DataLoader.
+        """
+        return _extract_labels(self.samples, indices)
+
+
+def _extract_labels(
+    samples: list[tuple[npt.NDArray[np.floating[Any]], int, int]],
+    indices: list[int] | None,
+) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    """Shared implementation for `DEAP*Dataset.get_labels`."""
+    if indices is None:
+        arousal = np.fromiter((s[1] for s in samples), dtype=np.int64, count=len(samples))
+        valence = np.fromiter((s[2] for s in samples), dtype=np.int64, count=len(samples))
+    else:
+        n = len(indices)
+        arousal = np.fromiter((samples[i][1] for i in indices), dtype=np.int64, count=n)
+        valence = np.fromiter((samples[i][2] for i in indices), dtype=np.int64, count=n)
+    return arousal, valence
+
 
 def load_dataset(
     mode: Literal["features", "raw"] = "features",
     data_dir: Path | None = None,
     participants: list[int] | None = None,
+    label_split_strategy: LabelSplitStrategy = "median_per_subject",
 ) -> DEAPFeatureDataset | DEAPRawDataset:
     """Factory function for loading EEG datasets.
 
@@ -346,10 +442,23 @@ def load_dataset(
         mode: "features" for DE feature vectors (EEGNet), "raw" for raw EEG (pretrained models).
         data_dir: Override default data directory.
         participants: List of participant IDs to load (None = all).
+        label_split_strategy: How to binarize the 1-9 Likert labels. See
+            `LabelSplitStrategy` for tradeoffs. Default `median_per_subject`
+            gives roughly balanced labels per subject; `fixed_5` is an
+            opt-in escape hatch for reproducing papers that used the
+            historical > 5 threshold.
     """
     from cortexdj.core.paths import DEAP_DATA_DIR
 
     resolved_dir = data_dir or DEAP_DATA_DIR
     if mode == "raw":
-        return DEAPRawDataset(resolved_dir, participants=participants)
-    return DEAPFeatureDataset(resolved_dir, participants=participants)
+        return DEAPRawDataset(
+            resolved_dir,
+            participants=participants,
+            label_split_strategy=label_split_strategy,
+        )
+    return DEAPFeatureDataset(
+        resolved_dir,
+        participants=participants,
+        label_split_strategy=label_split_strategy,
+    )

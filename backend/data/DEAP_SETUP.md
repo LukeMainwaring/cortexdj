@@ -35,20 +35,36 @@ The first 3 seconds (384 samples) of each trial are baseline; the remaining 60 s
 
 CortexDJ's loader automatically strips the baseline and extracts the 32 EEG channels.
 
+## Label Binarization
+
+The 1–9 Likert self-reports get binarized to low/high for the dual-head classifier. Three strategies are available via `--label-split`:
+
+- **`median_per_subject`** (default, recommended): each subject is split at their own Likert median per axis, giving balanced classes per subject and removing per-subject rating-scale bias. This is the post-fix default and should be what you use unless you have a specific reason otherwise.
+- **`median_global`**: pooled median across all 32 subjects. Slightly less balanced per-fold but deterministic across subjects.
+- **`fixed_5`**: legacy `>= 5` threshold — produces a ~24/76 high/low split on DEAP. Only useful for reproducing papers that adopted this convention. **Note:** older training logs (before the collapse fix) used this default and reported ~0.77 accuracy numbers that were dominated by majority-class predictions. If you compare against those numbers, expect the new `median_per_subject` default to show lower raw accuracy but dramatically higher macro-F1 — the new metric is the honest one.
+
+The label split strategy is encoded in the `.npz` cache key, so switching is free after the first build of each strategy.
+
 ## Usage
 
 ```bash
-# Train CBraMod on DEAP with LOSO CV (default — 50 epochs, all 32 folds)
+# Train CBraMod on DEAP with LOSO CV (default — 50 epochs, all 32 folds,
+# median_per_subject labels, class-weighted CE with label smoothing)
 uv run --directory backend train-model
 
-# Quick dev run (10 epochs, 3 folds)
+# Quick dev run (10 epochs, 3 folds) — works on Apple Silicon MPS
 uv run --directory backend train-model --quick
 
 # Train EEGNet instead
 uv run --directory backend train-model --model eegnet
 
-# Compare both models
+# Compare both models (always renders a MajorityBaseline reference row
+# from dataset labels; a trained model must beat it on macro-F1 or
+# something is wrong)
 uv run --directory backend compare-models
+
+# Reproduce a DEAP paper that used the historical >= 5 threshold
+uv run --directory backend train-model --label-split fixed_5
 
 # Seed database with DEAP sessions
 uv run --directory backend seed-sessions

@@ -23,15 +23,17 @@ docker compose up -d
 uv run --directory backend pre-commit run --all-files
 
 # Train CBraMod model with LOSO CV (default; requires DEAP — see backend/data/DEAP_SETUP.md)
+# Labels are binarized at each subject's own Likert median by default; use
+# --label-split fixed_5 to reproduce papers that used the historical >= 5 threshold.
 uv run --directory backend train-model
 
-# Quick dev run (10 epochs, 3 folds)
+# Quick dev run (10 epochs, 3 folds) — works on MPS
 uv run --directory backend train-model --quick
 
 # Train EEGNet instead
 uv run --directory backend train-model --model eegnet
 
-# Compare EEGNet vs CBraMod on DEAP
+# Compare EEGNet vs CBraMod on DEAP (always shows a MajorityBaseline reference row)
 uv run --directory backend compare-models
 
 # GPU training via Modal (run `modal setup` once to authenticate)
@@ -76,7 +78,7 @@ FastAPI Python backend using async patterns throughout.
 - **`src/cortexdj/models/`**: SQLAlchemy async models with CRUD classmethods (Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message)
 - **`src/cortexdj/schemas/`**: Pydantic schemas for API contracts
 - **`src/cortexdj/services/`**: Business logic (EEG processing, Spotify, session management, thread management, title generation)
-- **`src/cortexdj/ml/`**: PyTorch EEGNet with dual classification heads, training script, inference wrapper, EEG preprocessing
+- **`src/cortexdj/ml/`**: PyTorch EEGNet with dual classification heads, training script, inference wrapper, EEG preprocessing. `metrics.py` owns class-weight computation, macro-F1, balanced accuracy, per-class recall, and the `MajorityBaselinePredictor` reference used by `compare-models`. The training loop uses per-fold per-head class-weighted CE with label smoothing, early-stops on macro-F1 (not accuracy), and rejects pre-fix checkpoints (schema < 2) in the comparison table. See `DEVELOPMENT.md` for the `--label-split` options.
 - **`src/cortexdj/core/config.py`**: Settings via pydantic-settings
 - **`src/cortexdj/migrations/`**: Alembic migrations for PostgreSQL
 
@@ -88,7 +90,8 @@ Next.js 16 with App Router, adapted from the SampleSpace project.
 - **`app/(chat)/api/chat/route.ts`**: Proxy route to backend agent
 - **`components/chat.tsx`**: Chat orchestrator using `@ai-sdk/react` useChat hook
 - **`components/brain-context-badge.tsx`**: Displays active brain context (mood/arousal/valence)
-- **`components/session-visualization.tsx`**: Recharts arousal/valence + band-power timeline; auto-rendered by `components/message.tsx` when an `analyze_session` tool call is detected
+- **`components/session-visualization.tsx`**: Tabbed session viewer — wraps `components/emotion-trajectory.tsx` (default, animated SVG trajectory through Russell's affect space) and a recharts arousal/valence timeline in Radix Tabs, with the band-power chart shared below. Auto-rendered by `components/message.tsx` when an `analyze_session` tool call is detected
+- **`components/emotion-trajectory.tsx`**: Custom SVG + `motion/react` chart that plots each 4-second segment as a point in the valence/arousal plane, draws a smoothed rolling-mean path via an animated `motion.path` (`style={{ pathLength: progress }}`), and exposes a play/pause + scrubber driven by a `requestAnimationFrame` loop
 - **`components/greeting.tsx`**: CortexDJ-branded empty state
 - **`api/hooks/sessions.ts`**: TanStack Query wrapper around the generated sessions client (`useSessionSegments`); follow this pattern when wrapping new generated endpoints
 
@@ -100,7 +103,7 @@ Next.js 16 with App Router, adapted from the SampleSpace project.
 4. `HistoryProcessor` summarizes large tool results from prior turns to prevent token bloat
 5. Pydantic AI agent decides which tools to call
 6. Agent streams response back as SSE (Vercel AI SDK format)
-7. Frontend renders with tool-call transparency, brain context badge, and inline `<SessionVisualization>` chart for `analyze_session` tool calls
+7. Frontend renders with tool-call transparency, brain context badge, and inline `<SessionVisualization>` (Trajectory tab default, Timeline tab secondary, band powers below) for `analyze_session` tool calls. The backend `services/trajectory.py` computes a `trajectory_summary` (dwell per quadrant, transitions, centroid, dispersion, path length, smoothed trail) that feeds both the chart and the agent narration; `SessionCapability.get_instructions` tells the agent to cite those fields instead of only the dominant state
 
 ## Additional Instructions
 
