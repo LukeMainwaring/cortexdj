@@ -24,7 +24,7 @@ uv run --directory backend pre-commit run --all-files
 
 # Train CBraMod model with LOSO CV (default; requires DEAP — see backend/data/DEAP_SETUP.md)
 # Labels are binarized at each subject's own Likert median by default; use
-# --label-split fixed_5 to reproduce papers that used the historical >= 5 threshold.
+# --label-split fixed_5 to reproduce papers that used the >= 5 threshold.
 uv run --directory backend train-model
 
 # Quick dev run (10 epochs, 3 folds) — works on MPS
@@ -78,7 +78,7 @@ FastAPI Python backend using async patterns throughout.
 - **`src/cortexdj/models/`**: SQLAlchemy async models with CRUD classmethods (Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message)
 - **`src/cortexdj/schemas/`**: Pydantic schemas for API contracts
 - **`src/cortexdj/services/`**: Business logic (EEG processing, Spotify, session management, thread management, title generation)
-- **`src/cortexdj/ml/`**: PyTorch EEGNet with dual classification heads, training script, inference wrapper, EEG preprocessing. `metrics.py` owns class-weight computation, macro-F1, balanced accuracy, per-class recall, and the `MajorityBaselinePredictor` reference used by `compare-models`. The training loop uses per-fold per-head class-weighted CE with label smoothing, early-stops on macro-F1 (not accuracy), and rejects pre-fix checkpoints (schema < 2) in the comparison table. See `DEVELOPMENT.md` for the `--label-split` options.
+- **`src/cortexdj/ml/`**: PyTorch EEGNet with dual classification heads, training script, inference wrapper, EEG preprocessing. `metrics.py` owns class-weight computation, macro-F1, balanced accuracy, per-class recall, and the `MajorityBaselinePredictor` reference used by `compare-models`. The training loop uses per-fold per-head class-weighted CE with label smoothing and EMA-smoothed early stopping on macro-F1 with a minimum-epochs floor. See `DEVELOPMENT.md` for the `--label-split` options.
 - **`src/cortexdj/core/config.py`**: Settings via pydantic-settings
 - **`src/cortexdj/migrations/`**: Alembic migrations for PostgreSQL
 

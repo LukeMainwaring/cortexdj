@@ -8,3 +8,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = _BACKEND_ROOT / "data"
 DEAP_DATA_DIR = DATA_DIR / "deap"
 CHECKPOINTS_DIR = DATA_DIR / "checkpoints"
+# Fold-level resume state for long LOSO runs. Lives under the DEAP data dir
+# so it rides along on the `cortexdj-deap` Modal volume without needing a
+# second volume mount.
+TRAIN_STATE_DIR = DEAP_DATA_DIR / ".train_state"

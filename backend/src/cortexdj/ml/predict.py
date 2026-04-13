@@ -40,11 +40,7 @@ def load_model(
     checkpoint_path: str | Path | None = None,
     model_type: str | None = None,
 ) -> EEGModel:
-    """Load a trained model from checkpoint.
-
-    If model_type is not specified, reads it from the checkpoint's
-    'model_type' field (falling back to 'eegnet' for legacy checkpoints).
-    """
+    """Load a trained model from checkpoint."""
     if checkpoint_path:
         path = Path(checkpoint_path)
     elif model_type:
@@ -57,20 +53,16 @@ def load_model(
         raise FileNotFoundError(msg)
 
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    resolved_type = model_type or checkpoint.get("model_type", "eegnet")
+    resolved_type = model_type or checkpoint["model_type"]
 
     # Lazy import to avoid a cycle: train imports `EEGModel` from this module.
-    # Stale-checkpoint guard: pre-v3 EEGNet checkpoints have incompatible
-    # weight shapes (the capacity bump changed spatial/temporal filter counts
-    # and hidden_dim), so `load_state_dict` would raise a cryptic size-mismatch
-    # error at app startup. Raise a clear retrain-me message instead.
     from cortexdj.ml.train import CHECKPOINT_SCHEMA_VERSION
 
     schema = checkpoint.get("schema_version")
     if not isinstance(schema, int) or schema < CHECKPOINT_SCHEMA_VERSION:
         msg = (
-            f"Checkpoint at {path} has pre-fix schema {schema!r} "
-            f"(current: v{CHECKPOINT_SCHEMA_VERSION}). Retrain with "
+            f"Checkpoint at {path} has schema {schema!r} "
+            f"(expected {CHECKPOINT_SCHEMA_VERSION}). Retrain with "
             f"`uv run train-model --model {resolved_type}` and try again."
         )
         raise RuntimeError(msg)
