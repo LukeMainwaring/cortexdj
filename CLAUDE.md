@@ -84,7 +84,7 @@ FastAPI Python backend using async patterns throughout.
 
 ### Frontend (`frontend/`)
 
-Next.js 16 with App Router, adapted from the SampleSpace project.
+Next.js 16 with App Router.
 
 - **`app/(chat)/page.tsx`**: Main chat page
 - **`app/(chat)/api/chat/route.ts`**: Proxy route to backend agent
