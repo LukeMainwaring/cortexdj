@@ -27,11 +27,7 @@ from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE, extract_features
 
 logger = logging.getLogger(__name__)
 
-# Cache version — bump when feature extraction or labeling logic changes.
-# v2: label_split_strategy landed, cache keys include the strategy name.
-# v3: default strategy flipped to `median_per_subject`; bumping forces a
-#     one-time recompute on upgrade so existing `.npz` files under the old
-#     default don't silently mask the change.
+# Bump when feature extraction or labeling logic changes.
 _CACHE_VERSION = "v3"
 
 NUM_EEG_CHANNELS = 32
@@ -40,19 +36,16 @@ EMOTION_STATES = ["calm", "relaxed", "stressed", "excited"]
 AROUSAL_THRESHOLD = 5.0
 VALENCE_THRESHOLD = 5.0
 
-# Label binarization strategy.
+# Label binarization strategy for DEAP's 1-9 Likert self-reports.
 #
-# `fixed_5` matches the historical behavior: a trial's label is 1 iff the
-# 1-9 Likert self-report is >= 5. On DEAP this yields a ~25/75 skew on
-# both arousal and valence — the distribution that masked the original
-# training collapse behind 77%-accuracy majority-class predictions.
+# `median_per_subject` (default): splits each axis at that subject's own
+# median. Balanced within each subject, removes per-subject rating-scale bias.
 #
-# `median_global` splits each axis at the global (across all 32
-# participants × 40 trials) median. Roughly balanced labels.
+# `median_global`: pooled median across all 32 participants × 40 trials.
+# Roughly balanced labels but doesn't account for per-subject scale.
 #
-# `median_per_subject` splits each axis at that subject's own median of
-# their 40 trial self-reports. Balanced within each subject, which also
-# removes per-subject rating-scale bias — typical DEAP best practice.
+# `fixed_5`: threshold at >= 5. Produces ~25/75 skew — only useful for
+# reproducing DEAP papers that adopted this convention.
 LabelSplitStrategy = Literal["fixed_5", "median_global", "median_per_subject"]
 
 # DEAP constants
@@ -446,7 +439,7 @@ def load_dataset(
             `LabelSplitStrategy` for tradeoffs. Default `median_per_subject`
             gives roughly balanced labels per subject; `fixed_5` is an
             opt-in escape hatch for reproducing papers that used the
-            historical > 5 threshold.
+            >= 5 threshold.
     """
     from cortexdj.core.paths import DEAP_DATA_DIR
 

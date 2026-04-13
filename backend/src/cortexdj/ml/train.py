@@ -55,13 +55,16 @@ logger = logging.getLogger(__name__)
 # ── Default hyperparameters ──────────────────────────────────────────────────
 # These represent best-effort quality defaults. Use --quick for fast iteration.
 DEFAULT_EPOCHS = 50
-# EEGNet on CUDA gets a longer budget: the tiny model under-utilizes the GPU
-# anyway, so the extra epochs cost a negligible fraction of a Modal run but
-# give cosine annealing more room to find a flat minimum on the wider post-v3
-# backbone. Early stopping (patience=10) still caps easy folds.
+# EEGNet on CUDA gets a longer budget: the small model under-utilizes the GPU,
+# so extra epochs cost a negligible fraction of a Modal run but give cosine
+# annealing more room to find a flat minimum. EMA-smoothed early stopping
+# still caps easy folds.
 DEFAULT_EPOCHS_EEGNET_CUDA = 100
 DEFAULT_LR = 1e-3
-DEFAULT_FINETUNE_LR = 1e-5
+# Conservative rate for pretrained encoder fine-tuning. With discriminative
+# LR groups (10× multiplier for heads in Phase 2), this gives:
+#   encoder 3e-6 / heads 3e-5 at peak, warmup at 3e-7 / 3e-6.
+DEFAULT_FINETUNE_LR = 3e-6
 # Batch size is resolved per-device at runtime (see _default_batch_size_for).
 # CUDA default is tuned for A10G @ 24GB with bf16 AMP; MPS/CPU stay conservative
 # so local M-series unified memory doesn't blow up.
@@ -71,30 +74,20 @@ DEFAULT_BATCH_SIZE_CPU = 64
 DEFAULT_N_FOLDS = 5
 DEFAULT_WEIGHT_DECAY = 1e-4
 DEFAULT_MAX_GRAD_NORM = 1.0
-DEFAULT_PATIENCE = 10
+# Tuned for EMA-smoothed (α=0.3) macro-F1 on ~600-sample LOSO val sets. Raw
+# per-epoch macro-F1 has σ ≈ 0.05 at that val size, so patience on raw values
+# fires on noise; the EMA windows that down and patience=20 gives ~10 effective
+# stable epochs of plateau before stopping.
+DEFAULT_PATIENCE = 20
 DEFAULT_SEED = 42
-# Small label smoothing composes with class weights as an extra regularizer
-# against confident-majority-class collapse. 0.05 is conservative.
+# Label smoothing composes with per-fold class weights as a regularizer.
 DEFAULT_LABEL_SMOOTHING = 0.05
-# DE feature augmentation (training split only, EEGNet only). Regularizes the
-# wider post-v3 model on DEAP's ~4.5K segments — without it the bigger
-# backbone would just memorize. Noise is scaled per-band (delta through gamma
-# DE values span multiple orders of magnitude, so a pooled std would
-# under-perturb low-amplitude bands relative to gamma).
+# DE feature augmentation (training split only, EEGNet only). Noise is scaled
+# per-band because DE values span multiple orders of magnitude across delta
+# through gamma — a pooled std would under-perturb low-amplitude bands.
 DEFAULT_DE_NOISE_STD = 0.05
 DEFAULT_DE_MASK_PROB = 0.10
-# Checkpoint schema version — bump when the saved metrics/config layout changes
-# OR when a model's on-disk weight shapes change (`predict.EEGModel` loads
-# state_dicts directly, so a shape mismatch would be a silent loader crash).
-# v1: pre-collapse-fix checkpoints (unweighted CE, `avg_*_acc` metric keys only).
-# v2: post-fix checkpoints with class weights, macro-F1, per-class recall. The
-#     reader refuses to interpret v1's metrics because the `avg_*_acc` numbers
-#     are majority-class collapse and silently mixing them into a comparison
-#     table is the exact bait we want to avoid.
-# v3: EEGNet capacity bump (spatial 16→32, temporal 32→64, hidden_dim 128→256)
-#     + DE feature augmentation defaults. Old v2 EEGNet checkpoints have
-#     incompatible weight shapes and will render as zeros in `compare-models`
-#     with the existing "retrain recommended" warning.
+# Bump when the saved metrics/config layout or model weight shapes change.
 CHECKPOINT_SCHEMA_VERSION = 3
 
 # Fine-tune phase uses stronger weight decay (standard for pretrained models)
@@ -102,8 +95,14 @@ FINETUNE_WEIGHT_DECAY_MULTIPLIER = 100
 # LR warmup epochs for pretrained model phases
 WARMUP_EPOCHS = 3
 
-# Quick mode overrides for fast development
-QUICK_EPOCHS = 10
+# Quick mode overrides for fast development. EEGNet only needs 10 epochs to
+# shake out pipeline issues. CBraMod's phased schedule (Phase 1 = epochs // 3,
+# Phase 2 = rest) needs enough per-phase budget to exercise both the frozen
+# head-only training and the unfrozen fine-tune; 15 epochs gives Phase 1=5 +
+# Phase 2=10, the minimum viable split for the phased path to show whether
+# discriminative fine-tuning is actually learning.
+QUICK_EPOCHS_EEGNET = 10
+QUICK_EPOCHS_CBRAMOD = 15
 QUICK_MAX_FOLDS = 3
 
 # Canonical list of model types the `compare()` loop iterates. Typed as a
@@ -135,32 +134,52 @@ class TrainingConfig:
     # Ignored by CBraMod (which trains on raw EEG, not DE features).
     de_noise_std: float = DEFAULT_DE_NOISE_STD
     de_mask_prob: float = DEFAULT_DE_MASK_PROB
-    # Default to per-subject median split: DEAP's 1-9 Likert self-reports
-    # vary a lot in per-subject scale, so thresholding at each subject's
-    # own median both removes rating-scale bias and gives roughly balanced
-    # labels per fold. The historical `fixed_5` threshold produced a 25/75
-    # skew that trained models to collapse onto the majority class — still
-    # available as an explicit opt-in for reproducing DEAP papers that
-    # used the fixed > 5 threshold.
+    # Per-subject median split gives balanced labels per fold and removes
+    # per-subject rating-scale bias. `fixed_5` available for reproducing
+    # DEAP papers that used the >= 5 threshold.
     label_split_strategy: LabelSplitStrategy = "median_per_subject"
 
 
 class EarlyStopping:
-    """Monitors validation metric and signals when to stop training."""
+    """Patience-based stop on an EMA-smoothed validation metric.
 
-    def __init__(self, patience: int) -> None:
+    Tracks an EMA of the score (α=`ema_alpha`, default 0.3 ≈ 3-epoch window)
+    and counts patience against the smoothed series — raw per-epoch macro-F1
+    on a ~600-sample LOSO val set has σ ≈ 0.05 and patience on raw values
+    fires on noise spikes/troughs, not real plateau. `min_epochs` blocks the
+    stop decision until training has had a minimum budget, preventing a
+    lucky-init epoch 1 from starving the counter.
+    """
+
+    def __init__(self, patience: int, *, min_epochs: int = 0, ema_alpha: float = 0.3) -> None:
         self.patience = patience
-        self.best_score = 0.0
+        self.min_epochs = min_epochs
+        self.ema_alpha = ema_alpha
+        self.best_smoothed = 0.0
+        self.smoothed: float | None = None
         self.counter = 0
+        self.epoch = 0
 
-    def step(self, score: float) -> bool:
-        """Returns True if training should stop."""
-        if score > self.best_score:
-            self.best_score = score
+    def step(self, score: float) -> tuple[bool, bool]:
+        """Record a validation score; return (should_stop, is_new_best_smoothed).
+
+        `is_new_best_smoothed` is the signal callers use to snapshot weights
+        — it fires when the EMA hits a new high, which means "the model has
+        been consistently strong for ~3 epochs" rather than "epoch 1 got lucky".
+        """
+        self.epoch += 1
+        self.smoothed = (
+            score if self.smoothed is None else self.ema_alpha * score + (1 - self.ema_alpha) * self.smoothed
+        )
+        is_new_best = self.smoothed > self.best_smoothed
+        if is_new_best:
+            self.best_smoothed = self.smoothed
             self.counter = 0
-            return False
-        self.counter += 1
-        return self.counter >= self.patience
+        else:
+            self.counter += 1
+        if self.epoch < self.min_epochs:
+            return False, is_new_best
+        return self.counter >= self.patience, is_new_best
 
 
 def _get_device() -> torch.device:
@@ -414,7 +433,10 @@ def train_fold_eegnet(
     model = EEGNetClassifier().to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
     scheduler = CosineAnnealingLR(optimizer, T_max=config.epochs)
-    stopper = EarlyStopping(patience=config.patience)
+    # min_epochs=20 gives cosine annealing room to start working on the full
+    # EEGNet-CUDA budget (100 epochs) before any stop decision; also prevents
+    # the "epoch 1 lucky init" failure mode observed on ~10 of the 32 LOSO folds.
+    stopper = EarlyStopping(patience=config.patience, min_epochs=20)
     use_amp = device.type == "cuda"
     # non_blocking=True is only meaningful with pinned CUDA memory. On
     # MPS/CPU there's no pinned allocator to pipeline against, and PyTorch
@@ -477,11 +499,15 @@ def train_fold_eegnet(
             _log_fold_epoch_metrics("", epoch + 1, config.epochs, train_loss, train_total, val_metrics)
 
         val_f1 = _metric_float(val_metrics, "avg_macro_f1")
-        if val_f1 > best_val_f1:
+        should_stop, is_new_best = stopper.step(val_f1)
+        # Snapshot weights on EMA-best AND raw improvement: EMA-best avoids
+        # lucky-single-epoch spikes; the raw gate keeps `best_val_f1` honest
+        # (the EMA can drift above the raw best during a strong run).
+        if is_new_best and val_f1 > best_val_f1:
             best_val_f1 = val_f1
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-        if not config.no_early_stop and stopper.step(val_f1):
+        if not config.no_early_stop and should_stop:
             logger.info(f"  Early stopping at epoch {epoch + 1} (patience={config.patience})")
             break
 
@@ -526,7 +552,10 @@ def train_fold_pretrained(
     warmup_iters = min(WARMUP_EPOCHS, phase1_epochs)
     scheduler: LRScheduler = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_iters)
     phase1_patience = max(3, config.patience // 2)
-    stopper = EarlyStopping(patience=phase1_patience)
+    # min_epochs=5 covers the 3-epoch LinearLR warmup plus 2 post-warmup
+    # epochs — Phase 1 is only epochs//3 long, so we can't afford a larger
+    # floor without forcing short Phase 1s to run to completion.
+    stopper = EarlyStopping(patience=phase1_patience, min_epochs=5)
 
     for epoch in range(phase1_epochs):
         epoch_start = time.monotonic()
@@ -578,11 +607,12 @@ def train_fold_pretrained(
         _log_fold_epoch_metrics("[Phase 1]", epoch + 1, phase1_epochs, train_loss, train_total, val_metrics, elapsed)
 
         val_f1 = _metric_float(val_metrics, "avg_macro_f1")
-        if val_f1 > best_val_f1:
+        should_stop, is_new_best = stopper.step(val_f1)
+        if is_new_best and val_f1 > best_val_f1:
             best_val_f1 = val_f1
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-        if not config.no_early_stop and stopper.step(val_f1):
+        if not config.no_early_stop and should_stop:
             logger.info(f"  Phase 1 early stop at epoch {epoch + 1} (patience={phase1_patience})")
             break
 
@@ -590,15 +620,40 @@ def train_fold_pretrained(
     # Restore best Phase 1 weights so we don't start from a degraded state
     model.load_state_dict(best_state)
     model.unfreeze_backbone()
-    finetune_wd = config.weight_decay * FINETUNE_WEIGHT_DECAY_MULTIPLIER
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config.finetune_lr, weight_decay=finetune_wd)
+    # Discriminative LRs: the encoder stays at `finetune_lr` (1e-5), standard
+    # for pretrained transformer fine-tuning. The heads get 10× higher LR so
+    # they keep adapting to the evolving encoder features — Phase 1 trained them
+    # at `config.lr` (1e-3), so 1e-4 is a step down but still enough gradient
+    # to track the encoder's representational shift. Discriminative WD for the
+    # same reason: heavy WD regularizes the large pretrained encoder, standard
+    # WD protects the small heads from being pulled back toward zero.
+    encoder_params = list(model.encoder.parameters())
+    head_params = list(model.arousal_head.parameters()) + list(model.valence_head.parameters())
+    optimizer = torch.optim.AdamW(
+        [
+            {
+                "params": encoder_params,
+                "lr": config.finetune_lr,
+                "weight_decay": config.weight_decay * FINETUNE_WEIGHT_DECAY_MULTIPLIER,
+            },
+            {
+                "params": head_params,
+                "lr": config.finetune_lr * 10,
+                "weight_decay": config.weight_decay,
+            },
+        ],
+    )
     warmup_iters = min(WARMUP_EPOCHS, phase2_epochs)
     cosine_epochs = max(1, phase2_epochs - warmup_iters)
     warmup_sched = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_iters)
     cosine_sched = CosineAnnealingLR(optimizer, T_max=cosine_epochs)
     scheduler = SequentialLR(optimizer, [warmup_sched, cosine_sched], milestones=[warmup_iters])
     phase2_patience = max(5, config.patience)
-    stopper = EarlyStopping(patience=phase2_patience)
+    # min_epochs=15 covers warmup(3) + recovery from the Phase 2 unfreeze dip
+    # + enough cosine progress that a stop decision is meaningful. The natural
+    # Phase 2 trajectory dips during warmup before the unfrozen encoder
+    # stabilizes; patience alone would fire on that dip.
+    stopper = EarlyStopping(patience=phase2_patience, min_epochs=15)
 
     for epoch in range(phase2_epochs):
         epoch_start = time.monotonic()
@@ -654,11 +709,15 @@ def train_fold_pretrained(
             )
 
         val_f1 = _metric_float(val_metrics, "avg_macro_f1")
-        if val_f1 > best_val_f1:
+        should_stop, is_new_best = stopper.step(val_f1)
+        # `best_val_f1` carries over from Phase 1 — Phase 2 only overwrites
+        # `best_state` when it actually beats Phase 1's best raw F1, even if
+        # Phase 2's own EMA is at a local high.
+        if is_new_best and val_f1 > best_val_f1:
             best_val_f1 = val_f1
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-        if not config.no_early_stop and stopper.step(val_f1):
+        if not config.no_early_stop and should_stop:
             logger.info(f"  Phase 2 early stop at epoch {epoch + 1} (patience={phase2_patience})")
             break
 
@@ -1050,44 +1109,20 @@ def _majority_baseline_metrics(dataset: ParticipantDataset, config: TrainingConf
     return {k: v / n for k, v in accum.items()}
 
 
-_STALE_CHECKPOINT_ROW: dict[str, float] = {
-    "arousal_acc": 0.0,
-    "valence_acc": 0.0,
-    "avg_acc": 0.0,
-    "arousal_macro_f1": 0.0,
-    "valence_macro_f1": 0.0,
-    "avg_macro_f1": 0.0,
-}
-
-
-def _is_stale_checkpoint(checkpoint: dict[str, object]) -> bool:
-    """True if the checkpoint predates `CHECKPOINT_SCHEMA_VERSION`.
-
-    Treats a missing, non-int, or below-cutoff `schema_version` as stale
-    — the three shapes a pre-fix or corrupted checkpoint can take. Used
-    by both `_checkpoint_comparison_row` (returns zeros) and the
-    `compare()` caller (logs a "retrain recommended" warning) so the
-    two sites can't drift out of sync.
-    """
-    schema = checkpoint.get("schema_version")
-    return not isinstance(schema, int) or schema < CHECKPOINT_SCHEMA_VERSION
-
-
 def _checkpoint_comparison_row(checkpoint: dict[str, object]) -> dict[str, float]:
-    """Pull the compare-table scalar columns out of a loaded checkpoint.
-
-    Refuses pre-fix (`_is_stale_checkpoint`) checkpoints: returns zeros
-    and lets the caller log a "retrain recommended" warning. Pre-fix
-    checkpoints had `avg_*_acc` numbers dominated by majority-class
-    collapse, and silently mixing them into the comparison table is the
-    exact bait we want to avoid.
-    """
-    if _is_stale_checkpoint(checkpoint):
-        return dict(_STALE_CHECKPOINT_ROW)
+    """Pull the compare-table scalar columns out of a loaded checkpoint."""
+    schema = checkpoint.get("schema_version")
+    if not isinstance(schema, int) or schema < CHECKPOINT_SCHEMA_VERSION:
+        msg = (
+            f"Checkpoint has schema {schema!r} (expected {CHECKPOINT_SCHEMA_VERSION}). "
+            f"Retrain with `uv run train-model` and try again."
+        )
+        raise RuntimeError(msg)
 
     metrics = checkpoint.get("metrics", {})
     if not isinstance(metrics, dict):
-        return dict(_STALE_CHECKPOINT_ROW)
+        msg = "Checkpoint metrics are unreadable."
+        raise RuntimeError(msg)
 
     def _scalar(key: str) -> float:
         value = metrics.get(key, 0.0)
@@ -1137,18 +1172,8 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
                 if isinstance(m, dict):
                     info = f"cv={m.get('cv_mode', '?')}, {m.get('n_folds', '?')} folds, {m.get('epochs', '?')} epochs"
                 else:
-                    info = "metrics: <unreadable>"
-                if _is_stale_checkpoint(checkpoint):
-                    schema = checkpoint.get("schema_version", "<missing>")
-                    logger.warning(
-                        "Loaded %s checkpoint (%s) — pre-fix schema %r, retrain recommended. "
-                        "Comparison row will show zeros.",
-                        model_type,
-                        info,
-                        schema,
-                    )
-                else:
-                    logger.info(f"Loaded {model_type} checkpoint ({info})")
+                    info = "?"
+                logger.info(f"Loaded {model_type} checkpoint ({info})")
             else:
                 logger.warning(f"No checkpoint found for {model_type} at {path}")
 
@@ -1353,7 +1378,7 @@ def _build_train_parser() -> argparse.ArgumentParser:
         help=(
             "DEAP label binarization strategy. median_per_subject (default) "
             "splits at each subject's own Likert median, giving balanced "
-            "labels per fold. fixed_5 uses the historical >= 5 threshold, "
+            "labels per fold. fixed_5 uses the >= 5 threshold, "
             "which produces a ~25/75 skew and is only useful for reproducing "
             "papers that adopted it."
         ),
@@ -1385,7 +1410,7 @@ def _build_train_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--quick",
         action="store_true",
-        help=f"Fast dev mode: {QUICK_EPOCHS} epochs, {QUICK_MAX_FOLDS} folds (overrides --epochs/--max-folds if not explicitly set)",
+        help=f"Fast dev mode: {QUICK_EPOCHS_EEGNET}/{QUICK_EPOCHS_CBRAMOD} epochs (eegnet/cbramod), {QUICK_MAX_FOLDS} folds",
     )
     return parser
 
@@ -1396,7 +1421,7 @@ def _resolve_config(args: argparse.Namespace) -> TrainingConfig:
     max_folds = args.max_folds
     if args.quick:
         if epochs is None:
-            epochs = QUICK_EPOCHS
+            epochs = QUICK_EPOCHS_CBRAMOD if args.model == "cbramod" else QUICK_EPOCHS_EEGNET
         if max_folds is None:
             max_folds = QUICK_MAX_FOLDS
     if epochs is None:

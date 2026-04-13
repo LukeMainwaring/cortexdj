@@ -1,15 +1,12 @@
 """Classification metrics for EEG dual-head training.
 
-Lives as a dedicated module so the training loop, the smoke test, and the
-`compare-models` entry point all share a single source of truth for
-balanced accuracy, macro-F1, per-class recall, and class weighting. No
-sklearn dependency — numpy + torch are already in the hot path and these
-metrics are trivially derivable from a confusion matrix.
+Shared by the training loop, smoke tests, and `compare-models`. Provides
+balanced accuracy, macro-F1, per-class recall, and class weighting without
+an sklearn dependency — numpy + torch are already in the hot path and
+these metrics are trivially derivable from a confusion matrix.
 
-The collapse that motivated this module was undetectable via raw accuracy
-(both models predicted the majority class and scored at the class prior).
-Macro-F1 and balanced accuracy both score a constant predictor at 0.50 or
-below, which is the whole point.
+Macro-F1 is the headline metric: unlike raw accuracy, it scores a
+constant predictor at ≤0.50, making majority-class collapse visible.
 """
 
 from __future__ import annotations

@@ -105,13 +105,11 @@ Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is 
 
 - `median_per_subject` (default, recommended): each subject is split at their own Likert median on each axis, giving balanced labels per fold and removing per-subject rating-scale bias.
 - `median_global`: pooled median across all 32 subjects. Slightly less balanced per-fold but deterministic across subjects.
-- `fixed_5`: legacy `>= 5` threshold. Produces a ~24/76 high/low split on DEAP and is only useful for reproducing papers that adopted it. Combined with the new class weights it's no longer dangerous, but it's not the default either.
+- `fixed_5`: `>= 5` threshold. Produces a ~24/76 high/low split on DEAP — only useful for reproducing papers that adopted this convention.
 
-Strategies are cached independently (`_CACHE_VERSION` encodes the strategy in the `.npz` filename), so switching is free after the first build. Upgrading from pre-`v3` caches will trigger a one-time recompute; old `.cache/*_v2_*.npz` files are orphaned and safe to delete.
+Strategies are cached independently (`_CACHE_VERSION` encodes the strategy in the `.npz` filename), so switching is free after the first build.
 
-**Reading the output.** Each epoch logs `Val acc A/V`, `macro-F1`, and per-class `pred A [low, high] V [low, high]` counts. The fold summary prints both accuracy and macro-F1 columns plus a `Mean recall` line. The honest headline metric is `Avg F1` — raw accuracy on skewed labels rewards majority-class collapse. `compare-models` always renders a `MajorityBaseline` reference row from the dataset labels; a trained model should beat it on `Avg F1` by at least +0.05. If a fold produces non-finite loss, the loop skips the batch and logs `[Phase N] Epoch K/T: skipped M non-finite-loss batches` — zero such warnings is the expected state.
-
-**Pre-fix checkpoints.** Checkpoints trained before the collapse fix (schema v1) are rejected by `compare-models` — their rows render as zeros with a `WARNING: ... pre-fix schema v0, retrain recommended` line. Retrain via `train-model` to produce a v2 checkpoint with class weights and the new metric keys.
+**Reading the output.** Each epoch logs `Val acc A/V`, `macro-F1`, and per-class `pred A [low, high] V [low, high]` counts. The fold summary prints both accuracy and macro-F1 columns plus a `Mean recall` line. The headline metric is `Avg F1` — raw accuracy on balanced labels can hide majority-class predictions. `compare-models` always renders a `MajorityBaseline` reference row from the dataset labels; a trained model should beat it on `Avg F1` by at least +0.05. If a fold produces non-finite loss, the loop skips the batch and logs `[Phase N] Epoch K/T: skipped M non-finite-loss batches` — zero such warnings is the expected state.
 
 **Local MPS training.** EEGNet quick runs work well on Apple Silicon (`--quick` finishes in under a minute per fold). `non_blocking=True` data transfers and `set_float32_matmul_precision("high")` are gated on CUDA only — PyTorch 2.9–2.11 has had intermittent MPS async-correctness regressions on the pinned-memory path, and TF32 is a CUDA-only matmul setting. Full 32-fold CBraMod training still wants a CUDA GPU; see the Modal section below.
 
