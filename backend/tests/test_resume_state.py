@@ -103,6 +103,40 @@ def test_missing_file_returns_none(tmp_train_state_dir: Path) -> None:
     assert _load_resume_state(paths, expected_run_key="deadbeef0000") is None
 
 
+def test_corrupt_json_returns_none(tmp_train_state_dir: Path) -> None:
+    """A half-written / garbage JSON file must not crash resume."""
+    paths = _resume_paths("eegnet", "cafebabe0000")
+    paths.json_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.json_path.write_bytes(b"{not valid json")
+    assert _load_resume_state(paths, expected_run_key="cafebabe0000") is None
+
+
+def test_missing_pt_invalidates_resume(tmp_train_state_dir: Path) -> None:
+    """JSON-without-.pt must refuse to resume.
+
+    The partial-resume path would let a run finish with best_model_state=None
+    and silently skip the final checkpoint save, so the loader rejects it
+    outright and forces a clean restart.
+    """
+    config = TrainingConfig(model_type="eegnet", epochs=10, seed=42)
+    key = _run_key(config, n_splits=5)
+    paths = _resume_paths(config.model_type, key)
+
+    _write_resume_state(
+        paths,
+        run_key=key,
+        fold_metrics=[_sample_metrics(0.44)],
+        completed_folds=[0],
+        best_fold=0,
+        best_f1=0.44,
+        best_state={"w": torch.tensor([1.0])},
+    )
+    # Simulate the .pt going missing (partial volume sync, manual deletion).
+    paths.state_path.unlink()
+
+    assert _load_resume_state(paths, expected_run_key=key) is None
+
+
 def test_clear_is_idempotent(tmp_train_state_dir: Path) -> None:
     paths = _resume_paths("eegnet", "feedface0000")
     # Clearing a non-existent state must not raise.

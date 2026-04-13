@@ -93,6 +93,9 @@ deap_volume = modal.Volume.from_name(DEAP_VOLUME_NAME)
     # Modal auto-restarts on preemption; this extends that behavior to other
     # transient failures. Combined with the in-loop resume state, a restart
     # picks up at the last completed fold rather than redoing prior work.
+    # backoff_coefficient=1.0 (flat, no exponential) because the expected
+    # failure mode is spot-instance preemption — we want the retry to land
+    # on a fresh worker as fast as possible, not wait out a backoff window.
     retries=modal.Retries(max_retries=2, backoff_coefficient=1.0),
 )
 class Trainer:

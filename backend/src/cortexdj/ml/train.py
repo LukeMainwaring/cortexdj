@@ -660,8 +660,11 @@ def train_fold_pretrained(
     # min_epochs=5 covers the 3-epoch warmup plus 2 post-warmup epochs. On
     # DEAP the EMA-smoothed best macro-F1 almost always lands in the first
     # few Phase 2 epochs, so a higher floor just grinds through flat epochs.
-    # Combined with the halved patience, a fold whose best sits at epoch 1
-    # stops around epoch max(5, 1+patience) rather than dragging on for 20+.
+    # A fold whose EMA best sits at epoch 1 now stops around epoch
+    # 1+phase2_patience (= 11 with default patience=20) rather than dragging
+    # out to min_epochs + old patience = 35+. If `compare-models` regresses
+    # vs main on `Avg F1`, relax phase2_patience first — the low-LR tail of
+    # the cosine schedule is the slice most at risk from this cut.
     stopper = EarlyStopping(patience=phase2_patience, min_epochs=5)
 
     for epoch in range(phase2_epochs):
@@ -736,8 +739,9 @@ def train_fold_pretrained(
 
 @dataclass(frozen=True)
 class _ResumePaths:
-    """On-disk paths for a specific training run's resume state."""
-
+    # JSON is the commit marker — it's always written after the .pt so a
+    # present JSON implies a usable state_dict on disk for the recorded
+    # best_fold.
     json_path: Path
     state_path: Path
 
@@ -775,12 +779,15 @@ def _resume_paths(model_type: str, run_key: str) -> _ResumePaths:
 def _load_resume_state(
     paths: _ResumePaths,
     expected_run_key: str,
-) -> tuple[list[dict[str, object]], int, dict[str, torch.Tensor] | None, set[int]] | None:
+) -> tuple[list[dict[str, object]], int, dict[str, torch.Tensor], set[int]] | None:
     """Load prior partial progress matching this run's key, or None.
 
     Returns `(fold_metrics, best_fold, best_state, completed_folds)` on a
-    clean read. Any mismatch (missing file, stale run_key, corrupt JSON)
-    returns None so the caller starts from scratch — resume is best-effort.
+    clean read. Any failure mode — missing file, stale run_key, corrupt
+    JSON, missing or unreadable `.pt` — returns None so the caller restarts
+    from fold 0. Partial resume (JSON without a matching state_dict) would
+    let a run finish with an empty best_model_state and silently skip the
+    final checkpoint save, so we refuse it outright.
     """
     if not paths.json_path.exists():
         return None
@@ -793,18 +800,25 @@ def _load_resume_state(
         logger.info("Resume file has stale run_key — starting fresh")
         return None
 
+    if not paths.state_path.exists():
+        logger.warning("Resume JSON present but best-state .pt missing — starting fresh")
+        return None
+    try:
+        # weights_only=True blocks arbitrary pickle execution — the payload
+        # is just a state_dict of plain tensors plus an int fold index, so
+        # the safer loader path handles it natively.
+        blob = torch.load(paths.state_path, map_location="cpu", weights_only=True)
+    except (OSError, RuntimeError) as exc:
+        logger.warning("Resume state_dict unreadable (%s) — starting fresh", exc)
+        return None
+    best_state = blob.get("state_dict") if isinstance(blob, dict) else None
+    if best_state is None:
+        logger.warning("Resume state_dict payload malformed — starting fresh")
+        return None
+
     fold_metrics = list(data.get("fold_metrics", []))
     completed_folds = set(data.get("completed_folds", []))
     best_fold = int(data.get("best_fold", -1))
-
-    best_state: dict[str, torch.Tensor] | None = None
-    if paths.state_path.exists():
-        try:
-            blob = torch.load(paths.state_path, map_location="cpu", weights_only=False)
-            best_state = blob.get("state_dict")
-        except (OSError, RuntimeError) as exc:
-            logger.warning("Resume state_dict unreadable (%s) — keeping fold metrics, dropping best-state", exc)
-
     return fold_metrics, best_fold, best_state, completed_folds
 
 
@@ -820,11 +834,19 @@ def _write_resume_state(
 ) -> None:
     """Atomically persist fold-level progress.
 
-    Writes to `*.tmp` then `os.replace()` to avoid half-written files if
-    the container is killed mid-write. Best state dict is saved separately
-    from the JSON so a corrupt `.pt` doesn't poison the fold-metrics index.
+    Order matters: the `.pt` is written first, then the JSON. The JSON is
+    the commit marker, so on any crash between the two writes the on-disk
+    state is either "old JSON + old .pt" or "old JSON + new .pt" — never
+    "new JSON pointing at a stale .pt from a different best_fold". Both
+    writes go through `*.tmp` + `os.replace` so neither file can be seen
+    half-written.
     """
-    TRAIN_STATE_DIR.mkdir(parents=True, exist_ok=True)
+    paths.json_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if best_state is not None:
+        state_tmp = paths.state_path.with_suffix(paths.state_path.suffix + ".tmp")
+        torch.save({"state_dict": best_state, "fold": best_fold}, state_tmp)
+        os.replace(state_tmp, paths.state_path)
 
     json_tmp = paths.json_path.with_suffix(paths.json_path.suffix + ".tmp")
     json_tmp.write_text(
@@ -839,11 +861,6 @@ def _write_resume_state(
         )
     )
     os.replace(json_tmp, paths.json_path)
-
-    if best_state is not None:
-        state_tmp = paths.state_path.with_suffix(paths.state_path.suffix + ".tmp")
-        torch.save({"state_dict": best_state, "fold": best_fold}, state_tmp)
-        os.replace(state_tmp, paths.state_path)
 
 
 def _clear_resume_state(paths: _ResumePaths) -> None:
@@ -951,20 +968,27 @@ def train(config: TrainingConfig) -> None:
     else:
         prior = _load_resume_state(resume_paths, expected_run_key=run_key)
         if prior is not None:
+            # _load_resume_state refuses to return a tuple unless the .pt
+            # was readable, so best_model_state is guaranteed non-None here.
             prior_metrics, prior_best_fold, prior_best_state, prior_done = prior
             all_metrics = prior_metrics
             completed_folds = prior_done
             best_fold_idx = prior_best_fold
+            best_model_state = prior_best_state
             if prior_metrics:
                 best_overall_f1 = max(_metric_float(m, "avg_macro_f1") for m in prior_metrics)
-            if prior_best_state is not None:
-                best_model_state = prior_best_state
-            logger.info(
-                "Resuming from %d completed fold(s); best so far: fold %d, F1=%.3f",
-                len(completed_folds),
-                best_fold_idx + 1,
-                best_overall_f1,
-            )
+            if best_fold_idx >= 0:
+                logger.info(
+                    "Resuming from %d completed fold(s); best so far: fold %d, F1=%.3f",
+                    len(completed_folds),
+                    best_fold_idx + 1,
+                    best_overall_f1,
+                )
+            else:
+                logger.info(
+                    "Resuming from %d completed fold(s); no best snapshot yet",
+                    len(completed_folds),
+                )
 
     dl_kwargs = _dataloader_kwargs(device)
     train_start = time.monotonic()
