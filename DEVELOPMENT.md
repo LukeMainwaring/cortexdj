@@ -134,13 +134,16 @@ caffeinate -dim bash -c 'for f in backend/data/deap/s*.dat; do
 done'
 modal volume ls cortexdj-deap /   # sanity check — should list 32 .dat files
 
-# Training runs
-modal run backend/scripts/modal_train.py                                      # full training on A10G
+# Training runs — wrap long runs in caffeinate so macOS can't sleep
+# and drop the client connection mid-run
+caffeinate -dim modal run backend/scripts/modal_train.py                       # full training on A10G
 modal run backend/scripts/modal_train.py --args="--quick"                     # quick test run
 modal run backend/scripts/modal_train.py --args="--model eegnet"              # train EEGNet instead
 modal run backend/scripts/modal_train.py --gpu a100                           # faster GPU
 modal run backend/scripts/modal_train.py --command compare-models             # compare both
 ```
+
+**Preemption resume.** Fold-level progress is persisted under `backend/data/deap/.train_state/` (which rides along on the `cortexdj-deap` Modal volume), so a preempted run restarts at the last completed fold rather than starting over. A fresh run with matching hyperparameters auto-resumes; pass `--args="--no-resume"` to wipe prior state and start clean.
 
 DEAP source files (~3.1 GB of `.dat`) live in a persistent `cortexdj-deap` Modal Volume seeded once via the loop above. Subsequent training runs attach the volume instantly instead of re-uploading. The first GPU run regenerates `data/deap/.cache/*.npz` (preprocessing cache) inside the volume; `modal_train.py` calls `deap_volume.commit()` after training so that cache persists for later runs. Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
 

@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
+import json
 import logging
 import math
 import os
 import random
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
@@ -30,7 +33,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, LRScheduler, SequentialLR
 from torch.utils.data import DataLoader, Subset
 
-from cortexdj.core.paths import CHECKPOINTS_DIR
+from cortexdj.core.paths import CHECKPOINTS_DIR, TRAIN_STATE_DIR
 from cortexdj.ml.dataset import (
     DEAPFeatureDataset,
     DEAPRawDataset,
@@ -138,6 +141,10 @@ class TrainingConfig:
     # per-subject rating-scale bias. `fixed_5` available for reproducing
     # DEAP papers that used the >= 5 threshold.
     label_split_strategy: LabelSplitStrategy = "median_per_subject"
+    # When True, wipe any resume state matching this run's key before the
+    # first fold runs. False (default) resumes from partial state if present
+    # — the typical long-LOSO preemption-recovery path.
+    no_resume: bool = False
 
 
 class EarlyStopping:
@@ -552,10 +559,11 @@ def train_fold_pretrained(
     warmup_iters = min(WARMUP_EPOCHS, phase1_epochs)
     scheduler: LRScheduler = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_iters)
     phase1_patience = max(3, config.patience // 2)
-    # min_epochs=5 covers the 3-epoch LinearLR warmup plus 2 post-warmup
-    # epochs — Phase 1 is only epochs//3 long, so we can't afford a larger
-    # floor without forcing short Phase 1s to run to completion.
-    stopper = EarlyStopping(patience=phase1_patience, min_epochs=5)
+    # min_epochs=3 matches the LinearLR warmup length — once warmup is done,
+    # early stopping can fire on flat progress. Phase 1 plateaus within a
+    # handful of epochs on nearly every DEAP fold, so a larger floor just
+    # burns compute.
+    stopper = EarlyStopping(patience=phase1_patience, min_epochs=3)
 
     for epoch in range(phase1_epochs):
         epoch_start = time.monotonic()
@@ -648,12 +656,13 @@ def train_fold_pretrained(
     warmup_sched = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_iters)
     cosine_sched = CosineAnnealingLR(optimizer, T_max=cosine_epochs)
     scheduler = SequentialLR(optimizer, [warmup_sched, cosine_sched], milestones=[warmup_iters])
-    phase2_patience = max(5, config.patience)
-    # min_epochs=15 covers warmup(3) + recovery from the Phase 2 unfreeze dip
-    # + enough cosine progress that a stop decision is meaningful. The natural
-    # Phase 2 trajectory dips during warmup before the unfrozen encoder
-    # stabilizes; patience alone would fire on that dip.
-    stopper = EarlyStopping(patience=phase2_patience, min_epochs=15)
+    phase2_patience = max(5, config.patience // 2)
+    # min_epochs=5 covers the 3-epoch warmup plus 2 post-warmup epochs. On
+    # DEAP the EMA-smoothed best macro-F1 almost always lands in the first
+    # few Phase 2 epochs, so a higher floor just grinds through flat epochs.
+    # Combined with the halved patience, a fold whose best sits at epoch 1
+    # stops around epoch max(5, 1+patience) rather than dragging on for 20+.
+    stopper = EarlyStopping(patience=phase2_patience, min_epochs=5)
 
     for epoch in range(phase2_epochs):
         epoch_start = time.monotonic()
@@ -723,6 +732,127 @@ def train_fold_pretrained(
 
     model.load_state_dict(best_state)
     return model, _evaluate(model, val_loader, device)
+
+
+@dataclass(frozen=True)
+class _ResumePaths:
+    """On-disk paths for a specific training run's resume state."""
+
+    json_path: Path
+    state_path: Path
+
+
+def _run_key(config: TrainingConfig, n_splits: int) -> str:
+    """Short stable hash of the training contract.
+
+    Anything that changes which folds get trained or what they mean
+    (model, CV mode, epoch budget, label split, seed, fold count) is in
+    the key. Hyperparameters that don't change fold identity (LR, weight
+    decay, patience) are intentionally excluded so tightening early
+    stopping doesn't invalidate an in-progress LOSO run.
+    """
+    payload = json.dumps(
+        {
+            "model_type": config.model_type,
+            "cv_mode": config.cv_mode,
+            "epochs": config.epochs,
+            "label_split_strategy": config.label_split_strategy,
+            "seed": config.seed,
+            "n_splits": n_splits,
+        },
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()[:12]
+
+
+def _resume_paths(model_type: str, run_key: str) -> _ResumePaths:
+    return _ResumePaths(
+        json_path=TRAIN_STATE_DIR / f"resume_{model_type}_{run_key}.json",
+        state_path=TRAIN_STATE_DIR / f"resume_{model_type}_{run_key}_best.pt",
+    )
+
+
+def _load_resume_state(
+    paths: _ResumePaths,
+    expected_run_key: str,
+) -> tuple[list[dict[str, object]], int, dict[str, torch.Tensor] | None, set[int]] | None:
+    """Load prior partial progress matching this run's key, or None.
+
+    Returns `(fold_metrics, best_fold, best_state, completed_folds)` on a
+    clean read. Any mismatch (missing file, stale run_key, corrupt JSON)
+    returns None so the caller starts from scratch — resume is best-effort.
+    """
+    if not paths.json_path.exists():
+        return None
+    try:
+        data = json.loads(paths.json_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Resume JSON unreadable (%s) — starting fresh", exc)
+        return None
+    if data.get("run_key") != expected_run_key:
+        logger.info("Resume file has stale run_key — starting fresh")
+        return None
+
+    fold_metrics = list(data.get("fold_metrics", []))
+    completed_folds = set(data.get("completed_folds", []))
+    best_fold = int(data.get("best_fold", -1))
+
+    best_state: dict[str, torch.Tensor] | None = None
+    if paths.state_path.exists():
+        try:
+            blob = torch.load(paths.state_path, map_location="cpu", weights_only=False)
+            best_state = blob.get("state_dict")
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Resume state_dict unreadable (%s) — keeping fold metrics, dropping best-state", exc)
+
+    return fold_metrics, best_fold, best_state, completed_folds
+
+
+def _write_resume_state(
+    paths: _ResumePaths,
+    *,
+    run_key: str,
+    fold_metrics: list[dict[str, object]],
+    completed_folds: list[int],
+    best_fold: int,
+    best_f1: float,
+    best_state: dict[str, torch.Tensor] | None,
+) -> None:
+    """Atomically persist fold-level progress.
+
+    Writes to `*.tmp` then `os.replace()` to avoid half-written files if
+    the container is killed mid-write. Best state dict is saved separately
+    from the JSON so a corrupt `.pt` doesn't poison the fold-metrics index.
+    """
+    TRAIN_STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    json_tmp = paths.json_path.with_suffix(paths.json_path.suffix + ".tmp")
+    json_tmp.write_text(
+        json.dumps(
+            {
+                "run_key": run_key,
+                "completed_folds": completed_folds,
+                "fold_metrics": fold_metrics,
+                "best_fold": best_fold,
+                "best_f1": best_f1,
+            }
+        )
+    )
+    os.replace(json_tmp, paths.json_path)
+
+    if best_state is not None:
+        state_tmp = paths.state_path.with_suffix(paths.state_path.suffix + ".tmp")
+        torch.save({"state_dict": best_state, "fold": best_fold}, state_tmp)
+        os.replace(state_tmp, paths.state_path)
+
+
+def _clear_resume_state(paths: _ResumePaths) -> None:
+    """Delete both resume files if they exist. Safe to call when absent."""
+    for p in (paths.json_path, paths.state_path):
+        try:
+            p.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def _dataloader_kwargs(device: torch.device) -> dict[str, object]:
@@ -805,10 +935,44 @@ def train(config: TrainingConfig) -> None:
     all_metrics: list[dict[str, object]] = []
     best_overall_f1 = -1.0
     best_model_state: dict[str, torch.Tensor] | None = None
+
+    # ── Resume state ──
+    # Long LOSO runs on Modal can be preempted mid-way through the fold
+    # loop; without resume, Modal's automatic container restart begins at
+    # fold 0 and re-pays for everything already done. The resume state
+    # files (JSON + best .pt) live on the DEAP volume so they survive
+    # container death.
+    run_key = _run_key(config, len(splits))
+    resume_paths = _resume_paths(config.model_type, run_key)
+    completed_folds: set[int] = set()
+    best_fold_idx = -1
+    if config.no_resume:
+        _clear_resume_state(resume_paths)
+    else:
+        prior = _load_resume_state(resume_paths, expected_run_key=run_key)
+        if prior is not None:
+            prior_metrics, prior_best_fold, prior_best_state, prior_done = prior
+            all_metrics = prior_metrics
+            completed_folds = prior_done
+            best_fold_idx = prior_best_fold
+            if prior_metrics:
+                best_overall_f1 = max(_metric_float(m, "avg_macro_f1") for m in prior_metrics)
+            if prior_best_state is not None:
+                best_model_state = prior_best_state
+            logger.info(
+                "Resuming from %d completed fold(s); best so far: fold %d, F1=%.3f",
+                len(completed_folds),
+                best_fold_idx + 1,
+                best_overall_f1,
+            )
+
     dl_kwargs = _dataloader_kwargs(device)
     train_start = time.monotonic()
 
     for fold_idx, (train_indices, val_indices) in enumerate(splits):
+        if fold_idx in completed_folds:
+            logger.info(f"Skipping fold {fold_idx + 1}/{len(splits)} (already completed)")
+            continue
         # Fresh RNG state per fold so we get honest per-fold variance rather
         # than each fold inheriting the previous fold's PyTorch RNG position.
         if config.seed is not None:
@@ -861,6 +1025,7 @@ def train(config: TrainingConfig) -> None:
             )
 
         all_metrics.append(metrics)
+        completed_folds.add(fold_idx)
 
         # Track best fold for checkpoint (macro-F1, not raw accuracy —
         # accuracy is dominated by the class prior on skewed DEAP labels
@@ -869,6 +1034,20 @@ def train(config: TrainingConfig) -> None:
         if fold_f1 > best_overall_f1:
             best_overall_f1 = fold_f1
             best_model_state = {k: v.cpu().clone() for k, v in fold_model.state_dict().items()}
+            best_fold_idx = fold_idx
+
+        # Persist progress so a preemption mid-LOSO doesn't discard prior
+        # folds on restart. Writes are atomic (os.replace) so a kill during
+        # the write can't corrupt the file.
+        _write_resume_state(
+            resume_paths,
+            run_key=run_key,
+            fold_metrics=all_metrics,
+            completed_folds=sorted(completed_folds),
+            best_fold=best_fold_idx,
+            best_f1=best_overall_f1,
+            best_state=best_model_state,
+        )
 
         # Drop GPU memory before the next fold. Over 32 LOSO folds, the fold's
         # model (deepcopied CBraMod backbone + optimizer state + activations)
@@ -916,6 +1095,10 @@ def train(config: TrainingConfig) -> None:
             checkpoint_path,
         )
         logger.info(f"Saved best model to {checkpoint_path}")
+
+    # Successful run → drop the resume artifacts. A future run with the same
+    # run_key should start fresh rather than skipping everything.
+    _clear_resume_state(resume_paths)
 
 
 def _std(values: list[float]) -> float:
@@ -1412,6 +1595,15 @@ def _build_train_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=f"Fast dev mode: {QUICK_EPOCHS_EEGNET}/{QUICK_EPOCHS_CBRAMOD} epochs (eegnet/cbramod), {QUICK_MAX_FOLDS} folds",
     )
+    parser.add_argument(
+        "--no-resume",
+        action="store_true",
+        help=(
+            "Discard any existing fold-level resume state before starting. "
+            "Default behavior is to resume from partial progress if a matching "
+            "run is found on disk — use this flag for a clean restart."
+        ),
+    )
     return parser
 
 
@@ -1448,6 +1640,7 @@ def _resolve_config(args: argparse.Namespace) -> TrainingConfig:
         de_noise_std=args.de_noise_std,
         de_mask_prob=args.de_mask_prob,
         label_split_strategy=args.label_split,
+        no_resume=args.no_resume,
     )
 
 

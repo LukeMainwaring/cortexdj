@@ -11,6 +11,17 @@ Entrypoint args (see ``main`` below):
 
 Checkpoints are downloaded to ``backend/data/checkpoints/`` when the run completes.
 DEAP source data lives in the ``cortexdj-deap`` Modal Volume.
+
+**Long runs and laptop sleep.** The Modal client must stay attached for the
+checkpoint bytes to make it back to the local machine. Wrap long training runs
+in ``caffeinate -dim`` so macOS can't sleep mid-run and drop the connection::
+
+    caffeinate -dim modal run backend/scripts/modal_train.py
+
+**Preemption safety.** Modal restarts a preempted Function with the same input;
+the training loop persists fold-level resume state under ``data/deap/.train_state/``
+on the DEAP volume so the restart picks up at the last completed fold instead
+of re-running from fold 0. Use ``--args="--no-resume"`` for a clean restart.
 """
 
 from __future__ import annotations
@@ -79,6 +90,10 @@ deap_volume = modal.Volume.from_name(DEAP_VOLUME_NAME)
     gpu="A10G",
     volumes={REMOTE_DEAP: deap_volume},
     timeout=14400,  # 4 hours (T4 may need this for full LOSO)
+    # Modal auto-restarts on preemption; this extends that behavior to other
+    # transient failures. Combined with the in-loop resume state, a restart
+    # picks up at the last completed fold rather than redoing prior work.
+    retries=modal.Retries(max_retries=2, backoff_coefficient=1.0),
 )
 class Trainer:
     @modal.method()
