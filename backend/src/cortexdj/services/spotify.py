@@ -171,7 +171,6 @@ async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, 
             "artists": [a["name"] for a in t["artists"]],
             "album": t["album"]["name"],
             "spotify_url": t["external_urls"].get("spotify"),
-            "preview_url": t.get("preview_url"),
             "track_id": t["id"],
         }
         for t in all_tracks

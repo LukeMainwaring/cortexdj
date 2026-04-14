@@ -19,6 +19,8 @@ out/
 # Data & models
 backend/data/checkpoints/
 backend/data/deap/
+backend/data/audio_cache/
+backend/.cache/
 *.h5
 *.pt
 *.pth

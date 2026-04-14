@@ -7,6 +7,7 @@ from .session_track import SessionTrack
 from .spotify_token import SpotifyToken
 from .thread import Thread, ThreadNotFound
 from .track import Track
+from .track_audio_embedding import TrackAudioEmbedding
 
 __all__ = [
     "Base",
@@ -19,4 +20,5 @@ __all__ = [
     "Thread",
     "ThreadNotFound",
     "Track",
+    "TrackAudioEmbedding",
 ]

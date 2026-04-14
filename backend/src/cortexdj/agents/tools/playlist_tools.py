@@ -379,7 +379,6 @@ async def search_tracks(
                     "artists": [a["name"] for a in track["artists"]],
                     "album": track["album"]["name"],
                     "spotify_url": track["external_urls"].get("spotify"),
-                    "preview_url": track.get("preview_url"),
                     "track_id": track["id"],
                 }
                 for track in all_tracks
@@ -415,7 +414,6 @@ async def get_track_info(
             "popularity": track["popularity"],
             "explicit": track["explicit"],
             "spotify_url": track["external_urls"].get("spotify"),
-            "preview_url": track.get("preview_url"),
         }
     except Exception as e:
         return _spotify_api_error("get track info", e)
