@@ -73,6 +73,8 @@ BACKEND_IGNORE = [
     "data/checkpoints/**",  # training output, not input
     "data/synthetic/**",  # unused by DEAP training
     "data/tensorboard_runs/**",  # training output, not input; keeps image lean
+    "data/track_index_miss_log.jsonl",  # runtime log, contains user library refs
+    "data/deap_stimuli_miss_log.jsonl",  # runtime log, not needed on worker
 ]
 
 image = (
@@ -109,6 +111,11 @@ deap_volume = modal.Volume.from_name(DEAP_VOLUME_NAME)
     # backoff_coefficient=1.0 (flat, no exponential) because the expected
     # failure mode is spot-instance preemption — we want the retry to land
     # on a fresh worker as fast as possible, not wait out a backoff window.
+    # TODO: contrastive training downloads ~1.9 GB of LAION-CLAP weights via
+    # `transformers.ClapModel.from_pretrained` on every cold start. A
+    # preempted run re-downloads them; a warm cache would save ~2-5 min per
+    # retry. Add a `modal.Volume.from_name("cortexdj-hf-cache")` mounted at
+    # `/root/.cache/huggingface` when this becomes a bottleneck.
     retries=modal.Retries(max_retries=2, backoff_coefficient=1.0),
 )
 class Trainer:

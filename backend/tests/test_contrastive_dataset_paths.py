@@ -36,9 +36,7 @@ class TestResolveAudioPath:
         fake_cache_dir.mkdir()
         local_file = fake_cache_dir / "abc123.m4a"
         local_file.write_bytes(b"")
-        monkeypatch.setattr(
-            "cortexdj.ml.contrastive_dataset.AUDIO_CACHE_DIR", fake_cache_dir
-        )
+        monkeypatch.setattr("cortexdj.ml.contrastive_dataset.AUDIO_CACHE_DIR", fake_cache_dir)
 
         missing_absolute = "/Users/alice/projects/cortexdj/backend/data/audio_cache/abc123.m4a"
         resolved = _resolve_audio_path(missing_absolute)
@@ -51,9 +49,7 @@ class TestResolveAudioPath:
     ) -> None:
         empty_cache = tmp_path / "empty"
         empty_cache.mkdir()
-        monkeypatch.setattr(
-            "cortexdj.ml.contrastive_dataset.AUDIO_CACHE_DIR", empty_cache
-        )
+        monkeypatch.setattr("cortexdj.ml.contrastive_dataset.AUDIO_CACHE_DIR", empty_cache)
         resolved = _resolve_audio_path("/absolutely/missing/ghost.m4a")
         assert resolved is None
 
