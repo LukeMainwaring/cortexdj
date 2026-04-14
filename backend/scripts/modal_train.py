@@ -1,13 +1,25 @@
-"""GPU training on Modal — runs `train-model` / `compare-models` on a cloud GPU.
+"""GPU training on Modal — runs `train-model` / `train-contrastive` / `compare-models` on a cloud GPU.
 
 See ``DEVELOPMENT.md`` § GPU Training (Modal) for one-time setup (``modal setup``,
 seeding the ``cortexdj-deap`` volume) and the full command reference.
 
 Entrypoint args (see ``main`` below):
-    command: ``train-model`` (default) or ``compare-models``
+    command: ``train-model`` (default), ``train-contrastive``, or ``compare-models``
     gpu:     Modal GPU type — ``T4``, ``A10G`` (default), ``A100``, ``H100``
     args:    quoted passthrough string for the underlying console script,
              e.g. ``--args="--quick --model eegnet"``
+
+Contrastive training notes:
+    - Ships the hand-curated ``backend/data/deap_stimuli.json`` + resolved
+      sidecar + m4a audio cache with the image (not via the Modal volume)
+      so the worker has everything needed to rebuild the CLAP audio cache
+      without re-fetching from iTunes.
+    - Disable tensorboard inside the container run with
+      ``--args="--no-tensorboard"`` if you want to skip writing event files
+      to the ephemeral worker disk. Otherwise the TB run dir is created but
+      not currently downloaded back to the local machine.
+    - The ``contrastive_best.pt`` checkpoint is downloaded the same way
+      ``cbramod_best.pt`` is, via the ``data/checkpoints/`` glob.
 
 Checkpoints are downloaded to ``backend/data/checkpoints/`` when the run completes.
 DEAP source data lives in the ``cortexdj-deap`` Modal Volume.
@@ -42,7 +54,7 @@ REMOTE_BACKEND = f"{REMOTE_APP_DIR}/backend"
 REMOTE_DEAP = f"{REMOTE_BACKEND}/data/deap"
 REMOTE_CHECKPOINTS = f"{REMOTE_BACKEND}/data/checkpoints"
 
-VALID_COMMANDS = {"train-model", "compare-models"}
+VALID_COMMANDS = {"train-model", "train-contrastive", "compare-models"}
 DEAP_VOLUME_NAME = "cortexdj-deap"
 
 # ── Modal setup ──────────────────────────────────────────────────────────────
@@ -60,6 +72,9 @@ BACKEND_IGNORE = [
     "data/deap/**",  # lives in the cortexdj-deap Modal Volume
     "data/checkpoints/**",  # training output, not input
     "data/synthetic/**",  # unused by DEAP training
+    "data/tensorboard_runs/**",  # training output, not input; keeps image lean
+    "data/track_index_miss_log.jsonl",  # runtime log, contains user library refs
+    "data/deap_stimuli_miss_log.jsonl",  # runtime log, not needed on worker
 ]
 
 image = (
@@ -96,6 +111,11 @@ deap_volume = modal.Volume.from_name(DEAP_VOLUME_NAME)
     # backoff_coefficient=1.0 (flat, no exponential) because the expected
     # failure mode is spot-instance preemption — we want the retry to land
     # on a fresh worker as fast as possible, not wait out a backoff window.
+    # TODO: contrastive training downloads ~1.9 GB of LAION-CLAP weights via
+    # `transformers.ClapModel.from_pretrained` on every cold start. A
+    # preempted run re-downloads them; a warm cache would save ~2-5 min per
+    # retry. Add a `modal.Volume.from_name("cortexdj-hf-cache")` mounted at
+    # `/root/.cache/huggingface` when this becomes a bottleneck.
     retries=modal.Retries(max_retries=2, backoff_coefficient=1.0),
 )
 class Trainer:

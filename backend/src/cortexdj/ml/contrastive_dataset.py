@@ -30,7 +30,7 @@ import torch
 from scipy.signal import resample
 from torch.utils.data import Dataset
 
-from cortexdj.core.paths import DATA_DIR, DEAP_DATA_DIR
+from cortexdj.core.paths import AUDIO_CACHE_DIR, DATA_DIR, DEAP_DATA_DIR
 from cortexdj.ml.contrastive import CLAP_MODEL_ID, ClapAudioEncoder, load_audio_waveform
 from cortexdj.ml.dataset import (
     CBRAMOD_SAMPLING_RATE,
@@ -42,7 +42,7 @@ from cortexdj.ml.dataset import (
 
 logger = logging.getLogger(__name__)
 
-_CACHE_VERSION = "v1"
+_CACHE_VERSION = "v2"  # bumped when _audio_cache_key dropped file mtime for host portability
 STIMULI_RESOLVED_PATH = DATA_DIR / "deap_stimuli_resolved.json"
 
 CBRAMOD_SEGMENT_SAMPLES = CBRAMOD_SAMPLING_RATE * 4  # 800 samples at 200Hz
@@ -76,16 +76,40 @@ def trial_to_eeg_windows(
 
 
 def _audio_cache_key(resolved: list[dict[str, Any]], model_id: str) -> str:
+    # Stable across hosts: the m4a basename is already a SHA-based content
+    # hash of (normalized_artist, normalized_title) from audio_catalog, so
+    # two files with the same basename have identical inputs. Deliberately
+    # drops file mtime so Modal workers can reuse a cache built on a dev
+    # machine after cache files are shipped in the image.
     parts = [_CACHE_VERSION, model_id]
     for entry in sorted(resolved, key=lambda r: r["trial_id"]):
-        path = Path(entry["audio_cache_path"])
-        mtime = path.stat().st_mtime_ns if path.exists() else 0
-        parts.append(f"{entry['trial_id']}:{path.name}:{mtime}")
+        basename = Path(entry["audio_cache_path"]).name
+        parts.append(f"{entry['trial_id']}:{basename}")
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 
 def _audio_cache_path(key: str) -> Path:
     return _cache_dir(DEAP_DATA_DIR) / f"clap_audio_{key}.npz"
+
+
+def _resolve_audio_path(recorded_path: str) -> Path | None:
+    """Map a recorded audio_cache_path to something that exists on this host.
+
+    `fetch_deap_audio.py` writes the absolute path of each cached m4a into
+    `deap_stimuli_resolved.json`, which is host-specific — a path like
+    `/Users/foo/.../audio_cache/<sha>.m4a` won't exist on a Modal worker
+    or another developer's machine. Since the filename is a content hash
+    of `(normalized_artist, normalized_title)` the basename is globally
+    unique, so we can fall back to `AUDIO_CACHE_DIR / basename` when the
+    recorded absolute path is missing.
+    """
+    candidate = Path(recorded_path)
+    if candidate.exists():
+        return candidate
+    fallback = AUDIO_CACHE_DIR / candidate.name
+    if fallback.exists():
+        return fallback
+    return None
 
 
 def load_resolved_stimuli(path: Path | None = None) -> list[dict[str, Any]]:
@@ -132,9 +156,9 @@ def build_audio_embedding_cache(
     trial_ids: list[int] = []
     waveforms: list[np.ndarray] = []
     for entry in sorted(resolved, key=lambda r: r["trial_id"]):
-        path = Path(entry["audio_cache_path"])
-        if not path.exists():
-            logger.warning(f"skipping trial {entry['trial_id']}: {path} missing")
+        path = _resolve_audio_path(entry["audio_cache_path"])
+        if path is None:
+            logger.warning(f"skipping trial {entry['trial_id']}: audio file not found")
             continue
         trial_ids.append(int(entry["trial_id"]))
         waveforms.append(load_audio_waveform(path))

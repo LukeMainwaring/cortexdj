@@ -70,15 +70,18 @@ After making frontend code changes, run `pnpm -C frontend format` to fix formatt
 FastAPI Python backend using async patterns throughout.
 
 - **`src/cortexdj/app.py`**: FastAPI application entry point with lifespan handler (EEGNet model loading)
-- **`src/cortexdj/routers/`**: API routes by domain (agent, sessions, threads, health)
-- **`src/cortexdj/agents/`**: Pydantic AI agent -- `brain_agent.py` defines the brain assistant with tools for session analysis, brain state insights, playlist curation, Spotify integration, and EEG classification
-- **`src/cortexdj/agents/capabilities/`**: Capability classes grouping related tools; ClassificationCapability uses `get_instructions()` to dynamically inject brain context into the system prompt
-- **`src/cortexdj/agents/tools/`**: Agent tool implementations (session_tools, insight_tools, playlist_tools, classification_tools)
+- **`src/cortexdj/routers/`**: API routes by domain (agent, sessions, threads, health, retrieval)
+- **`src/cortexdj/agents/`**: Pydantic AI agent -- `brain_agent.py` defines the brain assistant with tools for session analysis, brain state insights, playlist curation, Spotify integration, EEG classification, and contrastive track retrieval
+- **`src/cortexdj/agents/capabilities/`**: Capability classes grouping related tools; ClassificationCapability uses `get_instructions()` to dynamically inject brain context into the system prompt. `RetrievalCapability.get_instructions()` teaches the agent when to prefer `retrieve_tracks_from_brain_state` over quadrant-filter playlist tools
+- **`src/cortexdj/agents/tools/`**: Agent tool implementations (session_tools, insight_tools, playlist_tools, classification_tools, retrieval_tools). `retrieval_tools.retrieve_tracks_from_brain_state` is the contrastive retrieval entry point; it catches `DeapFileMissingError` inline for user-facing error clarity but lets other exceptions propagate to `hooks.on_tool_execute_error`
 - **`src/cortexdj/agents/history_processor.py`**: Summarizes large tool results in historical messages to prevent token bloat in multi-turn conversations
-- **`src/cortexdj/models/`**: SQLAlchemy async models with CRUD classmethods (Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message)
+- **`src/cortexdj/models/`**: SQLAlchemy async models with CRUD classmethods (Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message, TrackAudioEmbedding). `TrackAudioEmbedding` is the pgvector-backed table for the contrastive retrieval index with an HNSW cosine index
 - **`src/cortexdj/schemas/`**: Pydantic schemas for API contracts
-- **`src/cortexdj/services/`**: Business logic (EEG processing, Spotify, session management, thread management, title generation)
+- **`src/cortexdj/services/`**: Business logic — `eeg_processing`, `spotify` (identity only — `preview_url` is deprecated for standard-mode apps), `session`, `thread`, `title_generator`, `trajectory`, `retrieval` (encode_session_to_clap_space + retrieve_similar_tracks), `audio_catalog` (iTunes Search API wrapper with duration-delta match heuristic)
 - **`src/cortexdj/ml/`**: PyTorch EEGNet with dual classification heads, training script, inference wrapper, EEG preprocessing. `metrics.py` owns class-weight computation, macro-F1, balanced accuracy, per-class recall, and the `MajorityBaselinePredictor` reference used by `compare-models`. The training loop uses per-fold per-head class-weighted CE with label smoothing and EMA-smoothed early stopping on macro-F1 with a minimum-epochs floor. See `DEVELOPMENT.md` for the `--label-split` options.
+  - `contrastive.py`: `EegCLAPEncoder` (CBraMod backbone + SimCLR-style projection head → 512-d L2-normalized), `ClapAudioEncoder` (LAION-CLAP wrapper), `symmetric_info_nce` (soft-target CLIP-style loss keyed on `trial_id`), `encode_session` (mean-pool + L2-normalize over EEG windows)
+  - `contrastive_dataset.py`: `DeapClapPairDataset` (EEG window ↔ CLAP audio embedding pairs), `build_audio_embedding_cache` (CLAP embeddings cached per stimulus), `trial_to_eeg_windows` (shared 4s/200Hz window slicer used by both training and runtime retrieval)
+  - `contrastive_train.py`: `train-contrastive` console script. Deterministic 24/4/4 subject split, AdamW differential LR, `SequentialLR(LinearLR, CosineAnnealingLR)`, EMA early stop on val top-5 retrieval acc, TensorBoard scalars + embedding projector snapshot, grad accumulation support
 - **`src/cortexdj/core/config.py`**: Settings via pydantic-settings
 - **`src/cortexdj/migrations/`**: Alembic migrations for PostgreSQL
 
@@ -92,8 +95,9 @@ Next.js 16 with App Router.
 - **`components/brain-context-badge.tsx`**: Displays active brain context (mood/arousal/valence)
 - **`components/session-visualization.tsx`**: Tabbed session viewer — wraps `components/emotion-trajectory.tsx` (default, animated SVG trajectory through Russell's affect space) and a recharts arousal/valence timeline in Radix Tabs, with the band-power chart shared below. Auto-rendered by `components/message.tsx` when an `analyze_session` tool call is detected
 - **`components/emotion-trajectory.tsx`**: Custom SVG + `motion/react` chart that plots each 4-second segment as a point in the valence/arousal plane, draws a smoothed rolling-mean path via an animated `motion.path` (`style={{ pathLength: progress }}`), and exposes a play/pause + scrubber driven by a `requestAnimationFrame` loop
+- **`components/retrieved-tracks-panel.tsx`**: Ranked track list rendered beneath `retrieve_tracks_from_brain_state` tool calls. Uses a shared `<audio>` ref for single-track-at-a-time preview playback, accessible `role="progressbar"` similarity bars with tailwind color ramp, and Spotify deep-link buttons. Empty-index and error states are fully branched for 404/503/500 distinction
 - **`components/greeting.tsx`**: CortexDJ-branded empty state
-- **`api/hooks/sessions.ts`**: TanStack Query wrapper around the generated sessions client (`useSessionSegments`); follow this pattern when wrapping new generated endpoints
+- **`api/hooks/sessions.ts`**: TanStack Query wrappers around the generated sessions client — `useSessionSegments` and `useSimilarTracks`; follow this pattern when wrapping new generated endpoints. Retries skip 404 (missing session) and 503 (missing contrastive checkpoint)
 
 ### Data Flow
 
@@ -104,6 +108,7 @@ Next.js 16 with App Router.
 5. Pydantic AI agent decides which tools to call
 6. Agent streams response back as SSE (Vercel AI SDK format)
 7. Frontend renders with tool-call transparency, brain context badge, and inline `<SessionVisualization>` (Trajectory tab default, Timeline tab secondary, band powers below) for `analyze_session` tool calls. The backend `services/trajectory.py` computes a `trajectory_summary` (dwell per quadrant, transitions, centroid, dispersion, path length, smoothed trail) that feeds both the chart and the agent narration; `SessionCapability.get_instructions` tells the agent to cite those fields instead of only the dominant state
+8. For `retrieve_tracks_from_brain_state` tool calls, `message.tsx` renders `<RetrievedTracksPanel>` which hits `GET /api/sessions/{id}/similar-tracks` via the `useSimilarTracks` hook. The backend `services/retrieval.py` lazy-loads the contrastive encoder (module-level `asyncio.Lock` + `to_thread` so `torch.load` doesn't block the event loop under concurrent first-hit requests), LRU-caches the DEAP pickle parse, encodes the session to a 512-d query vector, and runs a pgvector HNSW cosine search against `track_audio_embeddings`
 
 ## Additional Instructions
 
