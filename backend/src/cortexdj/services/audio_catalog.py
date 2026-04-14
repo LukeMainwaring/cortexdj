@@ -74,6 +74,12 @@ def _jaccard(a: str, b: str) -> float:
     return len(at & bt) / len(at | bt)
 
 
+def title_similarity(a: str, b: str) -> float:
+    """Public wrapper — callers outside this module use this to validate
+    that a search result title actually matches what they asked for."""
+    return _jaccard(a, b)
+
+
 def _cache_key(artist: str, title: str) -> str:
     return hashlib.sha1(f"{_normalize(artist)}|{_normalize(title)}".encode()).hexdigest()
 

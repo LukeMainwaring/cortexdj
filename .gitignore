@@ -20,6 +20,8 @@ out/
 backend/data/checkpoints/
 backend/data/deap/
 backend/data/audio_cache/
+backend/data/deap_stimuli_resolved.json
+backend/data/deap_stimuli_miss_log.jsonl
 backend/.cache/
 *.h5
 *.pt
