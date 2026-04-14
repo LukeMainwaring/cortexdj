@@ -80,9 +80,11 @@ See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instru
 
 ### Model Training
 
-Two model backends are available:
+Three trainable models live side by side: the quadrant classifier (EEGNet or CBraMod backbone) and the contrastive EEG↔CLAP encoder.
 
 ```bash
+# -- Classifier (arousal/valence quadrant prediction) --
+
 # CBraMod pretrained with LOSO CV (default — 50 epochs, all 32 folds)
 uv run --directory backend train-model
 
@@ -92,14 +94,30 @@ uv run --directory backend train-model --quick
 # EEGNet instead
 uv run --directory backend train-model --model eegnet
 
-# Custom configuration
-uv run --directory backend train-model --epochs 100 --batch-size 128 --max-folds 5
-
 # Compare both models (loads checkpoints by default, --retrain to train fresh)
 uv run --directory backend compare-models
+
+# -- Contrastive encoder (EEG ↔ CLAP audio retrieval) --
+
+# Prereqs: hand-curated deap_stimuli.json is committed; run fetch-deap-audio
+# once to resolve each DEAP stimulus to a cached iTunes m4a preview.
+uv run --directory backend python -m cortexdj.scripts.fetch_deap_audio
+
+# Full training: 30 epochs, 24/4/4 subject split, SequentialLR warmup+cosine,
+# SimCLR-style projection head, TensorBoard + embedding projector snapshot
+uv run --directory backend train-contrastive
+
+# Quick smoke (5 epochs × 3 train / 1 val / 1 test subjects) — ~45s on MPS
+uv run --directory backend train-contrastive --quick
+
+# Gradient accumulation for larger effective batches on MPS
+uv run --directory backend train-contrastive --grad-accum 4
+
+# Inspect the run
+uv run --directory backend tensorboard --logdir backend/data/tensorboard_runs
 ```
 
-Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is the default runtime backend. Set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model instead.
+Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is the default runtime backend for the quadrant classifier. Set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model instead. The contrastive checkpoint (`contrastive_best.pt`) is loaded lazily on the first `/api/sessions/{id}/similar-tracks` request or the first agent call to `retrieve_tracks_from_brain_state`.
 
 **Label binarization (`--label-split`).** DEAP's 1–9 Likert self-reports are skewed when thresholded at a fixed value. Strategies:
 
@@ -136,11 +154,15 @@ modal volume ls cortexdj-deap /   # sanity check — should list 32 .dat files
 
 # Training runs — wrap long runs in caffeinate so macOS can't sleep
 # and drop the client connection mid-run
-caffeinate -dim modal run backend/scripts/modal_train.py                       # full training on A10G
+caffeinate -dim modal run backend/scripts/modal_train.py                       # classifier, full LOSO on A10G
 modal run backend/scripts/modal_train.py --args="--quick"                     # quick test run
 modal run backend/scripts/modal_train.py --args="--model eegnet"              # train EEGNet instead
 modal run backend/scripts/modal_train.py --gpu a100                           # faster GPU
 modal run backend/scripts/modal_train.py --command compare-models             # compare both
+
+# Contrastive encoder on Modal (ships deap_stimuli.json + audio_cache/ with the image)
+caffeinate -dim modal run backend/scripts/modal_train.py --command train-contrastive
+modal run backend/scripts/modal_train.py --command train-contrastive --args="--quick"
 ```
 
 **Preemption resume.** Fold-level progress is persisted under `backend/data/deap/.train_state/` (which rides along on the `cortexdj-deap` Modal volume), so a preempted run restarts at the last completed fold rather than starting over. A fresh run with matching hyperparameters auto-resumes; pass `--args="--no-resume"` to wipe prior state and start clean.
@@ -152,9 +174,20 @@ CUDA runs auto-configure themselves: batch size defaults to 128 (vs. 64 on MPS/C
 ### Database Seeding
 
 ```bash
+# Seed the `sessions` and `eeg_segments` tables from DEAP .dat files
 uv run --directory backend seed-sessions                          # seed all 32 DEAP participants (cbramod by default)
 uv run --directory backend seed-sessions --participants 1 2 3     # seed specific participants
 uv run --directory backend seed-sessions --model eegnet           # use lightweight EEGNet checkpoint instead
+
+# Seed the `track_audio_embeddings` pgvector index for EEG↔CLAP retrieval.
+# Pool = (user Spotify saved tracks) ∪ (12 genre-seed searches). Resolves each
+# candidate to an iTunes 30s m4a via services/audio_catalog.resolve_preview,
+# embeds with LAION-CLAP, upserts via pgvector. Misses go to
+# backend/data/track_index_miss_log.jsonl — no retry loops.
+# Requires Spotify user OAuth (connect via Settings in the UI first).
+uv run --directory backend seed-track-index                       # default limit from TRACK_INDEX_POOL_SIZE
+uv run --directory backend seed-track-index --limit 500           # smaller pool for dev
+uv run --directory backend seed-track-index --skip-library        # genre seeds only (no user OAuth)
 ```
 
 ## Common Commands
