@@ -13,6 +13,7 @@ from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModel
 from cortexdj.agents.capabilities.classification import ClassificationCapability
 from cortexdj.agents.capabilities.insight import InsightCapability
 from cortexdj.agents.capabilities.playlist import PlaylistCapability
+from cortexdj.agents.capabilities.retrieval import RetrievalCapability
 from cortexdj.agents.capabilities.session import SessionCapability
 from cortexdj.agents.deps import AgentDeps
 from cortexdj.agents.history_processor import summarize_tool_results
@@ -50,11 +51,14 @@ You have access to a database of EEG recording sessions where participants liste
 9. **search_tracks** — Search Spotify for tracks by name, artist, or keywords
 10. **get_track_info** — Get detailed metadata for a specific Spotify track
 
+### Brain-to-Track Retrieval (contrastive)
+11. **retrieve_tracks_from_brain_state** — Embed a session's EEG in the joint EEG↔audio space and return top-k new Spotify tracks whose audio matches. Use for "find songs that match how I was feeling", not for quadrant-filter curation.
+
 ### Spotify Library (requires Spotify connection)
-11. **get_listening_history** — Fetch recently played tracks from Spotify
-12. **get_my_playlists** — Browse the user's Spotify playlists
-13. **get_my_saved_tracks** — Access the user's saved Spotify library
-14. **add_tracks_to_playlist** — Add tracks to an existing Spotify playlist
+12. **get_listening_history** — Fetch recently played tracks from Spotify
+13. **get_my_playlists** — Browse the user's Spotify playlists
+14. **get_my_saved_tracks** — Access the user's saved Spotify library
+15. **add_tracks_to_playlist** — Add tracks to an existing Spotify playlist
 
 ## Guidelines
 
@@ -92,6 +96,7 @@ brain_agent = Agent(
         SessionCapability(),
         InsightCapability(),
         PlaylistCapability(),
+        RetrievalCapability(),
         ClassificationCapability(),
         build_brain_agent_hooks(),
     ],

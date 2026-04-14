@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -40,6 +40,18 @@ export const streamChat = <ThrowOnError extends boolean = false>(options?: Optio
 export const dbHealthCheck = <ThrowOnError extends boolean = false>(options?: Options<DbHealthCheckData, ThrowOnError>) => (options?.client ?? client).get<DbHealthCheckResponses, unknown, ThrowOnError>({
     responseType: 'json',
     url: '/api/health/db',
+    ...options
+});
+
+/**
+ * Get Similar Tracks
+ *
+ * Return the top-k tracks whose CLAP audio embedding is closest to the
+ * session's EEG embedding in the joint contrastive space.
+ */
+export const getSimilarTracks = <ThrowOnError extends boolean = false>(options: Options<GetSimilarTracksData, ThrowOnError>) => (options.client ?? client).get<GetSimilarTracksResponses, GetSimilarTracksErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/sessions/{session_id}/similar-tracks',
     ...options
 });
 

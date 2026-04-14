@@ -13,6 +13,7 @@ import { MessageContent } from "./elements/message";
 import { Response } from "./elements/response";
 import { ToolCall } from "./elements/tool-call";
 import { MessageActions } from "./message-actions";
+import { RetrievedTracksPanel } from "./retrieved-tracks-panel";
 import { SessionVisualization } from "./session-visualization";
 
 function extractSessionId(input: unknown): string | null {
@@ -119,9 +120,14 @@ const PurePreviewMessage = ({
             }
             if (isToolUIPart(part)) {
               const toolName = getToolName(part);
-              const sessionId =
-                toolName === "analyze_session" &&
-                part.state === "output-available"
+              const isOutputAvailable = part.state === "output-available";
+              const analyzeSessionId =
+                toolName === "analyze_session" && isOutputAvailable
+                  ? extractSessionId(part.input)
+                  : null;
+              const retrievalSessionId =
+                toolName === "retrieve_tracks_from_brain_state" &&
+                isOutputAvailable
                   ? extractSessionId(part.input)
                   : null;
               return (
@@ -130,7 +136,12 @@ const PurePreviewMessage = ({
                     isStreaming={isLoading && !hasTextParts}
                     part={part}
                   />
-                  {sessionId && <SessionVisualization sessionId={sessionId} />}
+                  {analyzeSessionId && (
+                    <SessionVisualization sessionId={analyzeSessionId} />
+                  )}
+                  {retrievalSessionId && (
+                    <RetrievedTracksPanel sessionId={retrievalSessionId} />
+                  )}
                 </div>
               );
             }

@@ -65,6 +65,7 @@ select = ["I", "F401"]
 
 [project.scripts]
 seed-sessions = "cortexdj.scripts.seed_sessions:main"
+seed-track-index = "cortexdj.scripts.build_track_index:main"
 train-model = "cortexdj.ml.train:main"
 compare-models = "cortexdj.ml.train:compare_main"
 
