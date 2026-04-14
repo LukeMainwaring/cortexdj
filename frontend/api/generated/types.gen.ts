@@ -166,6 +166,50 @@ export type SessionSchema = {
 };
 
 /**
+ * SimilarTrackSchema
+ */
+export type SimilarTrackSchema = {
+    /**
+     * Spotify Id
+     */
+    spotify_id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Artist
+     */
+    artist: string;
+    /**
+     * Itunes Preview Url
+     */
+    itunes_preview_url?: string | null;
+    /**
+     * Similarity
+     */
+    similarity: number;
+};
+
+/**
+ * SimilarTracksResponse
+ */
+export type SimilarTracksResponse = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Tracks
+     */
+    tracks: Array<SimilarTrackSchema>;
+    /**
+     * K
+     */
+    k: number;
+};
+
+/**
  * SmoothedPoint
  */
 export type SmoothedPoint = {
@@ -403,6 +447,41 @@ export type DbHealthCheckResponses = {
 };
 
 export type DbHealthCheckResponse = DbHealthCheckResponses[keyof DbHealthCheckResponses];
+
+export type GetSimilarTracksData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: {
+        /**
+         * K
+         */
+        k?: number;
+    };
+    url: '/api/sessions/{session_id}/similar-tracks';
+};
+
+export type GetSimilarTracksErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSimilarTracksError = GetSimilarTracksErrors[keyof GetSimilarTracksErrors];
+
+export type GetSimilarTracksResponses = {
+    /**
+     * Successful Response
+     */
+    200: SimilarTracksResponse;
+};
+
+export type GetSimilarTracksResponse = GetSimilarTracksResponses[keyof GetSimilarTracksResponses];
 
 export type ListSessionsData = {
     body?: never;

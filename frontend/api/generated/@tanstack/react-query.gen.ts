@@ -4,8 +4,8 @@ import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOption
 import type { AxiosError } from 'axios';
 
 import { client } from '../client.gen';
-import { connectSpotify, dbHealthCheck, deleteThread, disconnectSpotify, getSession, getSessionSegments, getSpotifyStatus, getThreadMessages, listSessions, listThreads, type Options, renameThread, spotifyCallback, streamChat } from '../sdk.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponse, DbHealthCheckData, DbHealthCheckResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError, StreamChatData } from '../types.gen';
+import { connectSpotify, dbHealthCheck, deleteThread, disconnectSpotify, getSession, getSessionSegments, getSimilarTracks, getSpotifyStatus, getThreadMessages, listSessions, listThreads, type Options, renameThread, spotifyCallback, streamChat } from '../sdk.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponse, DbHealthCheckData, DbHealthCheckResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSimilarTracksData, GetSimilarTracksError, GetSimilarTracksResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError, StreamChatData } from '../types.gen';
 
 /**
  * Stream Chat
@@ -80,6 +80,27 @@ export const dbHealthCheckOptions = (options?: Options<DbHealthCheckData>) => qu
         return data;
     },
     queryKey: dbHealthCheckQueryKey(options)
+});
+
+export const getSimilarTracksQueryKey = (options: Options<GetSimilarTracksData>) => createQueryKey('getSimilarTracks', options);
+
+/**
+ * Get Similar Tracks
+ *
+ * Return the top-k tracks whose CLAP audio embedding is closest to the
+ * session's EEG embedding in the joint contrastive space.
+ */
+export const getSimilarTracksOptions = (options: Options<GetSimilarTracksData>) => queryOptions<GetSimilarTracksResponse, AxiosError<GetSimilarTracksError>, GetSimilarTracksResponse, ReturnType<typeof getSimilarTracksQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSimilarTracks({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSimilarTracksQueryKey(options)
 });
 
 export const listSessionsQueryKey = (options?: Options<ListSessionsData>) => createQueryKey('listSessions', options);

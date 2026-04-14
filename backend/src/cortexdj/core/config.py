@@ -5,6 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortexdj.core.paths import _BACKEND_ROOT, CHECKPOINTS_DIR, DEAP_DATA_DIR
 
+_DEFAULT_CONTRASTIVE_CHECKPOINT = str(CHECKPOINTS_DIR / "contrastive_best.pt")
+
 
 class ApiSettings(BaseSettings):
     API_PREFIX: str = "/api"
@@ -50,6 +52,8 @@ class Settings(
     EEG_MODEL_BACKEND: Literal["eegnet", "cbramod"] = "cbramod"
     DEAP_DATA_DIR: str = str(DEAP_DATA_DIR)
     CHECKPOINTS_DIR: str = str(CHECKPOINTS_DIR)
+    CONTRASTIVE_CHECKPOINT_PATH: str = _DEFAULT_CONTRASTIVE_CHECKPOINT
+    TRACK_INDEX_POOL_SIZE: int = 2000
 
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"

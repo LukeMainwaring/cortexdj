@@ -47,6 +47,61 @@
         }
       }
     },
+    "/api/sessions/{session_id}/similar-tracks": {
+      "get": {
+        "tags": [
+          "retrieval"
+        ],
+        "summary": "Get Similar Tracks",
+        "description": "Return the top-k tracks whose CLAP audio embedding is closest to the\nsession's EEG embedding in the joint contrastive space.",
+        "operationId": "getSimilarTracks",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "k",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "K"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilarTracksResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions": {
       "get": {
         "tags": [
@@ -752,6 +807,71 @@
           "created_at"
         ],
         "title": "SessionSchema"
+      },
+      "SimilarTrackSchema": {
+        "properties": {
+          "spotify_id": {
+            "type": "string",
+            "title": "Spotify Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "artist": {
+            "type": "string",
+            "title": "Artist"
+          },
+          "itunes_preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itunes Preview Url"
+          },
+          "similarity": {
+            "type": "number",
+            "title": "Similarity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "spotify_id",
+          "title",
+          "artist",
+          "similarity"
+        ],
+        "title": "SimilarTrackSchema"
+      },
+      "SimilarTracksResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarTrackSchema"
+            },
+            "type": "array",
+            "title": "Tracks"
+          },
+          "k": {
+            "type": "integer",
+            "title": "K"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "tracks",
+          "k"
+        ],
+        "title": "SimilarTracksResponse"
       },
       "SmoothedPoint": {
         "properties": {
