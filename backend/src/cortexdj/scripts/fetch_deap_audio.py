@@ -61,7 +61,7 @@ async def _spotify_lookup(client: spotipy.Spotify, artist: str, title: str) -> d
     return None
 
 
-async def main() -> int:
+async def _main_async() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     if not STIMULI_PATH.exists():
@@ -143,5 +143,10 @@ async def main() -> int:
     return 0
 
 
+def main() -> None:
+    """Sync entry point for the `fetch-deap-audio` console script."""
+    sys.exit(asyncio.run(_main_async()))
+
+
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    main()
