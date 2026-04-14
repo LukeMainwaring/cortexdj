@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from cortexdj.agents.tools.retrieval_tools import retrieve_tracks_from_brain_state
-from cortexdj.services.retrieval import TrackHit
+from cortexdj.services.retrieval import DeapFileMissingError, TrackHit
 
 
 def _make_ctx() -> MagicMock:
@@ -84,8 +84,35 @@ class TestRetrieveTracksFromBrainState:
             with pytest.raises(LookupError, match="sess-bogus"):
                 asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-bogus", k=5))
 
+    def test_deap_file_missing_returns_structured_error(self) -> None:
+        # `DeapFileMissingError` is server misconfig — the hooks recovery
+        # template strips the exception message, so we catch it specifically
+        # and return an actionable JSON payload the agent can relay verbatim.
+        with patch(
+            "cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks",
+            new=AsyncMock(side_effect=DeapFileMissingError("DEAP file for P99 not found at /x/s99.dat")),
+        ):
+            payload_json = asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=5))
+
+        payload = json.loads(payload_json)
+        assert payload["error"] == "deap_data_missing"
+        assert "s99.dat" in payload["message"]
+        assert "DEAP_SETUP.md" in payload["message"]
+        # No `tracks` key on the error path — the agent should not try to
+        # render an empty list as if retrieval succeeded.
+        assert "tracks" not in payload
+
     def test_passes_k_through_to_service(self) -> None:
         mock = AsyncMock(return_value=[])
         with patch("cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks", new=mock):
             asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=25))
         assert mock.call_args.kwargs["k"] == 25
+
+    def test_negative_k_passes_through_unclamped_at_tool_layer(self) -> None:
+        # Pins the "clamping lives in the service, not the tool" contract —
+        # otherwise a well-meaning future refactor might add `max(1, k)` at
+        # the tool layer and silently mask bugs in the service-side clamp.
+        mock = AsyncMock(return_value=[])
+        with patch("cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks", new=mock):
+            asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=-1))
+        assert mock.call_args.kwargs["k"] == -1
