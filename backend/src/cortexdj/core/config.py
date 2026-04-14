@@ -1,11 +1,10 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortexdj.core.paths import _BACKEND_ROOT, CHECKPOINTS_DIR, DEAP_DATA_DIR
-
-_DEFAULT_CONTRASTIVE_CHECKPOINT = str(CHECKPOINTS_DIR / "contrastive_best.pt")
 
 
 class ApiSettings(BaseSettings):
@@ -52,7 +51,10 @@ class Settings(
     EEG_MODEL_BACKEND: Literal["eegnet", "cbramod"] = "cbramod"
     DEAP_DATA_DIR: str = str(DEAP_DATA_DIR)
     CHECKPOINTS_DIR: str = str(CHECKPOINTS_DIR)
-    CONTRASTIVE_CHECKPOINT_PATH: str = _DEFAULT_CONTRASTIVE_CHECKPOINT
+    # `default_factory` resolves names against the module scope at call time
+    # instead of the class body, so the imported `CHECKPOINTS_DIR` Path is
+    # accessed directly and isn't shadowed by the stringified class attribute.
+    CONTRASTIVE_CHECKPOINT_PATH: str = Field(default_factory=lambda: str(CHECKPOINTS_DIR / "contrastive_best.pt"))
     TRACK_INDEX_POOL_SIZE: int = 2000
 
     def is_production(self) -> bool:

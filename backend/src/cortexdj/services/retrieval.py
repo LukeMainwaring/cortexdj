@@ -8,13 +8,14 @@ produce a 512-d query vector. The vector is then compared against the
 Note: sessions today correspond to full DEAP participants (all 40 trials, ~2400s
 of EEG). The runtime doesn't persist raw EEG — `EegSegment` rows only store
 derived features — so we re-read the `.dat` file via the session's
-`participant_id`. First-query latency is dominated by the CBraMod forward pass
-over ~600 windows; a disk-backed session-embedding cache is a natural follow-up
-if latency becomes a user-facing problem.
+`participant_id`. The file-level LRU cache below avoids re-parsing the ~100 MB
+pickle on every request.
 """
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,7 @@ from typing import Any
 
 import numpy as np
 import torch
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.core.config import get_settings
 from cortexdj.core.paths import DEAP_DATA_DIR
@@ -30,12 +32,22 @@ from cortexdj.ml.contrastive_dataset import trial_to_eeg_windows
 from cortexdj.ml.dataset import load_deap_participant
 from cortexdj.models.session import Session
 from cortexdj.models.track_audio_embedding import EMBEDDING_DIM, TrackAudioEmbedding
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+
+class DeapFileMissingError(RuntimeError):
+    """A session's underlying DEAP `.dat` file can't be located on disk.
+
+    Distinct from the encoder's missing-checkpoint case: this is a server
+    misconfiguration (the sessions table references a participant whose
+    data isn't available), not a transient / recoverable condition.
+    """
+
+
 _encoder: EegCLAPEncoder | None = None
 _encoder_device: torch.device | None = None
+_encoder_lock = asyncio.Lock()
 
 
 @dataclass(frozen=True)
@@ -55,17 +67,7 @@ def _get_inference_device() -> torch.device:
     return torch.device("cpu")
 
 
-def get_encoder() -> tuple[EegCLAPEncoder, torch.device]:
-    """Lazy-load the contrastive encoder on first use and cache it.
-
-    The encoder is process-local (not per-request) because loading CBraMod
-    + the projection head takes several seconds and allocates real memory.
-    Subsequent retrieval calls reuse the same eval-mode instance.
-    """
-    global _encoder, _encoder_device
-    if _encoder is not None and _encoder_device is not None:
-        return _encoder, _encoder_device
-
+def _load_encoder_sync() -> tuple[EegCLAPEncoder, torch.device]:
     checkpoint_path = Path(get_settings().CONTRASTIVE_CHECKPOINT_PATH)
     if not checkpoint_path.exists():
         msg = (
@@ -75,6 +77,10 @@ def get_encoder() -> tuple[EegCLAPEncoder, torch.device]:
         raise FileNotFoundError(msg)
 
     device = _get_inference_device()
+    # weights_only=False is required because our checkpoint is a dict containing
+    # non-tensor metadata (schema_version, config, git_commit, train/val/test
+    # subject lists). The checkpoint is a trusted local artifact so the
+    # deserialization risk is acceptable.
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     encoder = EegCLAPEncoder().to(device)
     encoder.load_state_dict(checkpoint["state_dict"])
@@ -86,9 +92,27 @@ def get_encoder() -> tuple[EegCLAPEncoder, torch.device]:
         checkpoint.get("git_commit", "unknown"),
         device,
     )
-    _encoder = encoder
-    _encoder_device = device
-    return _encoder, _encoder_device
+    return encoder, device
+
+
+async def get_encoder() -> tuple[EegCLAPEncoder, torch.device]:
+    # `torch.load` on a several-hundred-MB checkpoint releases the GIL and
+    # can take multiple seconds, so without an `asyncio.Lock` + `to_thread`
+    # two near-simultaneous first-hit requests would both race through the
+    # `if _encoder is not None` check, both block the event loop while
+    # loading, and both allocate model weights — wasting memory and stalling
+    # every other request for the duration of the load.
+    global _encoder, _encoder_device
+    if _encoder is not None and _encoder_device is not None:
+        return _encoder, _encoder_device
+
+    async with _encoder_lock:
+        if _encoder is not None and _encoder_device is not None:
+            return _encoder, _encoder_device
+        encoder, device = await asyncio.to_thread(_load_encoder_sync)
+        _encoder = encoder
+        _encoder_device = device
+        return _encoder, _encoder_device
 
 
 def _participant_dat_path(participant_id_str: str) -> Path:
@@ -101,36 +125,43 @@ def _participant_dat_path(participant_id_str: str) -> Path:
     return DEAP_DATA_DIR / f"s{n:02d}.dat"
 
 
+@functools.lru_cache(maxsize=4)
 def _load_session_windows(participant_id_str: str) -> np.ndarray:
-    """Return all 4s EEG windows (200Hz, 32ch) for the session as one array."""
+    """Return all 4s EEG windows (200Hz, 32ch) for the session as one array.
+
+    Cached per participant because the DEAP `.dat` pickle is ~100 MB and
+    re-parsing it on every request dominates retrieval latency. `maxsize=4`
+    caps worst-case cache memory at ~4 × the per-session window array
+    (~12 MB each), which is trivial compared to the model weights.
+    """
     path = _participant_dat_path(participant_id_str)
     if not path.exists():
         msg = f"DEAP file for participant {participant_id_str} not found at {path}"
-        raise FileNotFoundError(msg)
+        raise DeapFileMissingError(msg)
     data, _labels = load_deap_participant(path)  # (n_trials, 32, 7680) at 128Hz
     per_trial_windows = [trial_to_eeg_windows(data[trial_idx]) for trial_idx in range(data.shape[0])]
     return np.concatenate(per_trial_windows, axis=0) if per_trial_windows else np.zeros((0, 32, 800), dtype=np.float32)
 
 
 async def encode_session_to_clap_space(db: AsyncSession, session_id: str) -> np.ndarray:
-    """Produce a 512-d unit query vector for a session.
-
-    Loads the raw DEAP EEG for the session's participant, runs every 4s window
-    through the contrastive encoder, mean-pools, and L2-normalizes.
-    """
+    """Produce a 512-d unit query vector for a session."""
     session = await Session.get(db, session_id)
     if session is None:
         msg = f"session {session_id} not found"
         raise LookupError(msg)
 
-    encoder, device = get_encoder()
-    windows = _load_session_windows(session.participant_id)
+    encoder, device = await get_encoder()
+    # lru_cache is sync; offload to a thread so the pickle parse doesn't
+    # block the event loop. Subsequent cache hits return in microseconds.
+    windows = await asyncio.to_thread(_load_session_windows, session.participant_id)
     if windows.shape[0] == 0:
         msg = f"no EEG windows for session {session_id}"
         raise LookupError(msg)
 
     query = encode_session(encoder, windows, device)
-    assert query.shape == (EMBEDDING_DIM,), f"expected ({EMBEDDING_DIM},), got {query.shape}"
+    if query.shape != (EMBEDDING_DIM,):
+        msg = f"expected query shape ({EMBEDDING_DIM},), got {query.shape}"
+        raise ValueError(msg)
     return query
 
 

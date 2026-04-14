@@ -20,7 +20,6 @@ import argparse
 import asyncio
 import logging
 import sys
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -33,7 +32,7 @@ from cortexdj.dependencies.db import AsyncSessionMaker
 from cortexdj.ml.contrastive import ClapAudioEncoder, load_audio_waveform
 from cortexdj.ml.train import _get_device
 from cortexdj.models.track_audio_embedding import TrackAudioEmbedding
-from cortexdj.services.audio_catalog import append_miss, resolve_preview, title_similarity
+from cortexdj.services.audio_catalog import append_miss, resolve_preview
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +59,7 @@ GENRE_SEEDS = [
 ]
 
 
-async def _fetch_saved_track_candidates(
-    client: spotipy.Spotify, max_tracks: int
-) -> list[dict[str, Any]]:
+async def _fetch_saved_track_candidates(client: spotipy.Spotify, max_tracks: int) -> list[dict[str, Any]]:
     """Return up to `max_tracks` dicts with keys required for seeding.
 
     Uses spotipy's pagination via `current_user_saved_tracks` with offsets.
@@ -74,9 +71,7 @@ async def _fetch_saved_track_candidates(
     while len(candidates) < max_tracks:
         batch_limit = min(50, max_tracks - len(candidates))
         try:
-            page = await run_spotify(
-                client.current_user_saved_tracks, limit=batch_limit, offset=offset
-            )
+            page = await run_spotify(client.current_user_saved_tracks, limit=batch_limit, offset=offset)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Spotify saved_tracks page failed at offset=%d: %s", offset, exc)
             break
@@ -100,13 +95,15 @@ async def _fetch_saved_track_candidates(
     return candidates
 
 
-async def _fetch_genre_seed_candidates(
-    client: spotipy.Spotify, max_tracks: int
-) -> list[dict[str, Any]]:
+async def _fetch_genre_seed_candidates(client: spotipy.Spotify, max_tracks: int) -> list[dict[str, Any]]:
     from cortexdj.services.spotify import run_spotify
 
     candidates: list[dict[str, Any]] = []
-    per_seed = max(1, max_tracks // len(GENRE_SEEDS))
+    # Floor of 5 keeps small-limit smoke runs useful — at per_seed=1 each genre
+    # returns a single (possibly obscure) track, which makes a 20-track dev
+    # index nearly useless for retrieval verification. 12 seeds × 5 = 60
+    # candidates minimum, which the caller can dedupe and slice down.
+    per_seed = max(5, max_tracks // len(GENRE_SEEDS))
     for seed in GENRE_SEEDS:
         if len(candidates) >= max_tracks:
             break
@@ -141,20 +138,36 @@ def _dedupe_by_spotify_id(candidates: list[dict[str, Any]]) -> list[dict[str, An
     return unique
 
 
-async def _gather_candidates(
-    client: spotipy.Spotify, *, limit: int, skip_library: bool
-) -> list[dict[str, Any]]:
+async def _gather_candidates(client: spotipy.Spotify, *, limit: int, skip_library: bool) -> list[dict[str, Any]]:
+    """Fill `pool` toward `limit` with deduped candidates from library ∪ seeds.
+
+    Topup is incremental: we dedupe after each fetch and only stop once we
+    either reach `limit` OR exhaust both sources. This prevents the
+    library-saturates-then-dedupe-shrinks case where the final pool falls
+    short of `limit` even though seed candidates were available.
+    """
     pool: list[dict[str, Any]] = []
+
     if not skip_library:
         saved = await _fetch_saved_track_candidates(client, max_tracks=limit)
         pool.extend(saved)
-        logger.info("Fetched %d candidates from user library", len(saved))
-    remaining = max(0, limit - len(pool))
-    if remaining > 0:
-        seeds = await _fetch_genre_seed_candidates(client, max_tracks=remaining)
+        pool = _dedupe_by_spotify_id(pool)
+        logger.info("Fetched %d candidates from user library (after dedupe)", len(pool))
+
+    if len(pool) < limit:
+        # Overshoot the shortfall so that dedupe losses on the seed side
+        # don't leave us short. Worst case we slice the tail off below.
+        shortfall = limit - len(pool)
+        seeds = await _fetch_genre_seed_candidates(client, max_tracks=shortfall * 2)
         pool.extend(seeds)
-        logger.info("Fetched %d candidates from %d genre seeds", len(seeds), len(GENRE_SEEDS))
-    pool = _dedupe_by_spotify_id(pool)
+        pool = _dedupe_by_spotify_id(pool)
+        logger.info(
+            "Fetched %d raw seed candidates (pool now %d unique after dedupe, target %d)",
+            len(seeds),
+            len(pool),
+            limit,
+        )
+
     return pool[:limit]
 
 
@@ -178,7 +191,7 @@ async def _resolve_and_embed(
     return embeddings[0], hit.itunes_track_id, hit.preview_url
 
 
-async def main() -> int:
+async def _main_async() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--limit",
@@ -237,9 +250,7 @@ async def main() -> int:
             for i, cand in enumerate(candidates, start=1):
                 label = f"[{i:4d}/{len(candidates)}] {cand['artist'][:22]:<22} | {cand['title'][:35]:<35}"
                 try:
-                    result = await _resolve_and_embed(
-                        cand, http_client=http_client, clap_encoder=clap_encoder
-                    )
+                    result = await _resolve_and_embed(cand, http_client=http_client, clap_encoder=clap_encoder)
                 except Exception as exc:  # noqa: BLE001
                     print(f"  {label} | ERR {type(exc).__name__}: {exc}")
                     append_miss(
@@ -295,5 +306,10 @@ async def main() -> int:
     return 0
 
 
+def main() -> None:
+    """Sync entry point for the `seed-track-index` console script."""
+    sys.exit(asyncio.run(_main_async()))
+
+
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    main()

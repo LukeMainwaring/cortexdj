@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from cortexdj.dependencies.db import AsyncPostgresSessionDep
 from cortexdj.schemas.retrieval import SimilarTrackSchema, SimilarTracksResponse
 from cortexdj.services import retrieval as retrieval_service
+from cortexdj.services.retrieval import DeapFileMissingError
 
 retrieval_router = APIRouter(prefix="/sessions", tags=["retrieval"])
 
@@ -21,7 +22,11 @@ async def get_similar_tracks(
         hits = await retrieval_service.retrieve_similar_tracks(db, session_id, k=k)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except DeapFileMissingError as exc:
+        # Server misconfig (session references missing DEAP data) — not 503.
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     except FileNotFoundError as exc:
+        # Reserved for missing contrastive encoder checkpoint only.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return SimilarTracksResponse(
