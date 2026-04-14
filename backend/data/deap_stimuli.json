@@ -1,0 +1,402 @@
+[
+  {
+    "trial_id": 1,
+    "online_id": 2,
+    "artist": "Emilíana Torrini",
+    "title": "Jungle Drum",
+    "youtube_link": "http://www.youtube.com/watch?v=iZ9vkd7Rp-g",
+    "highlight_start": 81,
+    "vaq_estimate": 1,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 2,
+    "online_id": 7,
+    "artist": "Lustra",
+    "title": "Scotty Doesn't Know",
+    "youtube_link": "http://www.youtube.com/watch?v=51ncDQYxsm8",
+    "highlight_start": 141,
+    "vaq_estimate": 1,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 3,
+    "online_id": 15,
+    "artist": "Jackson 5",
+    "title": "Blame It On The Boogie",
+    "youtube_link": "http://www.youtube.com/watch?v=nb1u7wMKywM",
+    "highlight_start": 21,
+    "vaq_estimate": 1,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 4,
+    "online_id": 62,
+    "artist": "The B52'S",
+    "title": "Love Shack",
+    "youtube_link": "http://www.youtube.com/watch?v=leohcvmf8kM",
+    "highlight_start": 181,
+    "vaq_estimate": 1,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 5,
+    "online_id": 63,
+    "artist": "Blur",
+    "title": "Song 2",
+    "youtube_link": "http://www.youtube.com/watch?v=WlAHZURxRjY",
+    "highlight_start": 6,
+    "vaq_estimate": 1,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 6,
+    "online_id": 70,
+    "artist": "Blink 182",
+    "title": "First Date",
+    "youtube_link": "http://www.youtube.com/watch?v=vVy9Lgpg1m8",
+    "highlight_start": 51,
+    "vaq_estimate": 1,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 7,
+    "online_id": 72,
+    "artist": "Benny Benassi",
+    "title": "Satisfaction",
+    "youtube_link": "http://www.youtube.com/watch?v=eoRiVwFP02s",
+    "highlight_start": 26,
+    "vaq_estimate": 1,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 8,
+    "online_id": 84,
+    "artist": "Lily Allen",
+    "title": "Fuck You",
+    "youtube_link": "http://www.youtube.com/watch?v=S0zMHf7J15g",
+    "highlight_start": 6,
+    "vaq_estimate": 2,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 9,
+    "online_id": 88,
+    "artist": "Queen",
+    "title": "I Want To Break Free",
+    "youtube_link": "http://www.youtube.com/watch?v=EVYgRPfC9nQ",
+    "highlight_start": 6,
+    "vaq_estimate": 2,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 10,
+    "online_id": 118,
+    "artist": "Rage Against The Machine",
+    "title": "Bombtrack",
+    "youtube_link": "http://www.youtube.com/watch?v=Tu1wAP2Baco",
+    "highlight_start": 6,
+    "vaq_estimate": 4,
+    "vaq_online": 1
+  },
+  {
+    "trial_id": 11,
+    "online_id": 9,
+    "artist": "Michael Franti & Spearhead",
+    "title": "Say Hey (I Love You)",
+    "youtube_link": "http://www.youtube.com/watch?v=eoaTl7IcFs8",
+    "highlight_start": 151,
+    "vaq_estimate": 1,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 12,
+    "online_id": 17,
+    "artist": "Grand Archives",
+    "title": "Miniature Birds",
+    "youtube_link": "http://www.youtube.com/watch?v=_iEnN9ip1Qk",
+    "highlight_start": 151,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 13,
+    "online_id": 24,
+    "artist": "Bright Eyes",
+    "title": "First Day Of My Life",
+    "youtube_link": "http://www.youtube.com/watch?v=zwFS69nA-1w",
+    "highlight_start": 6,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 14,
+    "online_id": 27,
+    "artist": "Jason Mraz",
+    "title": "I'm Yours",
+    "youtube_link": "http://www.youtube.com/watch?v=EkHTsc9PU2A",
+    "highlight_start": 6,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 15,
+    "online_id": 29,
+    "artist": "Bishop Allen",
+    "title": "Butterfly Nets",
+    "youtube_link": "http://www.youtube.com/watch?v=B8eI64H1Cqk",
+    "highlight_start": 6,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 16,
+    "online_id": 37,
+    "artist": "The Submarines",
+    "title": "Darkest Things",
+    "youtube_link": "http://www.youtube.com/watch?v=ijLKoqN5_EY",
+    "highlight_start": 41,
+    "vaq_estimate": 3,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 17,
+    "online_id": 76,
+    "artist": "Air",
+    "title": "Moon Safari",
+    "youtube_link": "http://www.youtube.com/watch?v=kxWFyvTg6mc",
+    "highlight_start": 211,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 18,
+    "online_id": 80,
+    "artist": "Louis Armstrong",
+    "title": "What A Wonderful World",
+    "youtube_link": "http://www.youtube.com/watch?v=3orLNBS2ZbU",
+    "highlight_start": 86,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 19,
+    "online_id": 83,
+    "artist": "Manu Chao",
+    "title": "Me Gustas Tu",
+    "youtube_link": "http://www.youtube.com/watch?v=mzgjiPBCsss",
+    "highlight_start": 46,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 20,
+    "online_id": 85,
+    "artist": "Taylor Swift",
+    "title": "Love Story",
+    "youtube_link": "http://www.youtube.com/watch?v=8xg3vE8Ie_E",
+    "highlight_start": 151,
+    "vaq_estimate": 2,
+    "vaq_online": 2
+  },
+  {
+    "trial_id": 21,
+    "online_id": 108,
+    "artist": "Diamanda Galas",
+    "title": "Gloomy Sunday",
+    "youtube_link": "http://www.youtube.com/watch?v=KzWVWY5QUzg",
+    "highlight_start": 41,
+    "vaq_estimate": 4,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 22,
+    "online_id": 31,
+    "artist": "Porcupine Tree",
+    "title": "Normal",
+    "youtube_link": "http://www.youtube.com/watch?v=A-BSL5Av89w",
+    "highlight_start": 126,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 23,
+    "online_id": 33,
+    "artist": "Wilco",
+    "title": "How To Fight Loneliness",
+    "youtube_link": "http://www.youtube.com/watch?v=zLDPhPrr5Ig",
+    "highlight_start": 181,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 24,
+    "online_id": 41,
+    "artist": "James Blunt",
+    "title": "Goodbye My Lover",
+    "youtube_link": "http://www.youtube.com/watch?v=wVyggTKDcOE",
+    "highlight_start": 186,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 25,
+    "online_id": 44,
+    "artist": "A Fine Frenzy",
+    "title": "Goodbye My Almost Lover",
+    "youtube_link": "http://www.youtube.com/watch?v=EDEEzS7OV2k",
+    "highlight_start": 211,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 26,
+    "online_id": 45,
+    "artist": "Kings Of Convenience",
+    "title": "The Weight Of My Words",
+    "youtube_link": "http://www.youtube.com/watch?v=G-k19OCq7vE",
+    "highlight_start": 191,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 27,
+    "online_id": 95,
+    "artist": "Madonna",
+    "title": "Rain",
+    "youtube_link": "http://www.youtube.com/watch?v=15kWlTrpt5k",
+    "highlight_start": 31,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 28,
+    "online_id": 96,
+    "artist": "Sia",
+    "title": "Breathe Me",
+    "youtube_link": "http://www.youtube.com/watch?v=ghPcYqn0p4Y",
+    "highlight_start": 6,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 29,
+    "online_id": 97,
+    "artist": "Christina Aguilera",
+    "title": "Hurt",
+    "youtube_link": "http://www.youtube.com/watch?v=zHqZmtAD0lQ",
+    "highlight_start": 181,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 30,
+    "online_id": 98,
+    "artist": "Enya",
+    "title": "May It Be (Saving Private Ryan)",
+    "youtube_link": "http://www.youtube.com/watch?v=xxvw5vrJxos",
+    "highlight_start": 86,
+    "vaq_estimate": 3,
+    "vaq_online": 3
+  },
+  {
+    "trial_id": 31,
+    "online_id": 51,
+    "artist": "Mortemia",
+    "title": "The One I Once Was",
+    "youtube_link": "http://www.youtube.com/watch?v=O0yoxveh7Tg",
+    "highlight_start": 211,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 32,
+    "online_id": 53,
+    "artist": "Marilyn Manson",
+    "title": "The Beautiful People",
+    "youtube_link": "http://www.youtube.com/watch?v=Ypkv0HeUvTc",
+    "highlight_start": 6,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 33,
+    "online_id": 56,
+    "artist": "Dead To Fall",
+    "title": "Bastard Set Of Dreams",
+    "youtube_link": "http://www.youtube.com/watch?v=HdH8NYsDwWk",
+    "highlight_start": 126,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 34,
+    "online_id": 107,
+    "artist": "Dj Paul Elstak",
+    "title": "A Hardcore State Of Mind",
+    "youtube_link": "http://www.youtube.com/watch?v=6fxI1JsXv1A",
+    "highlight_start": 131,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 35,
+    "online_id": 111,
+    "artist": "Napalm Death",
+    "title": "Procrastination On The Empty Vessel",
+    "youtube_link": "http://www.youtube.com/watch?v=Y9eXzmVzDR8",
+    "highlight_start": 41,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 36,
+    "online_id": 112,
+    "artist": "Sepultura",
+    "title": "Refuse Resist",
+    "youtube_link": "http://www.youtube.com/watch?v=AJQ4sg3VCsk",
+    "highlight_start": 6,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 37,
+    "online_id": 113,
+    "artist": "Cradle Of Filth",
+    "title": "Scorched Earth Erotica",
+    "youtube_link": "http://www.youtube.com/watch?v=ScD62dww0Fw",
+    "highlight_start": 6,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 38,
+    "online_id": 115,
+    "artist": "Gorgoroth",
+    "title": "Carving A Giant",
+    "youtube_link": "http://www.youtube.com/watch?v=aFn26ntmSsg",
+    "highlight_start": 166,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 39,
+    "online_id": 116,
+    "artist": "Dark Funeral",
+    "title": "My Funeral",
+    "youtube_link": "http://www.youtube.com/watch?v=TEVodXzNmPM",
+    "highlight_start": 251,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  },
+  {
+    "trial_id": 40,
+    "online_id": 120,
+    "artist": "Arch Enemy",
+    "title": "My Apocalypse",
+    "youtube_link": "http://www.youtube.com/watch?v=mZM-d2qD15E",
+    "highlight_start": 201,
+    "vaq_estimate": 4,
+    "vaq_online": 4
+  }
+]
