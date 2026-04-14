@@ -23,6 +23,8 @@ import logging
 import sys
 from typing import Any
 
+import spotipy
+
 from cortexdj.core.paths import DATA_DIR
 from cortexdj.services.audio_catalog import append_miss, resolve_preview, title_similarity
 from cortexdj.services.spotify import get_spotify_client, run_spotify
@@ -36,16 +38,12 @@ RESOLVED_PATH = DATA_DIR / "deap_stimuli_resolved.json"
 MISS_LOG_PATH = DATA_DIR / "deap_stimuli_miss_log.jsonl"
 
 
-async def _spotify_lookup(client: Any, artist: str, title: str) -> dict[str, Any] | None:
-    """Resolve (artist, title) to a Spotify track.
-
-    Validates the returned track's title against the requested title — DEAP's
-    credits are not always exact (e.g. "Jackson 5" was "The Jacksons" when
-    "Blame It On The Boogie" was released), and Spotify's fuzzy match will
-    happily return *some* Jackson-related medley track at a completely wrong
-    duration. Without this check we'd ship that wrong duration to iTunes and
-    naturally nothing would match.
-    """
+async def _spotify_lookup(client: spotipy.Spotify, artist: str, title: str) -> dict[str, Any] | None:
+    # DEAP credits are not always exact (e.g. "Jackson 5" was "The Jacksons"
+    # when "Blame It On The Boogie" was released in 1978). Spotify's fuzzy
+    # match happily returns some Jackson-related medley at the wrong duration;
+    # without the title-similarity gate we'd ship that wrong duration into
+    # iTunes and naturally find nothing.
     queries = [f"artist:{artist} track:{title}", f"{artist} {title}"]
     for q in queries:
         result = await run_spotify(client.search, q=q, type="track", limit=5)

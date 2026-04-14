@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 
 import numpy as np
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, String, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,30 +40,30 @@ class TrackAudioEmbedding(Base):
         embedding: np.ndarray,
         itunes_track_id: str | None = None,
         itunes_preview_url: str | None = None,
-    ) -> TrackAudioEmbedding:
+    ) -> None:
         vec = embedding.astype(np.float32).tolist()
-        existing = await db.execute(select(cls).where(cls.spotify_id == spotify_id))
-        row = existing.scalar_one_or_none()
-        if row is None:
-            row = cls(
-                spotify_id=spotify_id,
-                title=title,
-                artist=artist,
-                source=source,
-                embedding=vec,
-                itunes_track_id=itunes_track_id,
-                itunes_preview_url=itunes_preview_url,
-            )
-            db.add(row)
-        else:
-            row.title = title
-            row.artist = artist
-            row.source = source
-            row.embedding = vec
-            row.itunes_track_id = itunes_track_id
-            row.itunes_preview_url = itunes_preview_url
-        await db.flush()
-        return row
+        values = {
+            "spotify_id": spotify_id,
+            "title": title,
+            "artist": artist,
+            "source": source,
+            "embedding": vec,
+            "itunes_track_id": itunes_track_id,
+            "itunes_preview_url": itunes_preview_url,
+        }
+        stmt = pg_insert(cls).values(**values)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[cls.spotify_id],
+            set_={
+                "title": stmt.excluded.title,
+                "artist": stmt.excluded.artist,
+                "source": stmt.excluded.source,
+                "embedding": stmt.excluded.embedding,
+                "itunes_track_id": stmt.excluded.itunes_track_id,
+                "itunes_preview_url": stmt.excluded.itunes_preview_url,
+            },
+        )
+        await db.execute(stmt)
 
     @classmethod
     async def get_top_k_similar(

@@ -18,6 +18,12 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # pgvector extension + track_audio_embeddings for EEG↔CLAP contrastive
+    # retrieval. HNSW index (not IVFFlat) because IVFFlat would be built on
+    # an empty table here and require a REINDEX after every incremental seed
+    # pass; HNSW builds on empty and updates the graph on insert, with better
+    # recall at our 2k–10k row scale. m=16, ef_construction=64 are pgvector
+    # defaults — no tuning needed until the table grows past ~100k rows.
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     op.create_table(

@@ -1,19 +1,9 @@
 """iTunes Search API wrapper for (artist, title) → 30s m4a preview resolution.
 
-Used as the audio source for the EEG↔CLAP contrastive retrieval feature.
-Spotify's preview_url field was deprecated for standard-mode apps on
-2024-11-27 (empirically verified 0/10 hit rate on this project's 2018 app),
-so we cross-reference to iTunes for the actual audio bytes while keeping
-Spotify as the source of truth for track identity.
-
-Match heuristic — single pass, precision-first, no retries:
-  1. Query iTunes by "{artist} {title}", take top 5 song results.
-  2. Hard filter: reject any result with |duration_delta_ms| > 3000ms.
-     This single rule caught every wrong match in the 25-track probe
-     without rejecting correct ones.
-  3. Among survivors, pick the one with highest normalized artist-name
-     similarity (Jaccard over tokens); tie-break on title similarity.
-  4. If no survivor, return None. Caller logs to miss_log.jsonl and skips.
+Spotify's `preview_url` field was deprecated for standard-mode apps on
+2024-11-27 — empirically verified 0/10 hits against this project's 2018
+Spotify app. iTunes Search API is the audio-bytes source; Spotify stays
+as the source of truth for track identity.
 """
 
 from __future__ import annotations
@@ -22,10 +12,12 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -35,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
 DURATION_DELTA_MS_HARD_LIMIT = 3000
-ITUNES_RATE_LIMIT_PER_MIN = 18  # headroom under the documented 20/min
+ITUNES_RATE_LIMIT_PER_MIN = 18  # headroom under iTunes's documented 20/min
+_CACHE_KEY_VERSION = "v1"  # bump to invalidate all cached entries after a normalization change
 
 
 @dataclass(frozen=True)
@@ -50,7 +43,8 @@ class AudioHit:
 
 _TOKEN_RE = re.compile(r"[^a-z0-9 ]")
 _VERSION_SUFFIX_RE = re.compile(
-    r"\s*-\s*(remaster(ed)?( \d{4})?|mono|stereo|deluxe|remix|live|version|radio edit|single version).*$",
+    r"\s*-\s*(\d{4}\s+remaster(ed)?|remaster(ed)?( \d{4})?|mono|stereo|deluxe|remix|live|"
+    r"acoustic|instrumental|version|radio edit|single version).*$",
     re.IGNORECASE,
 )
 _PAREN_RE = re.compile(r"\(.*?\)|\[.*?\]")
@@ -75,17 +69,27 @@ def _jaccard(a: str, b: str) -> float:
 
 
 def title_similarity(a: str, b: str) -> float:
-    """Public wrapper — callers outside this module use this to validate
-    that a search result title actually matches what they asked for."""
     return _jaccard(a, b)
 
 
 def _cache_key(artist: str, title: str) -> str:
-    return hashlib.sha1(f"{_normalize(artist)}|{_normalize(title)}".encode()).hexdigest()
+    payload = f"{_CACHE_KEY_VERSION}:{_normalize(artist)}|{_normalize(title)}"
+    return hashlib.sha1(payload.encode()).hexdigest()
+
+
+def _coerce_int(value: Any) -> int:
+    # iTunes rows occasionally ship `trackTimeMillis` as null. Treat absent
+    # as 0 so the duration filter rejects them, rather than raising TypeError.
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 class _RateLimiter:
-    """Simple sliding-window token bucket. Async-safe."""
+    """Sliding-window async token bucket."""
 
     def __init__(self, rate_per_min: int) -> None:
         self._rate = rate_per_min
@@ -124,6 +128,10 @@ async def resolve_preview(
     `duration_ms` must come from Spotify and is the anchor for the duration
     filter — without it we can't tell a correct match from a different
     edit/version of the same song.
+
+    Returns `None` only when iTunes reports zero usable results for the query.
+    Transient network errors and non-200 HTTP responses (429, 5xx) propagate
+    so the caller can retry or abort — silent None would poison the miss log.
     """
     cache_dir = cache_dir or AUDIO_CACHE_DIR
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -150,9 +158,7 @@ async def resolve_preview(
             ITUNES_SEARCH_URL,
             params={"term": f"{artist} {title}", "entity": "song", "limit": 5},
         )
-        if response.status_code != 200:
-            logger.warning("iTunes search HTTP %s for %r — %r", response.status_code, artist, title)
-            return None
+        response.raise_for_status()
 
         results = response.json().get("results", [])
         best = _pick_best(results, artist=artist, title=title, duration_ms=duration_ms)
@@ -164,10 +170,9 @@ async def resolve_preview(
             return None
 
         audio_resp = await client.get(preview_url)
-        if audio_resp.status_code != 200 or not audio_resp.content:
-            logger.warning("Failed to download iTunes preview %s (status=%s)", preview_url, audio_resp.status_code)
+        audio_resp.raise_for_status()
+        if not audio_resp.content:
             return None
-        cached_audio.write_bytes(audio_resp.content)
 
         hit = AudioHit(
             preview_url=preview_url,
@@ -175,20 +180,21 @@ async def resolve_preview(
             itunes_track_id=str(best.get("trackId")),
             matched_title=best.get("trackName", ""),
             matched_artist=best.get("artistName", ""),
-            duration_delta_ms=int(abs(best.get("trackTimeMillis", 0) - duration_ms)),
+            duration_delta_ms=abs(_coerce_int(best.get("trackTimeMillis")) - duration_ms),
         )
-        cached_meta.write_text(
-            json.dumps(
-                {
-                    "preview_url": hit.preview_url,
-                    "itunes_track_id": hit.itunes_track_id,
-                    "matched_title": hit.matched_title,
-                    "matched_artist": hit.matched_artist,
-                    "duration_delta_ms": hit.duration_delta_ms,
-                    "requested_artist": artist,
-                    "requested_title": title,
-                }
-            )
+        _write_cache_atomically(
+            cached_audio=cached_audio,
+            cached_meta=cached_meta,
+            audio_bytes=audio_resp.content,
+            meta={
+                "preview_url": hit.preview_url,
+                "itunes_track_id": hit.itunes_track_id,
+                "matched_title": hit.matched_title,
+                "matched_artist": hit.matched_artist,
+                "duration_delta_ms": hit.duration_delta_ms,
+                "requested_artist": artist,
+                "requested_title": title,
+            },
         )
         return hit
     finally:
@@ -196,27 +202,58 @@ async def resolve_preview(
             await client.aclose()
 
 
+def _write_cache_atomically(
+    *,
+    cached_audio: Path,
+    cached_meta: Path,
+    audio_bytes: bytes,
+    meta: dict[str, Any],
+) -> None:
+    """Write audio + sidecar so the pair is always consistent on disk.
+
+    A partial write (audio-only, meta missing) would look valid to a naive
+    `cached_audio.exists()` check, and the cache-hit branch specifically
+    requires both files to be present. We write to .tmp siblings then rename
+    so either both files exist or neither does.
+    """
+    audio_tmp = cached_audio.with_suffix(cached_audio.suffix + ".tmp")
+    meta_tmp = cached_meta.with_suffix(cached_meta.suffix + ".tmp")
+    try:
+        audio_tmp.write_bytes(audio_bytes)
+        meta_tmp.write_text(json.dumps(meta))
+        os.replace(meta_tmp, cached_meta)
+        os.replace(audio_tmp, cached_audio)
+    except Exception:
+        audio_tmp.unlink(missing_ok=True)
+        meta_tmp.unlink(missing_ok=True)
+        raise
+
+
 def _pick_best(
-    results: list[dict],
+    results: list[dict[str, Any]],
     *,
     artist: str,
     title: str,
     duration_ms: int,
-) -> dict | None:
-    survivors = [
-        r for r in results
-        if abs(int(r.get("trackTimeMillis", 0)) - duration_ms) <= DURATION_DELTA_MS_HARD_LIMIT
-    ]
+) -> dict[str, Any] | None:
+    survivors: list[tuple[float, float, int, dict[str, Any]]] = []
+    for r in results:
+        delta = abs(_coerce_int(r.get("trackTimeMillis")) - duration_ms)
+        if delta > DURATION_DELTA_MS_HARD_LIMIT:
+            continue
+        survivors.append(
+            (
+                _jaccard(r.get("artistName", ""), artist),
+                _jaccard(r.get("trackName", ""), title),
+                -delta,  # negated so ascending sort keeps it as "smaller delta wins"
+                r,
+            )
+        )
     if not survivors:
         return None
-    survivors.sort(
-        key=lambda r: (
-            _jaccard(r.get("artistName", ""), artist),
-            _jaccard(r.get("trackName", ""), title),
-        ),
-        reverse=True,
-    )
-    return survivors[0]
+    # (artist_sim desc, title_sim desc, neg_delta desc == delta asc)
+    survivors.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
+    return survivors[0][3]
 
 
 def append_miss(miss_log_path: Path, *, spotify_id: str, artist: str, title: str, reason: str) -> None:

@@ -61,6 +61,7 @@ async def main() -> int:
 
     hits: list[tuple[str, int]] = []
     misses: list[tuple[str, str]] = []
+    first_hit_path: Path | None = None
     for it in fetched:
         t = it["track"]
         artist = t["artists"][0]["name"]
@@ -95,6 +96,8 @@ async def main() -> int:
         else:
             print(f"  {label} | Δ={hit.duration_delta_ms:>4}ms  {hit.m4a_path.name[:12]}")
             hits.append((label, hit.duration_delta_ms))
+            if first_hit_path is None:
+                first_hit_path = hit.m4a_path
 
     print()
     print(f"Total              : {len(fetched)}")
@@ -108,24 +111,11 @@ async def main() -> int:
         exact = sum(1 for d in deltas if d <= 500)
         print(f"Δ ≤ 500ms         : {exact}/{len(hits)}")
 
-    if hits:
-        sample_label, _ = hits[0]
-        sample = next(
-            r
-            for r in fetched
-            if f"{r['track']['artists'][0]['name'][:22]:<22} | {r['track']['name'][:40]:<40}" == sample_label
-        )
-        t = sample["track"]
-        hit = await resolve_preview(
-            t["artists"][0]["name"],
-            t["name"],
-            duration_ms=t["duration_ms"],
-        )
-        if hit:
-            digest = hashlib.sha1(hit.m4a_path.read_bytes()).hexdigest()
-            size = hit.m4a_path.stat().st_size
-            print(f"\nSample cached m4a: {hit.m4a_path}")
-            print(f"  size={size} bytes, sha1={digest[:16]}...")
+    if first_hit_path is not None:
+        digest = hashlib.sha1(first_hit_path.read_bytes()).hexdigest()
+        size = first_hit_path.stat().st_size
+        print(f"\nSample cached m4a: {first_hit_path}")
+        print(f"  size={size} bytes, sha1={digest[:16]}...")
 
     print(f"\nMiss log: {args.miss_log}")
     return 0
