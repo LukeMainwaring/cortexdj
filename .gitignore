@@ -22,6 +22,7 @@ backend/data/deap/
 backend/data/audio_cache/
 backend/data/deap_stimuli_resolved.json
 backend/data/deap_stimuli_miss_log.jsonl
+backend/data/tensorboard_runs/
 backend/.cache/
 backend/.cache*
 *.h5
