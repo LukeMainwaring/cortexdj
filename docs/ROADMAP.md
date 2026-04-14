@@ -48,11 +48,12 @@
 ## Phase 5: Spotify Deep Integration
 
 - Real-time "Now Playing" correlation — classify brain state while user listens
-- Recommendation engine combining brain-state preferences with Spotify audio features
 - Library analysis — scan user's saved tracks and predict brain-state compatibility
 - Collaborative filtering — "users with similar brain patterns also liked..."
-- Audio feature correlation — correlate Spotify energy/danceability/acousticness with arousal/valence from `EegSegment` (SQL join on existing tables; feeds the recommendation engine)
+- Audio feature correlation — correlate Spotify energy/danceability/acousticness with arousal/valence from `EegSegment` (SQL join on existing tables; complements the shipped CLAP-based retrieval by surfacing different track features)
 - Genre brain mapping — aggregate brain states by Spotify genre
+
+> Shipped: **EEG↔CLAP contrastive retrieval** — brain-state-matched Spotify recommendations via a trained joint embedding between EEG windows and LAION-CLAP audio embeddings. See README for architecture; this originally sat in Phase 5 as "Recommendation engine combining brain-state preferences with Spotify audio features."
 
 ## Phase 6: Platform
 

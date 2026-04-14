@@ -64,6 +64,7 @@ target-version = "py313"
 select = ["I", "F401"]
 
 [project.scripts]
+fetch-deap-audio = "cortexdj.scripts.fetch_deap_audio:main"
 seed-sessions = "cortexdj.scripts.seed_sessions:main"
 seed-track-index = "cortexdj.scripts.build_track_index:main"
 train-model = "cortexdj.ml.train:main"

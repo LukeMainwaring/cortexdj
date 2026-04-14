@@ -84,6 +84,28 @@ The agent persists brain state context (dominant mood, arousal, valence) in the 
 - Refresh the page — the badge reappears because context is persisted in the thread's database column, not browser state
 - Follow-up requests automatically reference the active brain context without the user repeating it
 
+### Brain-State Track Retrieval (Contrastive)
+
+> "Find me new songs that match how I was feeling during session [ID]"
+
+Unlike `build_mood_playlist` (which curates from tracks already labeled in the EEG database), this uses a contrastive EEG↔CLAP encoder to embed the session's raw brain signal and search a pgvector index of pre-computed track audio embeddings. The agent returns Spotify tracks the user may have never heard — recommendations grounded in the joint EEG-audio embedding space, not a keyword filter on a quadrant label.
+
+**What to watch for:**
+
+- The agent picks `retrieve_tracks_from_brain_state`, *not* `find_relaxing_tracks` or `build_mood_playlist` — check the tool name in the collapsible indicator
+- A `<RetrievedTracksPanel>` renders beneath the tool call: rank number, title, artist, similarity bar (cosine score with an emerald tone ≥ 0.5, amber ≥ 0.25, grey below)
+- Click the play button on any row to hear a 30s iTunes preview inline — only one track plays at a time
+- Click the external-link button to open the track in Spotify
+- The agent narrates the ranking in plain language ("The top result has a 0.61 similarity to your session's neural fingerprint")
+
+**Variations:**
+
+- *"Suggest some music that sounds like my brain state in that last session"*
+- *"What tracks would match the vibe of session [ID]?"*
+- *"Find new songs for this session's mood"*
+
+**Prereqs:** The retrieval index must be populated (`uv run --directory backend seed-track-index`) and a contrastive checkpoint must exist (`uv run --directory backend train-contrastive` or via Modal). If the index is empty the tool returns a `note` with operator instructions, which the agent relays verbatim instead of hallucinating a recovery.
+
 ---
 
 ## End-to-End Workflows
@@ -178,6 +200,33 @@ A workflow combining Spotify library access with EEG-derived insights. Requires 
 - The agent explains the classification pipeline: EEG signal → preprocessing → model inference → arousal/valence binary classification → emotion quadrant mapping
 - References the specific model architecture (criss-cross transformer for CBraMod, spatial/temporal convolutions for EEGNet)
 
+### Session Deep Dive + New Music Discovery
+
+The full end-to-end retrieval demo: analyze a session and discover new matching music in a single chat thread, with both inline visualizations rendered side by side.
+
+**Step 1 — Analyze the session:**
+
+> "Analyze session [paste an ID from list_sessions]"
+
+- Agent calls `analyze_session` — `<SessionVisualization>` renders inline with the Trajectory tab (default, animated path through Russell's affect space) and Timeline tab, plus the stacked frequency-band-power chart below
+- The agent narrates the emotional arc using `trajectory_summary` fields (dwell fractions per quadrant, transition count, centroid, path length)
+
+**Step 2 — Retrieve matching tracks in the same turn:**
+
+> "Now find me new songs that sound like how I was feeling"
+
+- Agent picks `retrieve_tracks_from_brain_state` (not a quadrant-filter tool) — `<RetrievedTracksPanel>` renders beneath the new tool call with ranked tracks and similarity bars
+- Both panels from Steps 1 and 2 stay visible in the transcript — the trajectory chart shows what you *experienced*, the retrieval list shows what else the model thinks would match that experience
+
+**Step 3 — Act on the retrieval (optional):**
+
+> "Build a playlist from the top 5 of those"
+
+- Agent proposes a playlist name and the top-5 track list, waits for your confirmation, then calls `build_mood_playlist` with `user_confirmed=True`
+- If Spotify is connected, the playlist is created live; otherwise saved locally
+
+**What to watch for across the session:** The two inline visualizations side by side are the feature's best screenshot. Notice that retrieved tracks are typically ones the user has never heard in this database — that's the fundamental difference from `find_relaxing_tracks`, which filters the EEG-labeled history. If similarity scores are weak across the board (near zero), the contrastive checkpoint is likely underfit — run a full Modal training pass (`modal run backend/scripts/modal_train.py --command train-contrastive`) for a real checkpoint.
+
 ---
 
 ## Quick Demos
@@ -191,6 +240,8 @@ A workflow combining Spotify library access with EEG-derived insights. Requires 
 **Compare sessions:** *"Compare sessions [ID1] and [ID2]"* — side-by-side with arousal/valence deltas and dominant state changes.
 
 **Find mood tracks:** *"Find tracks that triggered excited brain states"* — EEG-derived recommendations by emotion quadrant.
+
+**Retrieve matching tracks (contrastive):** *"Find songs that match my brain state in session [ID]"* — contrastive EEG↔CLAP retrieval from the pgvector audio index; renders the similarity-bar track list inline with preview playback. Distinct from the quadrant-filter tools above: these may be tracks the user has never heard.
 
 **Build playlist:** *"Build me a stressed-out playlist"* — mood playlist from brain data with user confirmation gate.
 
@@ -265,5 +316,6 @@ These workflows will become available as upcoming roadmap features are implement
 - **Expand tool calls:** Click the collapsible tool call indicators to show input parameters and raw output JSON. This demonstrates the agent's reasoning pipeline.
 - **Brain context persistence:** Refresh the page mid-workflow to show that brain context survives page reloads — it's stored in the thread's database column, not browser state.
 - **Spotify connection:** Workflows using `get_listening_history`, `get_my_playlists`, `get_my_saved_tracks`, or `add_tracks_to_playlist` require Spotify to be connected in Settings. The tools are hidden from the agent when not connected.
+- **Contrastive retrieval prereqs:** `retrieve_tracks_from_brain_state` requires a populated `track_audio_embeddings` index (run `seed-track-index`) and a contrastive checkpoint (`train-contrastive` locally or via Modal). If either is missing, the tool returns a structured payload with operator-fix instructions that the agent relays verbatim — no silent hallucinations.
 - **User confirmation gates:** `build_mood_playlist` and `add_tracks_to_playlist` always ask for confirmation before executing. The agent will never create or modify playlists without explicit approval.
 - **Dark mode:** Toggle the theme to show the full dark mode experience — tool calls, badges, and chat all adapt.

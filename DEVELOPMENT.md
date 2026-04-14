@@ -101,7 +101,7 @@ uv run --directory backend compare-models
 
 # Prereqs: hand-curated deap_stimuli.json is committed; run fetch-deap-audio
 # once to resolve each DEAP stimulus to a cached iTunes m4a preview.
-uv run --directory backend python -m cortexdj.scripts.fetch_deap_audio
+uv run --directory backend fetch-deap-audio
 
 # Full training: 30 epochs, 24/4/4 subject split, SequentialLR warmup+cosine,
 # SimCLR-style projection head, TensorBoard + embedding projector snapshot
@@ -188,6 +188,19 @@ uv run --directory backend seed-sessions --model eegnet           # use lightwei
 uv run --directory backend seed-track-index                       # default limit from TRACK_INDEX_POOL_SIZE
 uv run --directory backend seed-track-index --limit 500           # smaller pool for dev
 uv run --directory backend seed-track-index --skip-library        # genre seeds only (no user OAuth)
+```
+
+### Verification Scripts
+
+One-off scripts under `backend/scripts/` that aren't registered as console entry points but are useful for manually sanity-checking external integrations.
+
+```bash
+# Probe services/audio_catalog.resolve_preview against real Spotify saved tracks.
+# Fetches N saved tracks via user OAuth, runs each through the iTunes matcher,
+# and reports match rate + duration-delta distribution + downloaded sample sha.
+# Re-run this when tuning the match heuristic to see regression/improvement
+# against a live library.
+uv run --directory backend python backend/scripts/probe_audio_catalog.py --limit 50
 ```
 
 ## Common Commands
