@@ -132,6 +132,24 @@ def _split_subjects(
     return train, val, test
 
 
+def _assert_deap_files_present(subjects: list[int]) -> None:
+    # The split draws from the full 1..32 universe for determinism. If a
+    # chosen subject's .dat file is missing, fail fast with an actionable
+    # message instead of the generic "No DEAP .dat files found" that
+    # DeapClapPairDataset would raise several frames down.
+    from cortexdj.core.paths import DEAP_DATA_DIR
+
+    missing = [s for s in subjects if not (DEAP_DATA_DIR / f"s{s:02d}.dat").exists()]
+    if missing:
+        msg = (
+            f"Split selected subjects {sorted(set(subjects))}, but the following .dat files "
+            f"are missing from {DEAP_DATA_DIR}: {[f's{s:02d}.dat' for s in missing]}. "
+            "Either download the full DEAP dataset (see backend/data/DEAP_SETUP.md), "
+            "or vary --seed to pick a different split."
+        )
+        raise FileNotFoundError(msg)
+
+
 def _git_commit_hash() -> str:
     try:
         result = subprocess.run(
@@ -292,6 +310,8 @@ def train(config: ContrastiveConfig) -> Path:
     train_subj, val_subj, test_subj = _split_subjects(universe, quick=config.quick, seed=config.seed)
     logger.info(f"Split: train={train_subj} val={val_subj} test={test_subj}")
 
+    _assert_deap_files_present(train_subj + val_subj + test_subj)
+
     # Separate dataset instances (not Subset views) so future augmentation
     # can be gated on `augment=True` without leaking into val/test.
     train_ds = DeapClapPairDataset(
@@ -330,7 +350,10 @@ def train(config: ContrastiveConfig) -> Path:
         [
             {"params": model.backbone_parameters(), "lr": config.backbone_lr},
             {"params": model.projection_parameters(), "lr": config.projection_lr},
-            {"params": [temperature], "lr": config.projection_lr},
+            # Learnable temperature is a single scalar; L2 decay toward 0
+            # would push it to large softmax temperatures and collapse the
+            # contrastive signal. Override the optimizer-level weight_decay.
+            {"params": [temperature], "lr": config.projection_lr, "weight_decay": 0.0},
         ],
         weight_decay=config.weight_decay,
     )
@@ -341,6 +364,12 @@ def train(config: ContrastiveConfig) -> Path:
         end_factor=1.0,
         total_iters=max(1, config.warmup_epochs),
     )
+    # NOTE: `eta_min` is a single scalar shared across all param groups, so both
+    # backbone (base 1e-4) and projection (base 3e-4) cosine down toward the same
+    # floor, eroding the 3× differential-LR ratio in the final epochs. Low impact
+    # in practice because EarlyStopping usually fires before the tail, but if you
+    # tune LRs and see them collapse to identical values late in training, this
+    # is why. Fix via a custom lambda scheduler per group if it matters.
     cosine_sched = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
         T_max=max(1, config.epochs - config.warmup_epochs),
