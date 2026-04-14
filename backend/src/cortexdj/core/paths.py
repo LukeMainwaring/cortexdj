@@ -9,6 +9,7 @@ DATA_DIR = _BACKEND_ROOT / "data"
 DEAP_DATA_DIR = DATA_DIR / "deap"
 CHECKPOINTS_DIR = DATA_DIR / "checkpoints"
 AUDIO_CACHE_DIR = DATA_DIR / "audio_cache"
+TENSORBOARD_RUNS_DIR = DATA_DIR / "tensorboard_runs"
 # Fold-level resume state for long LOSO runs. Lives under the DEAP data dir
 # so it rides along on the `cortexdj-deap` Modal volume without needing a
 # second volume mount.

@@ -137,23 +137,29 @@ class DeapClapPairDataset(Dataset[tuple[torch.Tensor, torch.Tensor, int, int]]):
     def __init__(
         self,
         data_dir: str | Path | None = None,
-        participants: list[int] | None = None,
         *,
+        subject_filter: list[int] | None = None,
+        augment: bool = False,
         resolved_stimuli: list[dict[str, Any]] | None = None,
         audio_embeddings: dict[int, npt.NDArray[np.float32]] | None = None,
     ) -> None:
         self.data_dir = Path(data_dir) if data_dir else DEAP_DATA_DIR
         self.source_segment_samples = SEGMENT_SAMPLES  # 512 at 128Hz
         self.target_segment_samples = CBRAMOD_SEGMENT_SAMPLES  # 800 at 200Hz
+        # `augment` is wired but currently unused — reserved for future
+        # EEG-native augmentation (channel dropout, Gaussian noise). Train
+        # and val datasets must be separate instances with different flags
+        # so augmentation state cannot leak across splits.
+        self.augment = augment
 
         self.resolved_stimuli = resolved_stimuli or load_resolved_stimuli()
         self.audio_embeddings = audio_embeddings or build_audio_embedding_cache(self.resolved_stimuli)
         self.allowed_trial_ids = set(self.audio_embeddings.keys())
 
-        if participants is None:
+        if subject_filter is None:
             files = sorted(self.data_dir.glob("*.dat"))
         else:
-            files = [self.data_dir / f"s{p:02d}.dat" for p in participants]
+            files = [self.data_dir / f"s{p:02d}.dat" for p in subject_filter]
             files = [f for f in files if f.exists()]
 
         if not files:
@@ -167,7 +173,7 @@ class DeapClapPairDataset(Dataset[tuple[torch.Tensor, torch.Tensor, int, int]]):
         logger.info(
             f"DeapClapPairDataset: {len(self.samples)} EEG windows, "
             f"{len(self.allowed_trial_ids)} unique tracks, "
-            f"{len(files)} subjects"
+            f"{len(files)} subjects, augment={self.augment}"
         )
 
     def _load_participant(self, file_path: Path) -> None:
@@ -202,7 +208,3 @@ class DeapClapPairDataset(Dataset[tuple[torch.Tensor, torch.Tensor, int, int]]):
 
     def subject_ids(self) -> list[int]:
         return sorted({s[2] for s in self.samples})
-
-    def indices_for_subjects(self, subjects: list[int]) -> list[int]:
-        allowed = set(subjects)
-        return [i for i, s in enumerate(self.samples) if s[2] in allowed]

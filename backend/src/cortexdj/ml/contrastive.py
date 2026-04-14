@@ -66,14 +66,23 @@ def _load_cbramod_backbone() -> tuple[nn.Module, int]:
 
 
 class EegCLAPEncoder(nn.Module):
-    """CBraMod backbone + MLP projection → 512-d L2-normalized embedding."""
+    """CBraMod backbone + SimCLR-style MLP projection → 512-d L2-normalized embedding.
 
-    def __init__(self, *, projection_dim: int = EMBEDDING_DIM) -> None:
+    Projection head follows the canonical SimCLR / SupCon recipe:
+    Linear → BatchNorm → nonlinearity → Dropout → Linear. BatchNorm between the
+    two linears is empirically helpful for contrastive learning even when the
+    backbone uses no BN. Dropout regularizes the projection without touching
+    the backbone.
+    """
+
+    def __init__(self, *, projection_dim: int = EMBEDDING_DIM, dropout: float = 0.3) -> None:
         super().__init__()
         self.backbone, backbone_embed_dim = _load_cbramod_backbone()
         self.projection = nn.Sequential(
             nn.Linear(backbone_embed_dim, projection_dim),
+            nn.BatchNorm1d(projection_dim),
             nn.GELU(),
+            nn.Dropout(dropout),
             nn.Linear(projection_dim, projection_dim),
         )
 

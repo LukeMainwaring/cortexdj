@@ -149,18 +149,32 @@ class TestRetrievalMetrics:
 
 class TestEegCLAPEncoder:
     def test_forward_shape_and_normalization(self, fake_encoder: Any) -> None:
+        # BatchNorm1d in the projection head requires batch size >= 2 in
+        # train mode — 4 is fine.
         x = torch.randn(4, 32, 800)
         out = fake_encoder(x)
         assert out.shape == (4, EMBEDDING_DIM)
         norms = out.norm(dim=-1)
         assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5)
 
+    def test_eval_mode_is_deterministic(self, fake_encoder: Any) -> None:
+        # In eval mode BN uses running stats (fixed after any forward pass),
+        # so two forwards on the same input should produce identical output.
+        # In train mode they would differ because BN updates its running
+        # stats and Dropout samples a new mask per call.
+        fake_encoder.eval()
+        x = torch.randn(4, 32, 800)
+        out_a = fake_encoder(x)
+        out_b = fake_encoder(x)
+        assert torch.allclose(out_a, out_b, atol=1e-6)
+
     def test_backbone_and_projection_parameter_groups_disjoint(self, fake_encoder: Any) -> None:
         backbone_ids = {id(p) for p in fake_encoder.backbone_parameters()}
         projection_ids = {id(p) for p in fake_encoder.projection_parameters()}
         assert backbone_ids.isdisjoint(projection_ids)
         assert len(backbone_ids) > 0
-        assert len(projection_ids) > 0
+        # BN adds 2 extra Parameters (weight + bias) to the projection group.
+        assert len(projection_ids) >= 6  # 2 Linears × (weight+bias) + BN × (weight+bias)
 
 
 class TestSubjectSplit:
