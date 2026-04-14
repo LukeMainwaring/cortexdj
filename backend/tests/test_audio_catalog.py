@@ -89,9 +89,7 @@ class TestPickBest:
             _mk("The Beautiful People", "Vitamin String Quartet", 218_500),
             _mk("The Beautiful People", "Marilyn Manson", 218_800),
         ]
-        picked = _pick_best(
-            results, artist="Marilyn Manson", title="The Beautiful People", duration_ms=218_826
-        )
+        picked = _pick_best(results, artist="Marilyn Manson", title="The Beautiful People", duration_ms=218_826)
         assert picked is not None and picked["artistName"] == "Marilyn Manson"
 
     def test_duration_is_final_tiebreaker(self) -> None:
