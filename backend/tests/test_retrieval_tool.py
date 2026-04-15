@@ -7,8 +7,6 @@ run `seed-track-index`), and exception propagation per the project's
 pydantic-ai convention (let hooks handle tool errors, don't swallow them).
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -33,6 +31,7 @@ class TestRetrieveTracksFromBrainState:
                 title="Song A",
                 artist="Artist A",
                 itunes_preview_url="https://example.com/a.m4a",
+                audio_cache_key="a" * 40,
                 similarity=0.87,
             ),
             TrackHit(
@@ -40,6 +39,7 @@ class TestRetrieveTracksFromBrainState:
                 title="Song B",
                 artist="Artist B",
                 itunes_preview_url=None,
+                audio_cache_key=None,
                 similarity=0.42,
             ),
         ]

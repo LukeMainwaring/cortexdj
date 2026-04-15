@@ -11,8 +11,6 @@ This is a step-2 checkpoint artifact. Run with:
   uv run --directory backend python backend/scripts/probe_audio_catalog.py --limit 50
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import hashlib

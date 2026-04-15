@@ -4,8 +4,8 @@ import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOption
 import type { AxiosError } from 'axios';
 
 import { client } from '../client.gen';
-import { connectSpotify, dbHealthCheck, deleteThread, disconnectSpotify, getSession, getSessionSegments, getSimilarTracks, getSpotifyStatus, getThreadMessages, listSessions, listThreads, type Options, renameThread, spotifyCallback, streamChat } from '../sdk.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponse, DbHealthCheckData, DbHealthCheckResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSimilarTracksData, GetSimilarTracksError, GetSimilarTracksResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError, StreamChatData } from '../types.gen';
+import { connectSpotify, dbHealthCheck, deleteThread, disconnectSpotify, getAudioPreview, getSession, getSessionSegments, getSimilarTracks, getSpotifyStatus, getThreadMessages, listSessions, listThreads, type Options, renameThread, spotifyCallback, streamChat } from '../sdk.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponse, DbHealthCheckData, DbHealthCheckResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetAudioPreviewData, GetAudioPreviewError, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSimilarTracksData, GetSimilarTracksError, GetSimilarTracksResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError, StreamChatData } from '../types.gen';
 
 /**
  * Stream Chat
@@ -61,6 +61,30 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
     }
     return [params];
 };
+
+export const getAudioPreviewQueryKey = (options: Options<GetAudioPreviewData>) => createQueryKey('getAudioPreview', options);
+
+/**
+ * Get Audio Preview
+ *
+ * Serve a cached iTunes m4a preview by its content-addressed cache key.
+ *
+ * Same-origin delivery exists so the frontend waveform component can
+ * `fetch` + `decodeAudioData` the bytes — Apple's preview CDN does not
+ * reliably set CORS headers for cross-origin Web Audio decoding.
+ */
+export const getAudioPreviewOptions = (options: Options<GetAudioPreviewData>) => queryOptions<unknown, AxiosError<GetAudioPreviewError>, unknown, ReturnType<typeof getAudioPreviewQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getAudioPreview({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getAudioPreviewQueryKey(options)
+});
 
 export const dbHealthCheckQueryKey = (options?: Options<DbHealthCheckData>) => createQueryKey('dbHealthCheck', options);
 

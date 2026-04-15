@@ -15,8 +15,6 @@ Run:
   uv run --directory backend python -m cortexdj.scripts.fetch_deap_audio
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 import logging

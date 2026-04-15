@@ -12,8 +12,6 @@ the agent — the filter functions themselves are exercised by the real
 model-routing harness, but the wiring they depend on is validated here.
 """
 
-from __future__ import annotations
-
 import asyncio
 
 import spotipy

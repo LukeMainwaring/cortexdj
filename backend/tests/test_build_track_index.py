@@ -6,8 +6,6 @@ section as buggy at first revision — these tests pin the corrected
 behavior so a future "optimization" can't silently regress it.
 """
 
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch

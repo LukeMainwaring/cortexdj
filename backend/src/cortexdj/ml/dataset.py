@@ -9,8 +9,6 @@ DEAP preprocessed format: .dat pickle files per participant with:
   First 3 seconds (384 samples) are baseline; remaining 60s (7680 samples) are stimulus.
 """
 
-from __future__ import annotations
-
 import hashlib
 import logging
 import pickle

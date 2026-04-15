@@ -25,6 +25,47 @@
         }
       }
     },
+    "/api/audio/preview/{cache_key}": {
+      "get": {
+        "tags": [
+          "audio"
+        ],
+        "summary": "Get Audio Preview",
+        "description": "Serve a cached iTunes m4a preview by its content-addressed cache key.\n\nSame-origin delivery exists so the frontend waveform component can\n`fetch` + `decodeAudioData` the bytes — Apple's preview CDN does not\nreliably set CORS headers for cross-origin Web Audio decoding.",
+        "operationId": "getAudioPreview",
+        "parameters": [
+          {
+            "name": "cache_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cache Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health/db": {
       "get": {
         "tags": [
@@ -832,6 +873,17 @@
               }
             ],
             "title": "Itunes Preview Url"
+          },
+          "audio_cache_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Cache Key"
           },
           "similarity": {
             "type": "number",

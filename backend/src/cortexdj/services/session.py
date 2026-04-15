@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Any, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -10,8 +10,6 @@ Outputs:
     - valence_logits: (batch, 2) binary classification
 """
 
-from __future__ import annotations
-
 import logging
 
 import torch

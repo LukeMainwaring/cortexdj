@@ -13,8 +13,6 @@ as negatives-of-each-other; we use a soft-target formulation keyed on the
 trial id instead, which reduces to vanilla InfoNCE when trial_ids are unique.
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 from typing import Any

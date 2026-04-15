@@ -1,10 +1,26 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import type { SimilarTrackSchema } from "@/api/generated/types.gen";
 import { useSimilarTracks } from "@/api/hooks/sessions";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { WaveformViz } from "@/components/waveform-viz";
+import { BACKEND_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+
+// Backend serves the cached m4a under its own CORS policy so wavesurfer can
+// fetch + decodeAudioData; Apple's preview CDN does not reliably set CORS
+// headers for cross-origin Web Audio decoding.
+
+function previewUrl(cacheKey: string): string {
+  return `${BACKEND_URL}/api/audio/preview/${cacheKey}`;
+}
 
 type Props = {
   sessionId: string;
@@ -31,7 +47,7 @@ function similarityTone(similarity: number): string {
   return "bg-muted-foreground/40";
 }
 
-const PlayIcon = ({ size = 14 }: { size?: number }) => (
+const PlayIcon = ({ size = 11 }: { size?: number }) => (
   <svg
     aria-hidden="true"
     fill="currentColor"
@@ -44,7 +60,7 @@ const PlayIcon = ({ size = 14 }: { size?: number }) => (
   </svg>
 );
 
-const PauseIcon = ({ size = 14 }: { size?: number }) => (
+const PauseIcon = ({ size = 11 }: { size?: number }) => (
   <svg
     aria-hidden="true"
     fill="currentColor"
@@ -108,29 +124,45 @@ function TrackRow({
   track,
   rank,
   isPlaying,
-  onTogglePlay,
+  onPlay,
+  onPause,
 }: {
   track: SimilarTrackSchema;
   rank: number;
   isPlaying: boolean;
-  onTogglePlay: () => void;
+  onPlay: () => void;
+  onPause: () => void;
 }) {
   const spotifyUrl = `https://open.spotify.com/track/${track.spotify_id}`;
-  const hasPreview = Boolean(track.itunes_preview_url);
+  const hasPreview = Boolean(track.audio_cache_key);
+  const audioUrl = track.audio_cache_key
+    ? previewUrl(track.audio_cache_key)
+    : null;
+
+  const handleToggle = useCallback(() => {
+    if (!hasPreview) {
+      return;
+    }
+    if (isPlaying) {
+      onPause();
+    } else {
+      onPlay();
+    }
+  }, [hasPreview, isPlaying, onPlay, onPause]);
 
   return (
-    <div className="flex items-center gap-3 rounded-md border bg-background/60 px-3 py-2">
-      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-muted-foreground text-xs">
-        {rank}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-medium text-sm">{track.title}</div>
-        <div className="truncate text-muted-foreground text-xs">
-          {track.artist}
-        </div>
-      </div>
-      <SimilarityBar similarity={track.similarity} />
-      <div className="flex shrink-0 items-center gap-1">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-2 rounded-lg border p-3 transition-colors",
+        isPlaying
+          ? "border-primary/50 bg-primary/5"
+          : "border-border bg-background/60",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="flex size-5 shrink-0 items-center justify-center font-medium text-muted-foreground text-xs">
+          {rank}
+        </span>
         <Button
           aria-label={
             hasPreview
@@ -139,25 +171,47 @@ function TrackRow({
                 : `Play preview of ${track.title}`
               : `No preview available for ${track.title}`
           }
-          className="size-7 rounded-full p-0"
+          className="size-7 shrink-0 rounded-full"
           disabled={!hasPreview}
-          onClick={onTogglePlay}
+          onClick={handleToggle}
           size="icon"
           type="button"
-          variant="ghost"
         >
           {isPlaying ? <PauseIcon /> : <PlayIcon />}
         </Button>
-        <a
-          aria-label={`Open ${track.title} on Spotify`}
-          className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-          href={spotifyUrl}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <ExternalLinkIcon />
-        </a>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium text-sm">{track.title}</div>
+          <div className="truncate text-muted-foreground text-xs">
+            {track.artist}
+          </div>
+        </div>
+        <SimilarityBar similarity={track.similarity} />
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                aria-label={`Open ${track.title} on Spotify`}
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                href={spotifyUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <ExternalLinkIcon />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>Open in Spotify</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
+      {audioUrl ? (
+        <WaveformViz
+          audioUrl={audioUrl}
+          height={36}
+          onPause={onPause}
+          onPlay={onPlay}
+          playing={isPlaying}
+        />
+      ) : null}
     </div>
   );
 }
@@ -165,39 +219,20 @@ function TrackRow({
 function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
   const { data, isLoading, isError, error } = useSimilarTracks(sessionId, k);
 
-  // Single shared audio element so only one preview plays at a time.
-  // Tracking the currently-playing spotify_id rather than an index keeps
-  // the state stable if the tracks array is reordered upstream.
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Track-level wavesurfer instances each own their own <audio>; the parent
+  // only coordinates which one is "playing" so a new selection pauses the
+  // others. State is keyed by spotify_id so reordering upstream is stable.
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(
     null,
   );
 
-  const handleTogglePlay = useCallback(
-    (track: SimilarTrackSchema) => {
-      if (!track.itunes_preview_url) {
-        return;
-      }
-      const audio = audioRef.current;
-      if (!audio) {
-        return;
-      }
+  const handlePlay = useCallback((spotifyId: string) => {
+    setCurrentlyPlayingId(spotifyId);
+  }, []);
 
-      if (currentlyPlayingId === track.spotify_id) {
-        audio.pause();
-        setCurrentlyPlayingId(null);
-        return;
-      }
-
-      audio.pause();
-      audio.src = track.itunes_preview_url;
-      audio
-        .play()
-        .then(() => setCurrentlyPlayingId(track.spotify_id))
-        .catch(() => setCurrentlyPlayingId(null));
-    },
-    [currentlyPlayingId],
-  );
+  const handlePause = useCallback((spotifyId: string) => {
+    setCurrentlyPlayingId((prev) => (prev === spotifyId ? null : prev));
+  }, []);
 
   const tracks = useMemo(() => data?.tracks ?? [], [data]);
   const hasRendered = tracks.length > 0;
@@ -257,18 +292,13 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
           <TrackRow
             isPlaying={currentlyPlayingId === track.spotify_id}
             key={track.spotify_id}
-            onTogglePlay={() => handleTogglePlay(track)}
+            onPause={() => handlePause(track.spotify_id)}
+            onPlay={() => handlePlay(track.spotify_id)}
             rank={idx + 1}
             track={track}
           />
         ))}
       </div>
-      {/* biome-ignore lint/a11y/useMediaCaption: 30s iTunes previews have no caption track */}
-      <audio
-        onEnded={() => setCurrentlyPlayingId(null)}
-        preload="none"
-        ref={audioRef}
-      />
     </div>
   );
 }

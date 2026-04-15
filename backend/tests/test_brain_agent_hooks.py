@@ -6,8 +6,6 @@ instances. End-to-end validation (fake failing tool → agent responds
 conversationally) lives in ``tests/evals/``.
 """
 
-from __future__ import annotations
-
 import asyncio
 
 from pydantic_ai import ToolDefinition

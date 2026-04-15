@@ -7,8 +7,6 @@ visualization in the frontend and is included in the ``analyze_session`` tool
 output so the agent can narrate the emotional arc.
 """
 
-from __future__ import annotations
-
 import logging
 from collections.abc import Sequence
 from math import sqrt

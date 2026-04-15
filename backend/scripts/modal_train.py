@@ -36,8 +36,6 @@ on the DEAP volume so the restart picks up at the last completed fold instead
 of re-running from fold 0. Use ``--args="--no-resume"`` for a clean restart.
 """
 
-from __future__ import annotations
-
 import shlex
 import subprocess
 from pathlib import Path

@@ -16,8 +16,6 @@ audio embedding survive; the ~8 DEAP stimuli iTunes couldn't resolve are
 silently dropped (the training code tolerates a sparse stimulus set).
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import logging

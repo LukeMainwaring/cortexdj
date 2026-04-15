@@ -21,8 +21,6 @@ in the agent's message history, not that it was the only one — the
 agent is allowed to chain tools as long as the critical one fires.
 """
 
-from __future__ import annotations
-
 import asyncio
 from dataclasses import dataclass, field
 

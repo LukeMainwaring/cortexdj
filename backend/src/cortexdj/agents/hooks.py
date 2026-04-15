@@ -9,8 +9,6 @@ traceback, and returns a structured recovery payload so the agent can
 explain the failure to the user conversationally.
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 

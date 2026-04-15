@@ -8,6 +8,7 @@ class SimilarTrackSchema(BaseSchema):
     title: str
     artist: str
     itunes_preview_url: str | None = None
+    audio_cache_key: str | None = None
     similarity: float
 
 

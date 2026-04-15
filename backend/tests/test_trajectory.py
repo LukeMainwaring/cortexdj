@@ -1,7 +1,5 @@
 """Tests for the trajectory analytics service."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from math import isclose, sqrt
 

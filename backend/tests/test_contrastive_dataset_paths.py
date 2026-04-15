@@ -6,8 +6,6 @@ m4a. `_resolve_audio_path` is the compatibility shim that lets a Modal worker
 `AUDIO_CACHE_DIR / basename` when the recorded absolute path doesn't exist.
 """
 
-from __future__ import annotations
-
 import hashlib
 from pathlib import Path
 

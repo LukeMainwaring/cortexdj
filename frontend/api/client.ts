@@ -1,6 +1,7 @@
+import { BACKEND_URL } from "@/lib/constants";
 import { client } from "./generated/client.gen";
 
 client.setConfig({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8003",
+  baseURL: BACKEND_URL,
   withCredentials: true,
 });

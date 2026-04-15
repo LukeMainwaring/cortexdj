@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 # Emotion quadrants based on arousal-valence model (Russell, 1980)
 QUADRANT_DESCRIPTIONS: dict[str, str] = {
     "excited": "High energy, positive mood — engaged, enthusiastic",

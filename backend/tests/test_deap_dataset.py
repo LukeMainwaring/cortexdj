@@ -1,7 +1,5 @@
 """Tests for dataset loading, feature extraction, and cross-validation splits."""
 
-from __future__ import annotations
-
 import pickle
 from pathlib import Path
 
