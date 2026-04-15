@@ -280,12 +280,13 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
 
   return (
     <div className="my-2 flex flex-col gap-3 rounded-lg border bg-card p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="font-medium text-sm">Matching Tracks</div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
-          <span className="font-medium">Top:</span>
-          <span>{tracks.length}</span>
-        </span>
+      <div className="flex flex-col gap-1">
+        <div className="font-medium text-sm">
+          {`I found ${tracks.length} song${tracks.length === 1 ? "" : "s"} that best match the neural signature of that EEG session.`}
+        </div>
+        <div className="text-muted-foreground text-xs">
+          Top matches, ranked by similarity:
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         {tracks.map((track, idx) => (

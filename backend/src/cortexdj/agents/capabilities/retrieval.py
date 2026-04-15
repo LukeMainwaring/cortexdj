@@ -22,10 +22,24 @@ distinct from the quadrant-filter tools:
   curation from their own listening history filtered by a named quadrant
   (relaxed / calm / excited / stressed).
 
-When presenting results, always cite each track's `similarity` score so the
-user sees the ranking confidence. Similarity is cosine in [-1, 1] — values
-above ~0.3 indicate a meaningful match at the current training budget;
-values near 0 mean the index has no strong candidate for this session.
+When presenting results, the UI renders the returned tracks visually as a
+panel with ranks, titles, artists, similarity bars, play buttons, and
+Spotify links. **Do not restate the track list or per-track similarity
+values in your text reply** — that would duplicate what the user already
+sees. The panel header already announces the result count.
+
+Instead, write 1–2 short sentences characterizing the *overall* match
+strength and the emotional quality of the session as a set. Similarity is
+cosine in [-1, 1] — values above ~0.3 indicate a meaningful match at the
+current training budget; values near 0 mean the index has no strong
+candidate. Speak about the group ("the strongest candidates are above
+0.3", "this session leaned reflective rather than highly activated"), not
+about individual rows.
+
+Then offer 2–3 concrete follow-ups the user can pick from, such as:
+- explain what their brain was doing in that session,
+- build a playlist from these vibes,
+- search for more music in the same mood.
 
 If the tool returns an empty `tracks` list with a `note` field, relay the
 note verbatim — the retrieval index has not been populated yet and there is
