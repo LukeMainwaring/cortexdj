@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetAudioPreviewData, GetAudioPreviewErrors, GetAudioPreviewResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -29,6 +29,21 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export const streamChat = <ThrowOnError extends boolean = false>(options?: Options<StreamChatData, ThrowOnError>) => (options?.client ?? client).post<StreamChatResponses, unknown, ThrowOnError>({
     responseType: 'json',
     url: '/api/agent/chat',
+    ...options
+});
+
+/**
+ * Get Audio Preview
+ *
+ * Serve a cached iTunes m4a preview by its content-addressed cache key.
+ *
+ * Same-origin delivery exists so the frontend waveform component can
+ * `fetch` + `decodeAudioData` the bytes — Apple's preview CDN does not
+ * reliably set CORS headers for cross-origin Web Audio decoding.
+ */
+export const getAudioPreview = <ThrowOnError extends boolean = false>(options: Options<GetAudioPreviewData, ThrowOnError>) => (options.client ?? client).get<GetAudioPreviewResponses, GetAudioPreviewErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/audio/preview/{cache_key}',
     ...options
 });
 

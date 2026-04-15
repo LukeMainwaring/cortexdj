@@ -32,6 +32,7 @@ from cortexdj.ml.contrastive_dataset import trial_to_eeg_windows
 from cortexdj.ml.dataset import load_deap_participant
 from cortexdj.models.session import Session
 from cortexdj.models.track_audio_embedding import EMBEDDING_DIM, TrackAudioEmbedding
+from cortexdj.services.audio_catalog import cache_key as audio_cache_key_for
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ class TrackHit:
     title: str
     artist: str
     itunes_preview_url: str | None
+    audio_cache_key: str | None
     similarity: float  # cosine similarity in [-1, 1], higher is closer
 
 
@@ -200,6 +202,7 @@ async def retrieve_similar_tracks(db: AsyncSession, session_id: str, *, k: int =
                 title=row.title,
                 artist=row.artist,
                 itunes_preview_url=row.itunes_preview_url,
+                audio_cache_key=(audio_cache_key_for(row.artist, row.title) if row.itunes_preview_url else None),
                 similarity=similarity,
             )
         )
@@ -213,6 +216,7 @@ def serialize_hits(hits: list[TrackHit]) -> list[dict[str, Any]]:
             "title": h.title,
             "artist": h.artist,
             "itunes_preview_url": h.itunes_preview_url,
+            "audio_cache_key": h.audio_cache_key,
             "similarity": round(h.similarity, 4),
         }
         for h in hits

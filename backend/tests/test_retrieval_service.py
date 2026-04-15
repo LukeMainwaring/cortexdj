@@ -51,6 +51,7 @@ class TestSerializeHits:
             title="Song",
             artist="Artist",
             itunes_preview_url="https://example.com/a.m4a",
+            audio_cache_key="0" * 40,
             similarity=0.123456789,
         )
         serialized = serialize_hits([hit])
@@ -58,6 +59,7 @@ class TestSerializeHits:
         assert serialized[0]["spotify_id"] == "abc"
         assert serialized[0]["title"] == "Song"
         assert serialized[0]["itunes_preview_url"] == "https://example.com/a.m4a"
+        assert serialized[0]["audio_cache_key"] == "0" * 40
 
     def test_handles_null_preview_url(self) -> None:
         hit = TrackHit(
@@ -65,10 +67,12 @@ class TestSerializeHits:
             title="t",
             artist="a",
             itunes_preview_url=None,
+            audio_cache_key=None,
             similarity=0.5,
         )
         serialized = serialize_hits([hit])
         assert serialized[0]["itunes_preview_url"] is None
+        assert serialized[0]["audio_cache_key"] is None
 
 
 class TestRetrieveSimilarTracks:

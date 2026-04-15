@@ -37,6 +37,7 @@ async def get_similar_tracks(
                 title=h.title,
                 artist=h.artist,
                 itunes_preview_url=h.itunes_preview_url,
+                audio_cache_key=h.audio_cache_key,
                 similarity=h.similarity,
             )
             for h in hits

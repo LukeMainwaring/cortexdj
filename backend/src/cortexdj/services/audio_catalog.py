@@ -72,7 +72,7 @@ def title_similarity(a: str, b: str) -> float:
     return _jaccard(a, b)
 
 
-def _cache_key(artist: str, title: str) -> str:
+def cache_key(artist: str, title: str) -> str:
     payload = f"{_CACHE_KEY_VERSION}:{_normalize(artist)}|{_normalize(title)}"
     return hashlib.sha1(payload.encode()).hexdigest()
 
@@ -135,7 +135,7 @@ async def resolve_preview(
     """
     cache_dir = cache_dir or AUDIO_CACHE_DIR
     cache_dir.mkdir(parents=True, exist_ok=True)
-    key = _cache_key(artist, title)
+    key = cache_key(artist, title)
     cached_audio = cache_dir / f"{key}.m4a"
     cached_meta = cache_dir / f"{key}.json"
 

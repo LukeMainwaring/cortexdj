@@ -186,6 +186,10 @@ export type SimilarTrackSchema = {
      */
     itunes_preview_url?: string | null;
     /**
+     * Audio Cache Key
+     */
+    audio_cache_key?: string | null;
+    /**
      * Similarity
      */
     similarity: number;
@@ -426,6 +430,34 @@ export type StreamChatData = {
 };
 
 export type StreamChatResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GetAudioPreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Cache Key
+         */
+        cache_key: string;
+    };
+    query?: never;
+    url: '/api/audio/preview/{cache_key}';
+};
+
+export type GetAudioPreviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAudioPreviewError = GetAudioPreviewErrors[keyof GetAudioPreviewErrors];
+
+export type GetAudioPreviewResponses = {
     /**
      * Successful Response
      */
