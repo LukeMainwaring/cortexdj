@@ -39,9 +39,7 @@ async def list_sessions_enriched(
     `order=recent` (default) returns newest first; `order=stable` returns
     chronological-insertion order (Session 01 → Session NN).
     """
-    summaries, total = await session_service.list_sessions_enriched(
-        db, limit=limit, offset=offset, order=order
-    )
+    summaries, total = await session_service.list_sessions_enriched(db, limit=limit, offset=offset, order=order)
     return SessionSummaryListResponse(
         sessions=[SessionSummarySchema.model_validate(s) for s in summaries],
         total=total,
