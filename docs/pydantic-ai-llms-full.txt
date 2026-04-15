@@ -174,7 +174,7 @@ Unsupported
 
 `AudioUrl`, `DocumentUrl`
 
-`VideoUrl`
+`VideoUrl`. `DocumentUrl` [not supported with `AzureProvider`](/docs/ai/models/openai#using-azure-with-the-responses-api)
 
 [`OpenAIResponsesModel`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIResponsesModel)
 
@@ -240,7 +240,9 @@ S3 URLs (`s3://`)
 
 --
 
-A model API may be unable to download a file (e.g., because of crawling or access restrictions) even if it supports file URLs. For example, [`GoogleModel`](/docs/ai/api/models/google/#pydantic_ai.models.google.GoogleModel) on Vertex AI limits YouTube video URLs to one URL per request. In such cases, you can instruct Pydantic AI to download the file content locally and send that instead of the URL by setting `force_download` on the URL object:
+A model API may be unable to download a file (e.g., because of crawling or access restrictions) even if it supports file URLs. For example, [`GoogleModel`](/docs/ai/api/models/google/#pydantic_ai.models.google.GoogleModel) on Vertex AI limits YouTube video URLs to one URL per request.
+
+In such cases, you can instruct Pydantic AI to download the file content locally and send that instead of the URL by setting `force_download` on the URL object:
 
 force\_download.py
 
@@ -526,8 +528,8 @@ The retry functionality is built on top of the [tenacity](https://github.com/jd/
 
 To use the retry transports, you need to install `tenacity`, which you can do via the `retries` dependency group:
 
--   [pip](#tab-panel-0)
--   [uv](#tab-panel-1)
+-   [pip](#tab-panel-4)
+-   [uv](#tab-panel-5)
 
 Terminal
 
@@ -968,15 +970,15 @@ Notes
 
 Anthropic (Opus 4.6+)
 
-`anthropic_thinking=\{'type': 'adaptive'\}`
+`anthropic_thinking={'type': 'adaptive'}`
 
-`\{type: 'adaptive'\}` + `effort='high'`
+`{type: 'adaptive'}` + `effort='high'`
 
 All truthy values → adaptive; effort via output\_config
 
 Anthropic (older)
 
-`anthropic_thinking=\{'type': 'enabled', 'budget_tokens': 10000\}`
+`anthropic_thinking={'type': 'enabled', 'budget_tokens': 10000}`
 
 `budget_tokens=16384`
 
@@ -1143,7 +1145,7 @@ The [`anthropic_effort`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthr
 
 Note
 
-Older models (`claude-sonnet-4-5`, `claude-opus-4-5`, etc.) do not support adaptive thinking and require `\{'type': 'enabled', 'budget_tokens': N\}` as shown [above](#anthropic).
+Older models (`claude-sonnet-4-5`, `claude-opus-4-5`, etc.) do not support adaptive thinking and require `{'type': 'enabled', 'budget_tokens': N}` as shown [above](#anthropic).
 
 ## Google
 
@@ -1181,10 +1183,10 @@ agent = Agent(model, model_settings=settings)
 
 Although Bedrock Converse doesn't provide a unified API to enable thinking, you can still use [`BedrockModelSettings.bedrock_additional_model_requests_fields`](/docs/ai/api/models/bedrock/#pydantic_ai.models.bedrock.BedrockModelSettings.bedrock_additional_model_requests_fields) [model setting](/docs/ai/core-concepts/agent#model-run-settings) to pass provider-specific configuration:
 
--   [Claude](#tab-panel-2)
--   [OpenAI](#tab-panel-3)
--   [Qwen](#tab-panel-4)
--   [Deepseek](#tab-panel-5)
+-   [Claude](#tab-panel-0)
+-   [OpenAI](#tab-panel-1)
+-   [Qwen](#tab-panel-2)
+-   [Deepseek](#tab-panel-3)
 
 bedrock\_claude\_thinking\_part.py
 
@@ -2943,7 +2945,7 @@ Container configuration for multi-turn conversations.
 
 By default, if previous messages contain a container\_id (from a prior response), it will be reused automatically.
 
-Set to `False` to force a fresh container (ignore any `container_id` from history). Set to a dict (e.g. `\{'id': 'container_xxx'\}`) to explicitly specify a container.
+Set to `False` to force a fresh container (ignore any `container_id` from history). Set to a dict (e.g. `{'id': 'container_xxx'}`) to explicitly specify a container.
 
 **Type:** `BetaContainerParams` | [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\[[`False`](https://docs.python.org/3/library/constants.html#False)\]
 
@@ -2959,9 +2961,19 @@ When enabled, all tool definitions will have `eager_input_streaming` set to `Tru
 
 List of Anthropic beta features to enable for API requests.
 
-Each item can be a known beta name (e.g. 'interleaved-thinking-2025-05-14') or a custom string. Merged with auto-added betas (e.g. structured-outputs, builtin tools) and any betas from extra\_headers\['anthropic-beta'\]. See the Anthropic docs for available beta features.
+Each item can be a known beta name (e.g. 'interleaved-thinking-2025-05-14') or a custom string. Merged with auto-added betas (e.g. builtin tools) and any betas from extra\_headers\['anthropic-beta'\]. See the Anthropic docs for available beta features.
 
 **Type:** [`list`](https://docs.python.org/3/glossary.html#term-list)\[`AnthropicBetaParam`\]
+
+##### anthropic\_context\_management
+
+Context management configuration for automatic compaction.
+
+When configured, Anthropic will automatically compact older context when the input token count exceeds the configured threshold. The compaction produces a summary that replaces the compacted messages.
+
+See [the Anthropic docs](https://docs.anthropic.com/en/docs/build-with-claude/compaction) for more details.
+
+**Type:** `BetaContextManagementConfigParam`
 
 ### AnthropicModel
 
@@ -3033,6 +3045,52 @@ The set of builtin tool types this model can handle.
 ###### Returns
 
 [`frozenset`](https://docs.python.org/3/library/stdtypes.html#frozenset)\[[`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractBuiltinTool`\]\]
+
+### AnthropicCompaction
+
+**Bases:** `AbstractCapability[AgentDepsT]`
+
+Compaction capability for Anthropic models.
+
+Configures automatic context management via Anthropic's `context_management` API parameter. Compaction triggers server-side when input tokens exceed the configured threshold.
+
+Example usage::
+
+from pydantic\_ai import Agent from pydantic\_ai.models.anthropic import AnthropicCompaction
+
+agent = Agent( 'anthropic:claude-sonnet-4-6', capabilities=\[AnthropicCompaction(token\_threshold=100\_000)\], )
+
+#### Methods
+
+##### \_\_init\_\_
+
+```python
+def __init__(
+    token_threshold: int = 150000,
+    instructions: str | None = None,
+    pause_after_compaction: bool = False,
+) -> None
+```
+
+Initialize the Anthropic compaction capability.
+
+###### Returns
+
+[`None`](https://docs.python.org/3/library/constants.html#None)
+
+###### Parameters
+
+**`token_threshold`** : [`int`](https://docs.python.org/3/library/functions.html#int) _Default:_ `150000`
+
+Compact when input tokens exceed this threshold. Minimum 50,000.
+
+**`instructions`** : [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Custom instructions for the compaction summarization.
+
+**`pause_after_compaction`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `False`
+
+If `True`, the response will stop after the compaction block with `stop_reason='compaction'`, allowing explicit handling.
 
 ### AnthropicStreamedResponse
 
@@ -3113,6 +3171,24 @@ Resolved thinking/reasoning configuration for this request.
 `None` means the model should use its default behavior. Set by the base `Model.prepare_request()` from the unified `thinking` field in `ModelSettings`, after checking that the model's profile supports thinking.
 
 **Type:** `ThinkingLevel` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+
+#### Methods
+
+##### with\_default\_output\_mode
+
+```python
+def with_default_output_mode(
+    output_mode: StructuredOutputMode,
+) -> ModelRequestParameters
+```
+
+Set the default output mode if the current mode is 'auto', atomically updating allow\_text\_output.
+
+No-op if the current output\_mode is not 'auto'. This ensures the two fields stay in sync -- output\_mode='tool' implies allow\_text\_output=False, while 'native' and 'prompted' imply allow\_text\_output=True.
+
+###### Returns
+
+`ModelRequestParameters`
 
 ### Model
 
@@ -3279,6 +3355,25 @@ Make a request to the model for counting tokens.
 ###### Returns
 
 [`RequestUsage`](/docs/ai/api/pydantic-ai/usage/#pydantic_ai.usage.RequestUsage)
+
+##### compact\_messages
+
+`@async`
+
+```python
+def compact_messages(
+    request_context: ModelRequestContext,
+    instructions: str | None = None,
+) -> ModelResponse
+```
+
+Compact messages to reduce conversation context size.
+
+This method is optional and only supported by specific providers (e.g. OpenAI Responses API). Providers that support compaction override this method with their implementation.
+
+###### Returns
+
+[`ModelResponse`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelResponse)
 
 ##### request\_stream
 
@@ -5119,7 +5214,7 @@ The provider to use for authentication and API access. Can be either the string 
 
 The model profile to use. Defaults to a profile picked by the provider based on the model name.
 
-**`json_mode_schema_prompt`** : [`str`](https://docs.python.org/3/library/stdtypes.html#str) _Default:_ `'Answer in JSON Object, respect the format:\n```\n\{schema\}\n```\n'`
+**`json_mode_schema_prompt`** : [`str`](https://docs.python.org/3/library/stdtypes.html#str) _Default:_ `'Answer in JSON Object, respect the format:\n```\n{schema}\n```\n'`
 
 The prompt to show when the model expects a JSON object as input.
 
@@ -5584,6 +5679,35 @@ Return the set of builtin tool types this model can handle.
 
 [`frozenset`](https://docs.python.org/3/library/stdtypes.html#frozenset)\[[`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractBuiltinTool`\]\]
 
+##### compact\_messages
+
+`@async`
+
+```python
+def compact_messages(
+    request_context: ModelRequestContext,
+    instructions: str | None = None,
+) -> ModelResponse
+```
+
+Compact messages using the OpenAI Responses compaction endpoint.
+
+This calls OpenAI's `responses.compact` API to produce an encrypted compaction that summarizes the conversation history. The returned `ModelResponse` contains a single `CompactionPart` that must be round-tripped in subsequent requests.
+
+###### Returns
+
+[`ModelResponse`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelResponse) -- A `ModelResponse` with a single `CompactionPart` containing the encrypted compaction data.
+
+###### Parameters
+
+**`request_context`** : `ModelRequestContext`
+
+The model request context containing messages, settings, and parameters.
+
+**`instructions`** : [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Optional custom instructions for the compaction summarization. If provided, these override the agent-level instructions.
+
 ### OpenAIStreamedResponse
 
 **Bases:** `StreamedResponse`
@@ -5648,11 +5772,57 @@ Get the timestamp of the response.
 
 **Type:** [`datetime`](https://docs.python.org/3/library/datetime.html#module-datetime)
 
+### OpenAICompaction
+
+**Bases:** `AbstractCapability[AgentDepsT]`
+
+Compaction capability for OpenAI Responses API.
+
+Calls the `responses.compact` endpoint via a `before_model_request` hook when the trigger condition is met. The compacted history replaces the original messages, keeping conversation context within manageable limits.
+
+Example usage::
+
+from pydantic\_ai import Agent from pydantic\_ai.models.openai import OpenAICompaction
+
+agent = Agent( 'openai-responses:gpt-4o', capabilities=\[OpenAICompaction(message\_count\_threshold=10)\], )
+
+#### Methods
+
+##### \_\_init\_\_
+
+```python
+def __init__(
+    message_count_threshold: int | None = None,
+    trigger: Callable[[list[ModelMessage]], bool] | None = None,
+    instructions: str | None = None,
+) -> None
+```
+
+Initialize the OpenAI compaction capability.
+
+###### Returns
+
+[`None`](https://docs.python.org/3/library/constants.html#None)
+
+###### Parameters
+
+**`message_count_threshold`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Compact when the message count exceeds this threshold.
+
+**`trigger`** : [`Callable`](https://docs.python.org/3/library/typing.html#typing.Callable)\[\[[`list`](https://docs.python.org/3/glossary.html#term-list)\[[`ModelMessage`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelMessage)\]\], [`bool`](https://docs.python.org/3/library/functions.html#bool)\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Custom callable that decides whether to compact based on the current messages. Takes precedence over `message_count_threshold`.
+
+**`instructions`** : [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Custom instructions for the compaction summarization.
+
 ### DEPRECATED\_OPENAI\_MODELS
 
 Models that are deprecated or don't exist but are still present in the OpenAI SDK's type definitions.
 
-**Type:** [`frozenset`](https://docs.python.org/3/library/stdtypes.html#frozenset)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str)\] **Default:** `frozenset(\{'chatgpt-4o-latest', 'codex-mini-latest', 'gpt-4-0125-preview', 'gpt-4-1106-preview', 'gpt-4-turbo-preview', 'gpt-4-32k', 'gpt-4-32k-0314', 'gpt-4-32k-0613', 'gpt-4-vision-preview', 'gpt-4o-audio-preview-2024-10-01', 'gpt-5.1-mini', 'o1-mini', 'o1-mini-2024-09-12', 'o1-preview', 'o1-preview-2024-09-12'\})`
+**Type:** [`frozenset`](https://docs.python.org/3/library/stdtypes.html#frozenset)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str)\] **Default:** `frozenset({'chatgpt-4o-latest', 'codex-mini-latest', 'gpt-4-0125-preview', 'gpt-4-1106-preview', 'gpt-4-turbo-preview', 'gpt-4-32k', 'gpt-4-32k-0314', 'gpt-4-32k-0613', 'gpt-4-vision-preview', 'gpt-4o-audio-preview-2024-10-01', 'gpt-5.1-mini', 'o1-mini', 'o1-mini-2024-09-12', 'o1-preview', 'o1-preview-2024-09-12'})`
 
 ### OpenAIModelName
 
@@ -6646,7 +6816,7 @@ Get the timestamp of the response.
 
 Maps unified thinking values to xAI reasoning\_effort. xAI only supports 'low' and 'high'.
 
-**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[`ThinkingLevel`, [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['low', 'high'\]\] **Default:** `\{True: 'high', 'minimal': 'low', 'low': 'low', 'medium': 'high', 'high': 'high', 'xhigh': 'high'\}`
+**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[`ThinkingLevel`, [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['low', 'high'\]\] **Default:** `{True: 'high', 'minimal': 'low', 'low': 'low', 'medium': 'high', 'high': 'high', 'xhigh': 'high'}`
 
 ### XaiModelName
 
@@ -7128,6 +7298,12 @@ Optional handler for events from the model's streaming response and the agent's 
 
 **Type:** `EventStreamHandler`\[`AgentDepsT`\] | [`None`](https://docs.python.org/3/library/constants.html#None)
 
+##### root\_capability
+
+The root capability of the agent, containing all registered capabilities.
+
+**Type:** `CombinedCapability`\[`AgentDepsT`\]
+
 ##### toolsets
 
 All toolsets registered on the agent, including a function toolset holding tools that were registered on the agent directly.
@@ -7383,7 +7559,7 @@ The agent specification, either a dict or an `AgentSpec` instance.
 
 **`deps_type`** : [`type`](https://docs.python.org/3/glossary.html#term-type)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] _Default:_ `type(None)`
 
-The type of the dependencies for the agent. When provided, template strings in capabilities (e.g. `"Hello \{\{name\}\}"`) are compiled and validated against this type.
+The type of the dependencies for the agent. When provided, template strings in capabilities (e.g. `"Hello {{name}}"`) are compiled and validated against this type.
 
 **`custom_capability_types`** : [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)\[[`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractCapability`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\]\] _Default:_ `()`
 
@@ -8315,7 +8491,7 @@ Note that the `deps` and `model_settings` will be the same for each request. To 
 Additional models to make available in the UI. Can be:
 
 -   A sequence of model names/instances (e.g., `['openai:gpt-5', 'anthropic:claude-sonnet-4-6']`)
--   A dict mapping display labels to model names/instances (e.g., `\{'GPT 5': 'openai:gpt-5', 'Claude': 'anthropic:claude-sonnet-4-6'\}`) The agent's model is always included. Builtin tool support is automatically determined from each model's profile.
+-   A dict mapping display labels to model names/instances (e.g., `{'GPT 5': 'openai:gpt-5', 'Claude': 'anthropic:claude-sonnet-4-6'}`) The agent's model is always included. Builtin tool support is automatically determined from each model's profile.
 
 **`builtin_tools`** : [`list`](https://docs.python.org/3/glossary.html#term-list)\[`AbstractBuiltinTool`\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -11042,7 +11218,7 @@ Registry of all builtin tool types, keyed by their kind string.
 
 This dict is populated automatically via `__init_subclass__` when tool classes are defined.
 
-**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractBuiltinTool`\]\] **Default:** `\{\}`
+**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractBuiltinTool`\]\] **Default:** `{}`
 
 ### ImageAspectRatio
 
@@ -11054,7 +11230,7 @@ Supported aspect ratios for image generation tools.
 
 Set of deprecated builtin tool IDs that should not be offered in new UIs.
 
-**Type:** [`frozenset`](https://docs.python.org/3/library/stdtypes.html#frozenset)\[[`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractBuiltinTool`\]\] **Default:** `frozenset(\{UrlContextTool\})`
+**Type:** [`frozenset`](https://docs.python.org/3/library/stdtypes.html#frozenset)\[[`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractBuiltinTool`\]\] **Default:** `frozenset({UrlContextTool})`
 
 ### SUPPORTED\_BUILTIN\_TOOLS
 
@@ -11397,8 +11573,8 @@ Create from spec.
 
 Supports two YAML forms:
 
--   Flat: `\{BuiltinTool: \{kind: web_search, search_context_size: high\}\}`
--   Explicit: `\{BuiltinTool: \{tool: \{kind: web_search\}\}\}`
+-   Flat: `{BuiltinTool: {kind: web_search, search_context_size: high}}`
+-   Explicit: `{BuiltinTool: {tool: {kind: web_search}}}`
 
 ###### Returns
 
@@ -11559,6 +11735,54 @@ A capability that wraps another capability and delegates all methods.
 
 Analogous to [`WrapperToolset`](/docs/ai/api/pydantic-ai/toolsets/#pydantic_ai.toolsets.WrapperToolset) for toolsets. Subclass and override specific methods to modify behavior while delegating the rest.
 
+### HookTimeoutError
+
+**Bases:** [`TimeoutError`](https://docs.python.org/3/library/exceptions.html#TimeoutError)
+
+Raised when a hook function exceeds its configured timeout.
+
+### CapabilityOrdering
+
+Ordering constraints for a capability within a combined capability chain.
+
+Capabilities follow middleware semantics: the first capability in the list is the **outermost** layer, wrapping all others. Declare ordering constraints via [`get_ordering`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.get_ordering) to control a capability's position in the chain regardless of how the user lists them.
+
+When a [`CombinedCapability`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.CombinedCapability) is constructed, it topologically sorts its children to satisfy these constraints, preserving user-provided order as a tiebreaker.
+
+#### Attributes
+
+##### position
+
+Fixed position in the chain, or `None` for user-provided order.
+
+**Type:** `CapabilityPosition` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+
+##### wraps
+
+This capability wraps around (is outside of) these capabilities in the middleware chain.
+
+Each entry can be a capability **type** (matches all instances of that type via `issubclass`) or a specific capability **instance** (matches by identity via `is`).
+
+Note: instance refs use identity (`is`) matching, so if a capability's [`for_run`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.for_run) returns a new instance, refs to the original will no longer match. Use type refs when the target capability uses per-run state isolation.
+
+**Type:** [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)\[`CapabilityRef`\] **Default:** `()`
+
+##### wrapped\_by
+
+This capability is wrapped by (is inside of) these capabilities in the middleware chain.
+
+Each entry can be a capability **type** (matches all instances of that type via `issubclass`) or a specific capability **instance** (matches by identity via `is`).
+
+Note: instance refs use identity (`is`) matching, so if a capability's [`for_run`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.for_run) returns a new instance, refs to the original will no longer match. Use type refs when the target capability uses per-run state isolation.
+
+**Type:** [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)\[`CapabilityRef`\] **Default:** `()`
+
+##### requires
+
+These types must be present in the chain (no ordering implied).
+
+**Type:** [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)\[[`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractCapability`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\]\] **Default:** `()`
+
 ### AbstractCapability
 
 **Bases:** `ABC`, `Generic[AgentDepsT]`
@@ -11634,6 +11858,22 @@ Override when `__init__` takes non-serializable types.
 ###### Returns
 
 `AbstractCapability`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]
+
+##### get\_ordering
+
+```python
+def get_ordering() -> CapabilityOrdering | None
+```
+
+Return ordering constraints for this capability, or `None` for default behavior.
+
+Override to declare a fixed position (`'outermost'` / `'innermost'`), relative ordering (`wraps` / `wrapped_by` other capability types or instances), or dependency requirements (`requires`).
+
+[`CombinedCapability`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.CombinedCapability) uses these to topologically sort its children at construction time.
+
+###### Returns
+
+`CapabilityOrdering` | [`None`](https://docs.python.org/3/library/constants.html#None)
 
 ##### for\_run
 
@@ -11717,7 +11957,7 @@ Wrap the agent's assembled toolset, or return None to leave it unchanged.
 
 Called per-run with the combined non-output toolset (after agent-level [`prepare_tools`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.ToolsPrepareFunc) wrapping). Output tools are added separately and are not included.
 
-Unlike the other `get_*` methods which are called once at agent construction, this is called each run (after [`for_run`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.for_run)). When multiple capabilities provide wrappers, each receives the already-wrapped toolset from earlier capabilities (first capability wraps innermost).
+Unlike the other `get_*` methods which are called once at agent construction, this is called each run (after [`for_run`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.for_run)). When multiple capabilities provide wrappers, they follow middleware semantics: the first capability in the list wraps outermost (matching `wrap_*` hooks).
 
 Use this to apply cross-cutting toolset wrappers like [`PreparedToolset`](/docs/ai/api/pydantic-ai/toolsets/#pydantic_ai.toolsets.PreparedToolset), [`FilteredToolset`](/docs/ai/api/pydantic-ai/toolsets/#pydantic_ai.toolsets.FilteredToolset), or custom [`WrapperToolset`](/docs/ai/api/pydantic-ai/toolsets/#pydantic_ai.toolsets.WrapperToolset) subclasses.
 
@@ -12197,12 +12437,6 @@ Only this capability's tools are prefixed; other agent tools are unaffected.
 
 `PrefixTools`\[`AgentDepsT`\]
 
-### HookTimeoutError
-
-**Bases:** [`TimeoutError`](https://docs.python.org/3/library/exceptions.html#TimeoutError)
-
-Raised when a hook function exceeds its configured timeout.
-
 ### Hooks
 
 **Bases:** `AbstractCapability[AgentDepsT]`
@@ -12243,17 +12477,17 @@ Type alias for the result of executing an agent graph node: either the next node
 
 **Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `'_agent_graph.AgentNode[AgentDepsT, Any] | End[FinalResult[Any]]'`
 
-### CAPABILITY\_TYPES
-
-Registry of all capability types that have a serialization name, mapping name to class.
-
-**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractCapability`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\]\] **Default:** `\{name: cls for cls in (BuiltinTool, HistoryProcessor, ImageGeneration, IncludeToolReturnSchemas, MCP, PrefixTools, PrepareTools, SetToolMetadata, Thinking, Toolset, WebFetch, WebSearch) if (name := (cls.get_serialization_name())) is not None\}`
-
 ### WrapRunHandler
 
 Handler type for [`wrap_run`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.wrap_run).
 
 **Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `'Callable[[], Awaitable[AgentRunResult[Any]]]'`
+
+### CAPABILITY\_TYPES
+
+Registry of all capability types that have a serialization name, mapping name to class.
+
+**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractCapability`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\]\] **Default:** `{name: cls for cls in (BuiltinTool, HistoryProcessor, ImageGeneration, IncludeToolReturnSchemas, MCP, PrefixTools, PrepareTools, SetToolMetadata, Thinking, Toolset, WebFetch, WebSearch) if (name := (cls.get_serialization_name())) is not None}`
 
 ### WrapNodeRunHandler
 
@@ -12290,6 +12524,21 @@ Handler type for [`wrap_tool_validate`](/docs/ai/api/pydantic-ai/capabilities/#p
 Handler type for [`wrap_tool_execute`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.wrap_tool_execute).
 
 **Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `'Callable[[dict[str, Any]], Awaitable[Any]]'`
+
+### CapabilityPosition
+
+Position tier for a capability in the middleware chain.
+
+-   `'outermost'`: in the outermost tier, before all non-outermost capabilities. Multiple capabilities can declare `'outermost'`; original list order breaks ties within the tier, and `wraps`/`wrapped_by` edges refine order further.
+-   `'innermost'`: in the innermost tier, after all non-innermost capabilities. Same tie-breaking rules apply.
+
+**Default:** `Literal['outermost', 'innermost']`
+
+### CapabilityRef
+
+Reference to a capability -- either a type (matches all instances of that type) or a specific instance (matches by identity).
+
+**Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `'type[AbstractCapability[Any]] | AbstractCapability[Any]'`
 
 ---
 
@@ -20198,8 +20447,8 @@ Load MCP servers from a configuration file.
 
 Environment variables can be referenced in the configuration file using:
 
--   `$\{VAR_NAME\}` syntax - expands to the value of VAR\_NAME, raises error if not defined
--   `$\{VAR_NAME:-default\}` syntax - expands to VAR\_NAME if set, otherwise uses the default value
+-   `${VAR_NAME}` syntax - expands to the value of VAR\_NAME, raises error if not defined
+-   `${VAR_NAME:-default}` syntax - expands to VAR\_NAME if set, otherwise uses the default value
 
 #### Returns
 
@@ -21304,6 +21553,68 @@ Return `True` if the thinking content is non-empty.
 
 [`bool`](https://docs.python.org/3/library/functions.html#bool)
 
+### CompactionPart
+
+A compaction part that summarizes previous conversation history.
+
+Compaction parts contain an opaque or readable summary of prior messages, produced by provider-specific compaction mechanisms. They must be round-tripped back to the same provider in subsequent requests.
+
+For Anthropic, `content` contains a readable text summary. For OpenAI, `content` is `None` and the encrypted data is stored in `provider_details`.
+
+#### Attributes
+
+##### content
+
+The compaction summary text, if available.
+
+For Anthropic: a readable text summary of compacted messages. For OpenAI: `None` (the compacted content is encrypted and stored in `provider_details`).
+
+**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+
+##### id
+
+The identifier of the compaction part.
+
+When this field is set, `provider_name` is required to identify the provider that generated this data.
+
+**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+
+##### provider\_name
+
+The name of the provider that generated the compaction.
+
+Compaction data is only sent back to the same provider. Required to be set when `provider_details` or `id` is set.
+
+**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+
+##### provider\_details
+
+Additional data returned by the provider that can't be mapped to standard fields.
+
+For OpenAI: contains `encrypted_content` and other fields from `ResponseCompactionItem`. When this field is set, `provider_name` is required to identify the provider that generated this data.
+
+**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+
+##### part\_kind
+
+Part type identifier, this is available on all parts as a discriminator.
+
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['compaction'\] **Default:** `'compaction'`
+
+#### Methods
+
+##### has\_content
+
+```python
+def has_content() -> bool
+```
+
+Return `True` if the compaction content is non-empty.
+
+###### Returns
+
+[`bool`](https://docs.python.org/3/library/functions.html#bool)
+
 ### FilePart
 
 A file response from a model.
@@ -21432,7 +21743,7 @@ This is just for convenience with models that require dicts as input.
 
 **`raise_if_invalid`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `False`
 
-If `True`, a `ValueError` or `AssertionError` caused by malformed JSON in `args` will be re-raised. When `False` (the default), malformed JSON is handled gracefully by returning `\{'INVALID_JSON': '<raw args>'\}` so that the value can still be sent to a model API (e.g. during a retry flow) without crashing.
+If `True`, a `ValueError` or `AssertionError` caused by malformed JSON in `args` will be re-raised. When `False` (the default), malformed JSON is handled gracefully by returning `{'INVALID_JSON': '<raw args>'}` so that the value can still be sent to a model API (e.g. during a retry flow) without crashing.
 
 ##### args\_as\_json\_str
 
@@ -21897,7 +22208,7 @@ The kind of the previous part, if any.
 
 This is useful for UI event streams to know whether to group parts of the same kind together when emitting events.
 
-**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['text', 'thinking', 'tool-call', 'builtin-tool-call', 'builtin-tool-return', 'file'\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['text', 'thinking', 'tool-call', 'builtin-tool-call', 'builtin-tool-return', 'compaction', 'file'\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
 ##### event\_kind
 
@@ -21953,7 +22264,7 @@ The kind of the next part, if any.
 
 This is useful for UI event streams to know whether to group parts of the same kind together when emitting events.
 
-**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['text', 'thinking', 'tool-call', 'builtin-tool-call', 'builtin-tool-return', 'file'\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['text', 'thinking', 'tool-call', 'builtin-tool-call', 'builtin-tool-return', 'compaction', 'file'\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
 ##### event\_kind
 
@@ -22153,7 +22464,7 @@ A message part sent by Pydantic AI to a model.
 
 A message part returned by a model.
 
-**Default:** `Annotated[TextPart | ToolCallPart | BuiltinToolCallPart | BuiltinToolReturnPart | ThinkingPart | FilePart, pydantic.Discriminator('part_kind')]`
+**Default:** `Annotated[TextPart | ToolCallPart | BuiltinToolCallPart | BuiltinToolReturnPart | ThinkingPart | CompactionPart | FilePart, pydantic.Discriminator('part_kind')]`
 
 ### ModelMessage
 
@@ -22581,7 +22892,7 @@ The default structured output mode to use for the model.
 
 The instructions template to use for prompted structured output. The '{schema}' placeholder will be replaced with the JSON schema for the output.
 
-**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) **Default:** `dedent("\n Always respond with a JSON object that's compatible with this schema:\n\n \{schema\}\n\n Don't include any text or Markdown fencing before or after.\n ")`
+**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) **Default:** `dedent("\n Always respond with a JSON object that's compatible with this schema:\n\n {schema}\n\n Don't include any text or Markdown fencing before or after.\n ")`
 
 ##### native\_output\_requires\_schema\_in\_instructions
 
@@ -22785,6 +23096,14 @@ This is required by vLLM Responses API versions before [https://github.com/vllm-
 
 **Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool) **Default:** `False`
 
+##### openai\_chat\_supports\_document\_input
+
+Whether the Chat Completions API supports document content parts (`type='file'`).
+
+Some OpenAI-compatible providers (e.g. Azure) do not support document input via the Chat Completions API.
+
+**Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool) **Default:** `True`
+
 ### OpenAIJsonSchemaTransformer
 
 **Bases:** `JsonSchemaTransformer`
@@ -22812,7 +23131,7 @@ Get the model profile for an OpenAI model.
 
 Maps unified thinking values to OpenAI reasoning\_effort strings.
 
-**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[`ThinkingLevel`, [`str`](https://docs.python.org/3/library/stdtypes.html#str)\] **Default:** `\{True: 'medium', False: 'none', 'minimal': 'minimal', 'low': 'low', 'medium': 'medium', 'high': 'high', 'xhigh': 'xhigh'\}`
+**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[`ThinkingLevel`, [`str`](https://docs.python.org/3/library/stdtypes.html#str)\] **Default:** `{True: 'medium', False: 'none', 'minimal': 'minimal', 'low': 'low', 'medium': 'medium', 'high': 'high', 'xhigh': 'xhigh'}`
 
 ### SAMPLING\_PARAMS
 
@@ -22836,7 +23155,7 @@ ALL FIELDS MUST BE `anthropic_` PREFIXED SO YOU CAN MERGE THEM WITH OTHER MODELS
 
 Whether the model supports adaptive thinking (Sonnet 4.6+, Opus 4.6+).
 
-When True, unified `thinking` translates to `\{'type': 'adaptive'\}`. When False, it translates to `\{'type': 'enabled', 'budget_tokens': N\}`.
+When True, unified `thinking` translates to `{'type': 'adaptive'}`. When False, it translates to `{'type': 'enabled', 'budget_tokens': N}`.
 
 **Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool) **Default:** `False`
 
@@ -22864,7 +23183,7 @@ Get the model profile for an Anthropic model.
 
 Maps unified thinking values to Anthropic budget\_tokens for non-adaptive models.
 
-**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[`ThinkingLevel`, [`int`](https://docs.python.org/3/library/functions.html#int)\] **Default:** `\{True: 10000, 'minimal': 1024, 'low': 2048, 'medium': 10000, 'high': 16384, 'xhigh': 32768\}`
+**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[`ThinkingLevel`, [`int`](https://docs.python.org/3/library/functions.html#int)\] **Default:** `{True: 10000, 'minimal': 1024, 'low': 2048, 'medium': 10000, 'high': 16384, 'xhigh': 32768}`
 
 ### GoogleModelProfile
 
@@ -23356,9 +23675,9 @@ ALL FIELDS MUST BE `bedrock_` PREFIXED SO YOU CAN MERGE THEM WITH OTHER MODELS.
 
 Which thinking API shape to use for unified thinking translation.
 
--   `'anthropic'`: Uses `\{'thinking': \{'type': 'enabled', 'budget_tokens': N\}\}`
--   `'openai'`: Uses `\{'reasoning_effort': 'low'|'medium'|'high'\}`
--   `'qwen'`: Uses `\{'reasoning_config': 'low'|'high'\}`
+-   `'anthropic'`: Uses `{'thinking': {'type': 'enabled', 'budget_tokens': N}}`
+-   `'openai'`: Uses `{'reasoning_effort': 'low'|'medium'|'high'}`
+-   `'qwen'`: Uses `{'reasoning_config': 'low'|'high'}`
 -   `None`: No unified thinking support.
 
 **Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['anthropic', 'openai', 'qwen'\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
@@ -23584,7 +23903,7 @@ The Azure endpoint to use for authentication, if not provided, the `AZURE_OPENAI
 
 **`api_version`** : [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
-The API version to use for authentication, if not provided, the `OPENAI_API_VERSION` environment variable will be used if available.
+The API version to use for authentication, if not provided, the `OPENAI_API_VERSION` environment variable will be used if available. Not required (and not sent) when `azure_endpoint` targets the [Azure OpenAI v1 GA API](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle) (i.e. a path ending in `/v1`, such as `https://<resource>.openai.azure.com/openai/v1/`) or an Azure AI Foundry serverless model endpoint (`*.models.ai.azure.com`), both of which reject the `api-version` query parameter.
 
 **`api_key`** : [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -26055,7 +26374,7 @@ The name of the tool.
 
 The JSON schema for the tool's parameters.
 
-**Type:** `ObjectJsonSchema` **Default:** `field(default_factory=(lambda: \{'type': 'object', 'properties': \{\}\}))`
+**Type:** `ObjectJsonSchema` **Default:** `field(default_factory=(lambda: {'type': 'object', 'properties': {}}))`
 
 ##### description
 
@@ -26152,9 +26471,9 @@ When `True`, the `return_schema` will be preserved and sent to the model. When `
 
 The function signature shape for this tool.
 
-If not provided, computed from the JSON schema in `__post_init__`. Name and description are not stored on the signature -- pass them at render time via `sig.render(body, name=td.name, description=td.description)`.
+Lazily computed from `parameters_json_schema` and `return_schema` on first access. Name and description are not stored on the signature -- pass them at render time via `sig.render(body, name=td.name, description=td.description)`.
 
-**Type:** `FunctionSignature` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `field(default=None, repr=False, compare=False)`
+**Type:** `FunctionSignature`
 
 ##### defer
 
@@ -28559,7 +28878,7 @@ Default path for saving/loading datasets.
 
 Default template for schema file paths, where {stem} is replaced with the dataset filename stem.
 
-**Default:** `'./\{stem\}_schema.json'`
+**Default:** `'./{stem}_schema.json'`
 
 ---
 
@@ -29011,8 +29330,8 @@ This class is used to represent evaluators in a serializable format, supporting 
 In particular, each of the following forms is supported for specifying an evaluator with name `MyEvaluator`:
 
 -   `'MyEvaluator'` - Just the (string) name of the Evaluator subclass is used if its `__init__` takes no arguments
--   `\{'MyEvaluator': first_arg\}` - A single argument is passed as the first positional argument to `MyEvaluator.__init__`
--   `\{'MyEvaluator': \{k1: v1, k2: v2\}\}` - Multiple kwargs are passed to `MyEvaluator.__init__`
+-   `{'MyEvaluator': first_arg}` - A single argument is passed as the first positional argument to `MyEvaluator.__init__`
+-   `{'MyEvaluator': {k1: v1, k2: v2}}` - Multiple kwargs are passed to `MyEvaluator.__init__`
 
 **Default:** `NamedSpec`
 
@@ -34082,7 +34401,7 @@ This method makes a request to [mermaid.ink](https://mermaid.ink) to render the 
 
 Whether to infer the graph name from the calling frame.
 
-**`**kwargs`** : [`typing_extensions.Unpack`](https://typing-extensions.readthedocs.io/en/latest/index.html#typing_extensions.Unpack)\[`mermaid.MermaidConfig`\] _Default:_ `\{\}`
+**`**kwargs`** : [`typing_extensions.Unpack`](https://typing-extensions.readthedocs.io/en/latest/index.html#typing_extensions.Unpack)\[`mermaid.MermaidConfig`\] _Default:_ `{}`
 
 Additional arguments to pass to `mermaid.request_image`.
 
@@ -34118,7 +34437,7 @@ The path to save the image to.
 
 Whether to infer the graph name from the calling frame.
 
-**`**kwargs`** : [`typing_extensions.Unpack`](https://typing-extensions.readthedocs.io/en/latest/index.html#typing_extensions.Unpack)\[`mermaid.MermaidConfig`\] _Default:_ `\{\}`
+**`**kwargs`** : [`typing_extensions.Unpack`](https://typing-extensions.readthedocs.io/en/latest/index.html#typing_extensions.Unpack)\[`mermaid.MermaidConfig`\] _Default:_ `{}`
 
 Additional arguments to pass to `mermaid.save_image`.
 
@@ -34525,7 +34844,7 @@ Generate an image of a Mermaid diagram using [mermaid.ink](https://mermaid.ink).
 
 The graph to generate the image for.
 
-**`**kwargs`** : [`Unpack`](https://docs.python.org/3/library/typing.html#typing.Unpack)\[`MermaidConfig`\] _Default:_ `\{\}`
+**`**kwargs`** : [`Unpack`](https://docs.python.org/3/library/typing.html#typing.Unpack)\[`MermaidConfig`\] _Default:_ `{}`
 
 Additional parameters to configure mermaid chart generation.
 
@@ -34555,7 +34874,7 @@ The path to save the image to.
 
 The graph to generate the image for.
 
-**`**kwargs`** : [`Unpack`](https://docs.python.org/3/library/typing.html#typing.Unpack)\[`MermaidConfig`\] _Default:_ `\{\}`
+**`**kwargs`** : [`Unpack`](https://docs.python.org/3/library/typing.html#typing.Unpack)\[`MermaidConfig`\] _Default:_ `{}`
 
 Additional parameters to configure mermaid chart generation.
 
@@ -35811,6 +36130,7 @@ This method dispatches to specific `handle_*` methods based on part type:
 -   [`BuiltinToolCallPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.BuiltinToolCallPart) -> [`handle_builtin_tool_call_start()`](/docs/ai/api/ui/base/#pydantic_ai.ui.UIEventStream.handle_builtin_tool_call_start)
 -   [`BuiltinToolReturnPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.BuiltinToolReturnPart) -> [`handle_builtin_tool_return()`](/docs/ai/api/ui/base/#pydantic_ai.ui.UIEventStream.handle_builtin_tool_return)
 -   [`FilePart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FilePart) -> [`handle_file()`](/docs/ai/api/ui/base/#pydantic_ai.ui.UIEventStream.handle_file)
+-   [`CompactionPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.CompactionPart) -> [`handle_compaction()`](/docs/ai/api/ui/base/#pydantic_ai.ui.UIEventStream.handle_compaction)
 
 Subclasses are encouraged to override the individual `handle_*` methods rather than this one. If you need specific behavior for all part start events, make sure you call the super method.
 
@@ -36284,6 +36604,26 @@ Handle a `FilePart`.
 **`part`** : [`FilePart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FilePart)
 
 The file part.
+
+##### handle\_compaction
+
+`@async`
+
+```python
+def handle_compaction(part: CompactionPart) -> AsyncIterator[EventT]
+```
+
+Handle a `CompactionPart`.
+
+###### Returns
+
+[`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`EventT`\]
+
+###### Parameters
+
+**`part`** : [`CompactionPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.CompactionPart)
+
+The compaction part.
 
 ##### handle\_final\_result
 
@@ -36845,7 +37185,7 @@ Optional additional builtin tools to use for this run.
 
 Optional callback function called when the agent run completes successfully. The callback receives the completed [`AgentRunResult`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResult) and can optionally yield additional protocol-specific events.
 
-**`**kwargs`** : [`Any`](https://docs.python.org/3/library/typing.html#typing.Any) _Default:_ `\{\}`
+**`**kwargs`** : [`Any`](https://docs.python.org/3/library/typing.html#typing.Any) _Default:_ `{}`
 
 Additional keyword arguments forwarded to [`from_request`](/docs/ai/api/ui/base/#pydantic_ai.ui.UIAdapter.from_request).
 
@@ -38200,7 +38540,7 @@ _(This example is complete, it can be run "as is")_
 
 Pydantic AI offers a [`UsageLimits`](/docs/ai/api/pydantic-ai/usage/#pydantic_ai.usage.UsageLimits) structure to help you limit your usage (tokens, requests, and tool calls) on model runs.
 
-You can apply these settings by passing the `usage_limits` argument to the `run\{_sync,_stream\}` functions.
+You can apply these settings by passing the `usage_limits` argument to the `run{_sync,_stream}` functions.
 
 Consider the following example, where we limit the number of response tokens:
 
@@ -38306,7 +38646,7 @@ There are three ways to apply these settings, with a clear precedence order:
 
 1.  **Model-level defaults** - Set when creating a model instance via the `settings` parameter. These serve as the base defaults for that model.
 2.  **Agent-level defaults** - Set during [`Agent`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent) initialization via the `model_settings` argument. These are merged with model defaults, with agent settings taking precedence.
-3.  **Run-time overrides** - Passed to `run\{_sync,_stream\}` functions via the `model_settings` argument. These have the highest priority and are merged with the combined agent and model defaults.
+3.  **Run-time overrides** - Passed to `run{_sync,_stream}` functions via the `model_settings` argument. These have the highest priority and are merged with the combined agent and model defaults.
 
 For example, if you'd like to set the `temperature` setting to `0.0` to ensure less random behavior, you can do the following:
 
@@ -38345,7 +38685,7 @@ Settings are resolved in layers, each merged on top of the previous:
 3.  **Capability-level** (e.g. from [`Thinking()`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.Thinking) -- see [Capabilities](/docs/ai/core-concepts/capabilities#providing-model-settings))
 4.  **Run-level** (`agent.run(model_settings=...)`)
 
-Inside a callable, `ctx.model_settings` contains the merged result of all _previous_ layers (position-dependent). For example, an agent-level callable sees only model defaults, while a run-level callable sees model defaults + agent-level + capability-level settings. To reset a field set by a previous layer, set it explicitly (e.g. `\{'temperature': None\}`).
+Inside a callable, `ctx.model_settings` contains the merged result of all _previous_ layers (position-dependent). For example, an agent-level callable sees only model defaults, while a run-level callable sees model defaults + agent-level + capability-level settings. To reset a field set by a previous layer, set it explicitly (e.g. `{'temperature': None}`).
 
 ```python
 from pydantic_ai import Agent, ModelSettings
@@ -39009,7 +39349,7 @@ For more control over spec loading, use `AgentSpec.from_file` to load the spec s
 
 ## Template strings
 
-`TemplateStr` provides Handlebars-style templates (`\{\{variable\}\}`) that are rendered against the agent's [dependencies](/docs/ai/core-concepts/dependencies) at runtime. In spec files, strings containing `\{\{` are automatically converted to template strings:
+`TemplateStr` provides Handlebars-style templates (`{{variable}}`) that are rendered against the agent's [dependencies](/docs/ai/core-concepts/dependencies) at runtime. In spec files, strings containing `{{` are automatically converted to template strings:
 
 ```yaml
 instructions: "You are assisting {{name}}, who is a {{role}}."
@@ -39048,8 +39388,8 @@ print(result.output)
 Capabilities in specs support three forms:
 
 -   `'MyCapability'` -- no arguments, calls `MyCapability.from_spec()`
--   `\{'MyCapability': value\}` -- single positional argument, calls `MyCapability.from_spec(value)`
--   `\{'MyCapability': \{key: value, ...\}\}` -- keyword arguments, calls `MyCapability.from_spec(**kwargs)`
+-   `{'MyCapability': value}` -- single positional argument, calls `MyCapability.from_spec(value)`
+-   `{'MyCapability': {key: value, ...}}` -- keyword arguments, calls `MyCapability.from_spec(**kwargs)`
 
 ## Custom capabilities in specs
 
@@ -39151,7 +39491,7 @@ Agent [metadata](/docs/ai/core-concepts/agent#run-metadata)
 
 ### `deps_schema`
 
-When loading a spec file without a Python `deps_type`, `deps_schema` provides a JSON Schema that validates [template string](#template-strings) variable names at construction time. It does **not** validate the actual deps object at runtime -- it only ensures that template variables like `\{\{user_name\}\}` correspond to properties defined in the schema.
+When loading a spec file without a Python `deps_type`, `deps_schema` provides a JSON Schema that validates [template string](#template-strings) variable names at construction time. It does **not** validate the actual deps object at runtime -- it only ensures that template variables like `{{user_name}}` correspond to properties defined in the schema.
 
 ### `output_schema`
 
@@ -39352,6 +39692,28 @@ print(result.output)
 ```
 
 See [Thinking](/docs/ai/advanced-features/thinking) for provider-specific details and the [unified thinking settings](/docs/ai/advanced-features/thinking#unified-thinking-settings).
+
+### Compaction
+
+Provider-specific compaction capabilities manage conversation context size by compacting older messages into summaries:
+
+Provider
+
+Capability
+
+Details
+
+OpenAI Responses API
+
+[`OpenAICompaction`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAICompaction)
+
+[OpenAI compaction](/docs/ai/models/openai#message-compaction)
+
+Anthropic
+
+[`AnthropicCompaction`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicCompaction)
+
+[Anthropic compaction](/docs/ai/models/anthropic#message-compaction)
 
 ### ThreadExecutor
 
@@ -39774,7 +40136,7 @@ print(result.output)
 #> The current time is 3:45 PM.
 ```
 
-Instructions can also use [template strings](/docs/ai/core-concepts/agent-spec#template-strings) (`TemplateStr('Hello \{\{name\}\}')`) for Handlebars-style templates rendered against the agent's [dependencies](/docs/ai/core-concepts/dependencies). In Python code, a callable with [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) is generally preferred for IDE autocomplete.
+Instructions can also use [template strings](/docs/ai/core-concepts/agent-spec#template-strings) (`TemplateStr('Hello {{name}}')`) for Handlebars-style templates rendered against the agent's [dependencies](/docs/ai/core-concepts/dependencies). In Python code, a callable with [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) is generally preferred for IDE autocomplete.
 
 ### Providing model settings
 
@@ -40373,16 +40735,77 @@ print(counter.count)
 #> 0
 ```
 
-### Composition
+### Composition and middleware semantics
 
-When multiple capabilities are passed to an agent, they are composed into a single [`CombinedCapability`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.CombinedCapability):
+When multiple capabilities are passed to an agent, they are composed into a single [`CombinedCapability`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.CombinedCapability) that follows **middleware semantics** -- the same pattern used by web frameworks like Django and Starlette:
 
 -   **Configuration** is merged: instructions concatenate, model settings merge additively (later capabilities override earlier ones), toolsets combine, builtin tools collect.
--   **`before_*`** hooks fire in capability order: `cap1 → cap2 → cap3`.
--   **`after_*`** hooks fire in reverse order: `cap3 → cap2 → cap1`.
--   **`wrap_*`** hooks nest as middleware: `cap1` wraps `cap2` wraps `cap3` wraps the actual operation. The first capability is the outermost layer.
+-   **`before_*`** hooks fire in capability order (outermost to innermost): `cap1 → cap2 → cap3`.
+-   **`after_*`** hooks fire in reverse order (innermost to outermost): `cap3 → cap2 → cap1`.
+-   **`wrap_*`** hooks nest as middleware: `cap1` wraps `cap2` wraps `cap3` wraps the actual operation. The first capability is the **outermost** layer.
+-   **`get_wrapper_toolset`** follows the same nesting: the first capability's wrapper is outermost.
 
-This means the first capability in the list has the first and last say on the operation -- it sees the original input in its `wrap_*` before handler, and it sees the final output after handler returns.
+This means the first capability in the list has the first and last say on the operation -- it sees the original input before any other capability, and it sees the final output after all inner capabilities have processed it.
+
+### Ordering
+
+By default, capabilities are composed in the order you list them. When a capability needs to be at a specific position regardless of where the user lists it, override [`get_ordering`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.get_ordering) to return a [`CapabilityOrdering`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.CapabilityOrdering):
+
+capability\_ordering\_example.py
+
+```python
+from dataclasses import dataclass
+from typing import Any
+
+from pydantic_ai.capabilities import (
+    AbstractCapability,
+    CapabilityOrdering,
+    CombinedCapability,
+)
+
+
+@dataclass
+class InstrumentationCapability(AbstractCapability[Any]):
+    """Must wrap all other capabilities to trace everything."""
+
+    def get_ordering(self) -> CapabilityOrdering:
+        return CapabilityOrdering(position='outermost')
+
+
+@dataclass
+class PlainCapability(AbstractCapability[Any]):
+    pass
+
+
+# InstrumentationCapability ends up first regardless of list order
+combined = CombinedCapability([PlainCapability(), InstrumentationCapability()])
+assert type(combined.capabilities[0]) is InstrumentationCapability
+```
+
+The available constraints are:
+
+-   **`position`** -- `'outermost'` or `'innermost'`. Places the capability in a tier before (or after) all capabilities without that position. Multiple capabilities can share a tier; original list order breaks ties within it.
+-   **`wraps`** -- list of capabilities this one wraps around (is outside of). Each entry can be a capability **type** (matches all instances via `issubclass`) or a specific **instance** (matches by identity). Use when your capability needs to see the output of another: `CapabilityOrdering(wraps=[OtherCapability])`.
+-   **`wrapped_by`** -- list of capabilities that wrap around this one (are outside of it). Accepts types or instances, like `wraps`. The inverse of `wraps`.
+-   **`requires`** -- list of capability types that must be present. Raises [`UserError`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.UserError) if any are missing. Does not imply ordering.
+
+When constraints are declared, [`CombinedCapability`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.CombinedCapability) topologically sorts its children at construction time, preserving user-provided order as a tiebreaker.
+
+[`Hooks`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.Hooks) supports ordering via the `ordering` parameter, so you can declare ordering constraints without subclassing:
+
+hooks\_ordering\_example.py
+
+```python
+from pydantic_ai.capabilities import CapabilityOrdering, CombinedCapability, Hooks
+
+logging_hooks = Hooks(ordering=CapabilityOrdering(position='outermost'))
+rate_limit_hooks = Hooks(ordering=CapabilityOrdering(wrapped_by=[logging_hooks]))
+
+# logging_hooks ends up outermost; rate_limit_hooks is wrapped by it
+combined = CombinedCapability([rate_limit_hooks, logging_hooks])
+assert combined.capabilities[0] is logging_hooks
+assert combined.capabilities[1] is rate_limit_hooks
+```
 
 ## Examples
 
@@ -40494,6 +40917,10 @@ print(f'Output: {result.output}')
 #> Output: Hello! How can I help you today?
 ```
 
+## Pydantic AI Harness
+
+[**Pydantic AI Harness**](/docs/ai/harness/overview) is the official capability library for Pydantic AI -- standalone capabilities like memory, guardrails, context management, and [code mode](https://github.com/pydantic/pydantic-ai-harness/tree/main/pydantic_ai_harness/code_mode) live there rather than in core. See [What goes where?](/docs/ai/harness/overview#what-goes-where) for the full breakdown, or jump to the [capability matrix](https://github.com/pydantic/pydantic-ai-harness#capability-matrix).
+
 ## Third-party capabilities
 
 Capabilities are the recommended way for third-party packages to extend Pydantic AI, since they can bundle tools with hooks, instructions, and model settings. See [Extensibility](/docs/ai/guides/extensibility) for the full ecosystem, including [third-party toolsets](/docs/ai/tools-toolsets/toolsets#third-party-toolsets) that can also be wrapped as capabilities.
@@ -40600,7 +41027,7 @@ class ConditionalTools(AbstractCapability[Any]):
         return tool_defs
 ```
 
-In YAML this would be `- ConditionalTools: \{hidden_tools: [dangerous_tool]\}`. In Python code, the full constructor is available: `ConditionalTools(condition=my_check, hidden_tools=['dangerous_tool'])`.
+In YAML this would be `- ConditionalTools: {hidden_tools: [dangerous_tool]}`. In Python code, the full constructor is available: `ConditionalTools(condition=my_check, hidden_tools=['dangerous_tool'])`.
 
 See [Extensibility](/docs/ai/guides/extensibility) for packaging conventions and the broader extension ecosystem.
 
@@ -40719,7 +41146,7 @@ _(This example is complete, it can be run "as is" -- you'll need to add `asyncio
 
 In addition to [`.deps`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext.deps), [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) provides access to the running agent via [`.agent`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext.agent), which is useful when [tools](/docs/ai/tools-toolsets/tools), [hooks](/docs/ai/core-concepts/hooks), or [capabilities](/docs/ai/core-concepts/capabilities) need to read agent properties like [`name`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.name) or [`output_type`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.output_type).
 
-Dependency fields can also be referenced in instructions and descriptions via [template strings](/docs/ai/core-concepts/agent-spec#template-strings) -- for example, `TemplateStr('Hello \{\{name\}\}')` renders `name` from the deps object at runtime. This is especially useful in [agent specs](/docs/ai/core-concepts/agent-spec) where callables aren't available.
+Dependency fields can also be referenced in instructions and descriptions via [template strings](/docs/ai/core-concepts/agent-spec#template-strings) -- for example, `TemplateStr('Hello {{name}}')` renders `name` from the deps object at runtime. This is especially useful in [agent specs](/docs/ai/core-concepts/agent-spec) where callables aren't available.
 
 ### Asynchronous vs. Synchronous dependencies
 
@@ -43142,8 +43569,8 @@ If you are using [Pydantic Logfire](https://logfire.pydantic.dev/docs/guides/web
 
 To install the Pydantic Evals package, run:
 
--   [pip](#tab-panel-6)
--   [uv](#tab-panel-7)
+-   [pip](#tab-panel-18)
+-   [uv](#tab-panel-19)
 
 Terminal
 
@@ -43159,8 +43586,8 @@ uv add pydantic-evals
 
 `pydantic-evals` does not depend on `pydantic-ai`, but has an optional dependency on `logfire` if you'd like to use OpenTelemetry traces in your evals, or send evaluation results to [logfire](https://pydantic.dev/logfire).
 
--   [pip](#tab-panel-8)
--   [uv](#tab-panel-9)
+-   [pip](#tab-panel-20)
+-   [uv](#tab-panel-21)
 
 Terminal
 
@@ -43432,7 +43859,7 @@ dataset = Dataset(
 
 **Notes:**
 
--   Skips evaluation if `expected_output` is `None` (returns empty dict `\{\}`)
+-   Skips evaluation if `expected_output` is `None` (returns empty dict `{}`)
 -   Uses Python's `==` operator, so works with any comparable types
 -   For structured data, considers nested equality
 
@@ -43518,9 +43945,9 @@ For **lists/tuples**: checks membership
 
 For **dicts**: checks key-value pairs
 
--   `Contains(value=\{'name': 'Alice'\})`
-    -   Matches: `\{'name': 'Alice', 'age': 30\}`
-    -   Doesn't match: `\{'name': 'Bob'\}`
+-   `Contains(value={'name': 'Alice'})`
+    -   Matches: `{'name': 'Alice', 'age': 30}`
+    -   Doesn't match: `{'name': 'Bob'}`
 
 **Example:**
 
@@ -43693,22 +44120,22 @@ LLMJudge(
 By default, returns a **boolean assertion** with reason:
 
 -   `LLMJudge(rubric='Response is polite')`
-    -   Returns: `\{'LLMJudge_pass': EvaluationReason(value=True, reason='...')\}`
+    -   Returns: `{'LLMJudge_pass': EvaluationReason(value=True, reason='...')}`
 
 Return a **score** (0.0 to 1.0) instead:
 
--   `LLMJudge(rubric='Response quality', score=\{'include_reason': True\}, assertion=False)`
-    -   Returns: `\{'LLMJudge_score': EvaluationReason(value=0.85, reason='...')\}`
+-   `LLMJudge(rubric='Response quality', score={'include_reason': True}, assertion=False)`
+    -   Returns: `{'LLMJudge_score': EvaluationReason(value=0.85, reason='...')}`
 
 Return **both** score and assertion:
 
--   `LLMJudge(rubric='Response quality', score=\{'include_reason': True\}, assertion=\{'include_reason': True\})`
-    -   Returns: `\{'LLMJudge_score': EvaluationReason(value=0.85, reason='...'), 'LLMJudge_pass': EvaluationReason(value=True, reason='...')\}`
+-   `LLMJudge(rubric='Response quality', score={'include_reason': True}, assertion={'include_reason': True})`
+    -   Returns: `{'LLMJudge_score': EvaluationReason(value=0.85, reason='...'), 'LLMJudge_pass': EvaluationReason(value=True, reason='...')}`
 
 **Customize evaluation names:**
 
--   `LLMJudge(rubric='Response is factually accurate', assertion=\{'evaluation_name': 'accuracy', 'include_reason': True\})`
-    -   Returns: `\{'accuracy': EvaluationReason(value=True, reason='...')\}`
+-   `LLMJudge(rubric='Response is factually accurate', assertion={'evaluation_name': 'accuracy', 'include_reason': True})`
+    -   Returns: `{'accuracy': EvaluationReason(value=True, reason='...')}`
 
 **Example:**
 
@@ -44305,8 +44732,8 @@ This pattern is useful when:
 
 **Key Points:**
 
--   Returning `\{\}` means "this evaluator doesn't apply here" - the case won't show results from this evaluator
--   Returning `\{'key': value\}` means "this evaluator applies and here are the results"
+-   Returning `{}` means "this evaluator doesn't apply here" - the case won't show results from this evaluator
+-   Returning `{'key': value}` means "this evaluator applies and here are the results"
 -   This is more practical than using case-level evaluators when it applies to a large fraction of cases, or when the condition is based on the output itself
 -   The evaluator still runs for every case, but can short-circuit when not relevant
 
@@ -47094,7 +47521,7 @@ Span-based evaluation is particularly valuable for:
 
 When you configure logfire (`logfire.configure()`), Pydantic Evals captures all OpenTelemetry spans generated during task execution. You can then write evaluators that assert conditions on:
 
--   **Which tools were called** - `HasMatchingSpan(query=\{'name_contains': 'search_tool'\})`
+-   **Which tools were called** - `HasMatchingSpan(query={'name_contains': 'search_tool'})`
 -   **Code paths executed** - Verify specific functions ran or particular branches taken
 -   **Timing characteristics** - Check that operations complete within SLA bounds
 -   **Error conditions** - Detect retries, fallbacks, or specific failure modes
@@ -49737,7 +50164,7 @@ dataset.to_file('my_tests.yaml', schema_path=None)
 
 ### Schema Path Templates
 
-Use `\{stem\}` to reference the dataset filename:
+Use `{stem}` to reference the dataset filename:
 
 ```python
 from typing import Any
@@ -53010,8 +53437,8 @@ export OPENAI_API_KEY=<your api key>
 
 Start the Pydantic AI AG-UI example backend.
 
--   [pip](#tab-panel-20)
--   [uv](#tab-panel-21)
+-   [pip](#tab-panel-16)
+-   [uv](#tab-panel-17)
 
 Terminal
 
@@ -53639,8 +54066,8 @@ graph TD
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-134)
--   [uv](#tab-panel-135)
+-   [pip](#tab-panel-124)
+-   [uv](#tab-panel-125)
 
 Terminal
 
@@ -53918,8 +54345,8 @@ Demonstrates:
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-136)
--   [uv](#tab-panel-137)
+-   [pip](#tab-panel-126)
+-   [uv](#tab-panel-127)
 
 Terminal
 
@@ -54140,8 +54567,8 @@ Demonstrates:
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-140)
--   [uv](#tab-panel-141)
+-   [pip](#tab-panel-134)
+-   [uv](#tab-panel-135)
 
 Terminal
 
@@ -54280,8 +54707,8 @@ Most of the complex logic here is between `chat_app.py` which streams the respon
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-138)
--   [uv](#tab-panel-139)
+-   [pip](#tab-panel-128)
+-   [uv](#tab-panel-129)
 
 Terminal
 
@@ -54733,8 +55160,8 @@ Demonstrates:
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-146)
--   [uv](#tab-panel-147)
+-   [pip](#tab-panel-136)
+-   [uv](#tab-panel-137)
 
 Terminal
 
@@ -54931,8 +55358,8 @@ As with the [SQL gen](/docs/ai/examples/sql-gen) example, we run postgres on por
 
 With that running and [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), we can build the search database with (**WARNING**: this requires the `OPENAI_API_KEY` env variable and will calling the OpenAI embedding API around 300 times to generate embeddings for each section of the documentation):
 
--   [pip](#tab-panel-148)
--   [uv](#tab-panel-149)
+-   [pip](#tab-panel-144)
+-   [uv](#tab-panel-145)
 
 Terminal
 
@@ -54950,8 +55377,8 @@ uv run -m pydantic_ai_examples.rag build
 
 You can then ask the agent a question with:
 
--   [pip](#tab-panel-150)
--   [uv](#tab-panel-151)
+-   [pip](#tab-panel-146)
+-   [uv](#tab-panel-147)
 
 Terminal
 
@@ -55241,8 +55668,8 @@ _(we run postgres on port `54320` to avoid conflicts with any other postgres ins
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-142)
--   [uv](#tab-panel-143)
+-   [pip](#tab-panel-130)
+-   [uv](#tab-panel-131)
 
 Terminal
 
@@ -55258,8 +55685,8 @@ uv run -m pydantic_ai_examples.sql_gen
 
 or to use a custom prompt:
 
--   [pip](#tab-panel-144)
--   [uv](#tab-panel-145)
+-   [pip](#tab-panel-132)
+-   [uv](#tab-panel-133)
 
 Terminal
 
@@ -55466,8 +55893,8 @@ Demonstrates:
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-156)
--   [uv](#tab-panel-157)
+-   [pip](#tab-panel-138)
+-   [uv](#tab-panel-139)
 
 Terminal
 
@@ -55483,8 +55910,8 @@ uv run -m pydantic_ai_examples.pydantic_model
 
 This examples uses `openai:gpt-5` by default, but it works well with other models, e.g. you can run it with Gemini using:
 
--   [pip](#tab-panel-158)
--   [uv](#tab-panel-159)
+-   [pip](#tab-panel-140)
+-   [uv](#tab-panel-141)
 
 Terminal
 
@@ -55558,8 +55985,8 @@ To run this example properly, you might want to add two extra API keys **(Note i
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-152)
--   [uv](#tab-panel-153)
+-   [pip](#tab-panel-142)
+-   [uv](#tab-panel-143)
 
 Terminal
 
@@ -55839,8 +56266,8 @@ Either way you'll need to install extra dependencies to run some examples, you j
 
 If you've installed `pydantic-ai` via pip/uv, you can install the extra dependencies with:
 
--   [pip](#tab-panel-10)
--   [uv](#tab-panel-11)
+-   [pip](#tab-panel-6)
+-   [uv](#tab-panel-7)
 
 Terminal
 
@@ -55862,8 +56289,8 @@ These examples will need you to set up authentication with one or more of the LL
 
 TL;DR: in most cases you'll need to set one of the following environment variables:
 
--   [OpenAI](#tab-panel-12)
--   [Google Gemini](#tab-panel-13)
+-   [OpenAI](#tab-panel-8)
+-   [Google Gemini](#tab-panel-9)
 
 Terminal
 
@@ -55881,8 +56308,8 @@ export GEMINI_API_KEY=your-api-key
 
 To run the examples (this will work whether you installed `pydantic_ai`, or cloned the repo), run:
 
--   [pip](#tab-panel-14)
--   [uv](#tab-panel-15)
+-   [pip](#tab-panel-10)
+-   [uv](#tab-panel-11)
 
 Terminal
 
@@ -55898,8 +56325,8 @@ uv run -m pydantic_ai_examples.<example_module_name>
 
 For example, to run the very simple [`pydantic_model`](/docs/ai/examples/pydantic-model) example:
 
--   [pip](#tab-panel-16)
--   [uv](#tab-panel-17)
+-   [pip](#tab-panel-12)
+-   [uv](#tab-panel-13)
 
 Terminal
 
@@ -55927,8 +56354,8 @@ OPENAI_API_KEY='your-api-key' \
 
 You'll probably want to edit examples in addition to just running them. You can copy the examples to a new directory with:
 
--   [pip](#tab-panel-18)
--   [uv](#tab-panel-19)
+-   [pip](#tab-panel-14)
+-   [uv](#tab-panel-15)
 
 Terminal
 
@@ -56649,8 +57076,8 @@ Demonstrates:
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-154)
--   [uv](#tab-panel-155)
+-   [pip](#tab-panel-148)
+-   [uv](#tab-panel-149)
 
 Terminal
 
@@ -56759,8 +57186,8 @@ This script streams structured responses about whales, validates the data and di
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-160)
--   [uv](#tab-panel-161)
+-   [pip](#tab-panel-150)
+-   [uv](#tab-panel-151)
 
 Terminal
 
@@ -59392,8 +59819,8 @@ While this library is developed as part of Pydantic AI; it has no dependency on 
 
 `pydantic-graph` is a required dependency of `pydantic-ai`, and an optional dependency of `pydantic-ai-slim`, see [installation instructions](/docs/ai/overview/install#slim-install) for more information. You can also install it directly:
 
--   [pip](#tab-panel-22)
--   [uv](#tab-panel-23)
+-   [pip](#tab-panel-36)
+-   [uv](#tab-panel-37)
 
 Terminal
 
@@ -61474,6 +61901,10 @@ Capabilities are the recommended way to extend Pydantic AI. They are useful for:
 
 See [Capabilities](/docs/ai/core-concepts/capabilities) for using and building capabilities, and [Hooks](/docs/ai/core-concepts/hooks) for the lightweight decorator-based approach.
 
+Tip
+
+If you want to contribute a capability, open an issue on [**Pydantic AI Harness**](https://github.com/pydantic/pydantic-ai-harness) rather than on pydantic-ai. Most capabilities belong in the harness -- see [What goes where?](/docs/ai/harness/overview#what-goes-where) for the distinction.
+
 ## Publishing capability packages
 
 To make a capability installable and usable in [agent specs](/docs/ai/core-concepts/agent-spec):
@@ -61496,6 +61927,10 @@ agent = Agent.from_file('agent.yaml', custom_capability_types=[MyCapability])
 ```
 
 See [Custom capabilities in specs](/docs/ai/core-concepts/agent-spec#custom-capabilities-in-specs) for implementation details.
+
+## Pydantic AI Harness
+
+[**Pydantic AI Harness**](/docs/ai/harness/overview) is the official capability library for Pydantic AI -- standalone capabilities like memory, guardrails, and context management live there rather than in core. See [What goes where?](/docs/ai/harness/overview#what-goes-where) for the full breakdown, or jump to the [capability matrix](https://github.com/pydantic/pydantic-ai-harness#capability-matrix).
 
 ## Third-party ecosystem
 
@@ -62262,8 +62697,8 @@ The web UI is meant for local development and debugging. In production, you can 
 
 Install the `web` extra (installs Starlette and Uvicorn):
 
--   [pip](#tab-panel-48)
--   [uv](#tab-panel-49)
+-   [pip](#tab-panel-22)
+-   [uv](#tab-panel-23)
 
 Terminal
 
@@ -62360,7 +62795,7 @@ app = agent.to_web(instructions='Always respond in a friendly tone.')
 
 The web UI app uses the following routes which should not be overwritten:
 
--   `/` and `/\{id\}` - Serves the chat UI
+-   `/` and `/{id}` - Serves the chat UI
 -   `/api/chat` - Chat endpoint (POST, OPTIONS)
 -   `/api/configure` - Frontend configuration (GET)
 -   `/api/health` - Health check (GET)
@@ -62401,6 +62836,112 @@ app = agent.to_web(html_source='~/pydantic-ai-ui.html')
 # Or use a custom URL (e.g., for enterprise environments)
 app = agent.to_web(html_source='https://cdn.example.com/ui/index.html')
 ```
+
+---
+
+# [Code Mode](https://pydantic.dev/docs/ai/harness/code-mode/)
+
+# Code Mode
+
+Code mode is one of the capabilities in [**Pydantic AI Harness**](/docs/ai/harness/overview), the official capability library for Pydantic AI. The full docs live in the [harness repo](https://github.com/pydantic/pydantic-ai-harness) -- this page is a short intro.
+
+[`CodeMode`](https://github.com/pydantic/pydantic-ai-harness/blob/main/pydantic_ai_harness/code_mode/README.md) wraps your tools into a single `run_code` tool powered by our [Monty](https://github.com/pydantic/monty) sandbox. The model writes Python that calls multiple tools with loops, conditionals, variables, and `asyncio.gather` -- all inside one tool call.
+
+Standard tool calling requires one model round-trip per tool call. An agent that needs to fetch 10 items and process each one makes 11+ model calls -- slow, expensive, and context-heavy. Code mode collapses that into one.
+
+## Usage
+
+Terminal
+
+```bash
+uv add "pydantic-ai-harness[code-mode]"
+```
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai_harness import CodeMode
+
+agent = Agent('anthropic:claude-sonnet-4-6', capabilities=[CodeMode()])
+
+
+@agent.tool_plain
+def get_weather(city: str) -> dict:
+    """Get current weather for a city."""
+    return {'city': city, 'temp_f': 72, 'condition': 'sunny'}
+
+
+@agent.tool_plain
+def convert_temp(fahrenheit: float) -> float:
+    """Convert Fahrenheit to Celsius."""
+    return round((fahrenheit - 32) * 5 / 9, 1)
+
+
+result = agent.run_sync("What's the weather in Paris and Tokyo, in Celsius?")
+print(result.output)
+```
+
+The model writes code like:
+
+```python
+paris, tokyo = await asyncio.gather(
+    get_weather(city='Paris'),
+    get_weather(city='Tokyo'),
+)
+paris_c = await convert_temp(fahrenheit=paris['temp_f'])
+tokyo_c = await convert_temp(fahrenheit=tokyo['temp_f'])
+{'paris': paris_c, 'tokyo': tokyo_c}
+```
+
+## Full documentation
+
+See the [Code Mode README](https://github.com/pydantic/pydantic-ai-harness/blob/main/pydantic_ai_harness/code_mode/README.md) in the harness repo for selective tool sandboxing, metadata-based selection, return value handling, REPL state, observability, sandbox restrictions, the full API, and agent spec usage.
+
+---
+
+# [Overview](https://pydantic.dev/docs/ai/harness/overview/)
+
+# Overview
+
+[**Pydantic AI Harness**](https://github.com/pydantic/pydantic-ai-harness) is the official [capability](/docs/ai/core-concepts/capabilities) library for Pydantic AI -- the batteries for your agent.
+
+Terminal
+
+```bash
+uv add pydantic-ai-harness
+```
+
+## What goes where?
+
+Pydantic AI core ships the agent loop, model providers, the capabilities/hooks abstraction, and two kinds of capabilities:
+
+-   **Capabilities that require model or framework support** -- anything backed by provider built-in tools (like [image generation](/docs/ai/core-concepts/capabilities#provider-adaptive-tools)), provider-specific APIs (like compaction via the OpenAI or Anthropic APIs), or deep agent graph integration. These go hand-in-hand with model class code and need to ship together.
+-   **Capabilities that are fundamental to the agent experience** -- things nearly every agent benefits from, like [web search](/docs/ai/core-concepts/capabilities#provider-adaptive-tools), [tool search](/docs/ai/tools-toolsets/tools-advanced#tool-search), and [thinking](/docs/ai/core-concepts/capabilities#thinking). These feel like qualities of the agent itself, not accessories.
+
+**Pydantic AI Harness** is where everything else lives: standalone capabilities that make specific categories of agents powerful, or that are still finding their final shape. Context management, memory, guardrails, file system access, code execution, multi-agent orchestration -- these are the building blocks you pick and choose based on what your agent needs to do.
+
+The harness is also where new capabilities _start_. It ships as a separate package so capabilities can iterate faster without the strict backward-compatibility requirements of core. As a capability stabilizes and proves itself broadly essential, it can graduate into core -- [code mode](https://github.com/pydantic/pydantic-ai-harness/tree/main/pydantic_ai_harness/code_mode) is an early candidate.
+
+Many capabilities benefit from a "fall up" pattern: they typically start as a local implementation that works with every model, then gain provider-native support that uses the provider's built-in API when available -- auto-switching between the two. This is how [web search](/docs/ai/core-concepts/capabilities#provider-adaptive-tools), [web fetch](/docs/ai/core-concepts/capabilities#provider-adaptive-tools), and [image generation](/docs/ai/core-concepts/capabilities#provider-adaptive-tools) already work in core, and the same approach is coming for skills, code mode, and context compaction.
+
+## What's in it?
+
+See the [capability matrix](https://github.com/pydantic/pydantic-ai-harness#capability-matrix) on the harness README for the full list of what's available and what's coming, along with community alternatives.
+
+## Contributing capabilities
+
+Capability contributions should go to the [harness repo](https://github.com/pydantic/pydantic-ai-harness), not to pydantic-ai. The capabilities abstraction gives contributions clear boundaries, which makes them easier to review. See [Contributing](https://github.com/pydantic/pydantic-ai-harness#contributing) for details.
+
+## Build your own
+
+You can also publish capabilities as standalone packages. See [Building custom capabilities](/docs/ai/core-concepts/capabilities#building-custom-capabilities) for the API and [Publishing capability packages](/docs/ai/guides/extensibility#publishing-capability-packages) for packaging guidance.
+
+## Links
+
+-   [GitHub](https://github.com/pydantic/pydantic-ai-harness)
+-   [PyPI](https://pypi.org/project/pydantic-ai-harness/)
+-   [Capability matrix](https://github.com/pydantic/pydantic-ai-harness#capability-matrix)
+-   [Version policy](https://github.com/pydantic/pydantic-ai-harness#version-policy)
+-   [Contributing](https://github.com/pydantic/pydantic-ai-harness#contributing)
 
 ---
 
@@ -62495,8 +63036,8 @@ For example, a Pydantic AI agent might store its complete internal message forma
 
 FastA2A is available on PyPI as [`fasta2a`](https://pypi.org/project/fasta2a/) so installation is as simple as:
 
--   [pip](#tab-panel-44)
--   [uv](#tab-panel-45)
+-   [pip](#tab-panel-478)
+-   [uv](#tab-panel-479)
 
 Terminal
 
@@ -62518,8 +63059,8 @@ The only dependencies are:
 
 You can install Pydantic AI with the `a2a` extra to include **FastA2A**:
 
--   [pip](#tab-panel-46)
--   [uv](#tab-panel-47)
+-   [pip](#tab-panel-480)
+-   [uv](#tab-panel-481)
 
 Terminal
 
@@ -62562,7 +63103,7 @@ When using `to_a2a()`, Pydantic AI automatically:
 -   Ensures that subsequent messages with the same `context_id` have access to the full conversation history
 -   Persists agent results as A2A artifacts:
     -   String results become `TextPart` artifacts and also appear in the message history
-    -   Structured data (Pydantic models, dataclasses, tuples, etc.) become `DataPart` artifacts with the data wrapped as `\{"result": <your_data>\}`
+    -   Structured data (Pydantic models, dataclasses, tuples, etc.) become `DataPart` artifacts with the data wrapped as `{"result": <your_data>}`
     -   Artifacts include metadata with type information and JSON schema when available
 
 ---
@@ -62901,8 +63442,8 @@ The original agent, model, and MCP server can still be used as normal outside th
 
 Here is a simple but complete example of wrapping an agent for durable execution. All it requires is to install Pydantic AI with the DBOS [open-source library](https://github.com/dbos-inc/dbos-transact-py):
 
--   [pip](#tab-panel-162)
--   [uv](#tab-panel-163)
+-   [pip](#tab-panel-626)
+-   [uv](#tab-panel-627)
 
 Terminal
 
@@ -62918,8 +63459,8 @@ uv add pydantic-ai[dbos]
 
 Or if you're using the slim package, you can install it with the `dbos` optional group:
 
--   [pip](#tab-panel-164)
--   [uv](#tab-panel-165)
+-   [pip](#tab-panel-628)
+-   [uv](#tab-panel-629)
 
 Terminal
 
@@ -63039,13 +63580,14 @@ For more information about DBOS logging and tracing, please see the [DBOS docs](
 
 Pydantic AI allows you to build durable agents that can preserve their progress across transient API failures and application errors or restarts, and handle long-running, asynchronous, and human-in-the-loop workflows with production-grade reliability. Durable agents have full support for [streaming](/docs/ai/core-concepts/agent#streaming-all-events) and [MCP](/docs/ai/mcp/client), with the added benefit of fault tolerance.
 
-Pydantic AI natively supports three durable execution solutions:
+Pydantic AI officially supports four durable execution solutions:
 
 -   [Temporal](/docs/ai/integrations/durable_execution/temporal)
 -   [DBOS](/docs/ai/integrations/durable_execution/dbos)
 -   [Prefect](/docs/ai/integrations/durable_execution/prefect)
+-   [Restate](/docs/ai/integrations/durable_execution/restate)
 
-These integrations only use Pydantic AI's public interface, so they also serve as a reference for integrating with other durable systems.
+These integrations are co-maintained by the Pydantic and vendor teams and only use Pydantic AI's public interface, so they also serve as a reference for integrating with other durable systems.
 
 ---
 
@@ -63119,8 +63661,8 @@ The original agent, model, and MCP server can still be used as normal outside th
 
 Here is a simple but complete example of wrapping an agent for durable execution. All it requires is to install Pydantic AI with Prefect:
 
--   [pip](#tab-panel-166)
--   [uv](#tab-panel-167)
+-   [pip](#tab-panel-630)
+-   [uv](#tab-panel-631)
 
 Terminal
 
@@ -63136,8 +63678,8 @@ uv add pydantic-ai[prefect]
 
 Or if you're using the slim package, you can install it with the `prefect` optional group:
 
--   [pip](#tab-panel-168)
--   [uv](#tab-panel-169)
+-   [pip](#tab-panel-632)
+-   [uv](#tab-panel-633)
 
 Terminal
 
@@ -63573,7 +64115,7 @@ As the streaming model request activity, workflow, and workflow execution call a
 
 `Agent.run(model=...)` normally supports both model strings (like `'openai:gpt-5.2'`) and model instances. However, `TemporalAgent` does not support arbitrary model instances because they cannot be serialized for Temporal's replay mechanism.
 
-To use model instances with `TemporalAgent`, you need to pre-register them by passing a dict of model instances to `TemporalAgent(models=\{...\})`. You can then reference them by name or by passing the registered instance directly. If the wrapped agent doesn't have a model set, the first registered model will be used as the default.
+To use model instances with `TemporalAgent`, you need to pre-register them by passing a dict of model instances to `TemporalAgent(models={...})`. You can then reference them by name or by passing the registered instance directly. If the wrapped agent doesn't have a model set, the first registered model will be used as the default.
 
 Model strings work as expected. For scenarios where you need to customize the provider used by the model string (e.g., inject API keys from deps), you can pass a `provider_factory` to `TemporalAgent`, which is passed the [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) and provider name.
 
@@ -63757,8 +64299,8 @@ A trace is generated for the agent run, and spans are emitted for each model req
 
 To use Logfire, you'll need a Logfire [account](https://logfire.pydantic.dev). The Logfire Python SDK is included with `pydantic-ai`:
 
--   [pip](#tab-panel-36)
--   [uv](#tab-panel-37)
+-   [pip](#tab-panel-470)
+-   [uv](#tab-panel-471)
 
 Terminal
 
@@ -63774,8 +64316,8 @@ uv add pydantic-ai
 
 Or if you're using the slim package, you can install it with the `logfire` optional group:
 
--   [pip](#tab-panel-38)
--   [uv](#tab-panel-39)
+-   [pip](#tab-panel-472)
+-   [uv](#tab-panel-473)
 
 Terminal
 
@@ -63791,8 +64333,8 @@ uv add "pydantic-ai-slim[logfire]"
 
 Then authenticate your local environment with Logfire:
 
--   [pip](#tab-panel-40)
--   [uv](#tab-panel-41)
+-   [pip](#tab-panel-474)
+-   [uv](#tab-panel-475)
 
 Terminal
 
@@ -63808,8 +64350,8 @@ uv run logfire auth
 
 And configure a project to send data to:
 
--   [pip](#tab-panel-42)
--   [uv](#tab-panel-43)
+-   [pip](#tab-panel-476)
+-   [uv](#tab-panel-477)
 
 Terminal
 
@@ -64084,8 +64626,8 @@ Some span and attribute names are not fully spec-compliant for compatibility rea
 Builds on version 2 with the following improvements:
 
 -   **Spec-compliant span names:**
-    -   `agent run` becomes `invoke_agent \{gen_ai.agent.name\}` (with the agent name filled in)
-    -   `running tool` becomes `execute_tool \{gen_ai.tool.name\}` (with the tool name filled in)
+    -   `agent run` becomes `invoke_agent {gen_ai.agent.name}` (with the agent name filled in)
+    -   `running tool` becomes `execute_tool {gen_ai.tool.name}` (with the tool name filled in)
 -   **Spec-compliant attribute names:**
     -   `tool_arguments` becomes `gen_ai.tool.call.arguments`
     -   `tool_response` becomes `gen_ai.tool.call.result`
@@ -64097,13 +64639,13 @@ Builds on version 3 with improved multimodal content handling to better align wi
 
 **URL-based media (ImageUrl, AudioUrl, VideoUrl):**
 
--   Old (v1-3): `\{"type": "image-url", "url": "..."\}`
--   New (v4): `\{"type": "uri", "modality": "image", "uri": "...", "mime_type": "..."\}`
+-   Old (v1-3): `{"type": "image-url", "url": "..."}`
+-   New (v4): `{"type": "uri", "modality": "image", "uri": "...", "mime_type": "..."}`
 
 **Inline binary content (BinaryContent, FilePart):**
 
--   Old (v1-3): `\{"type": "binary", "media_type": "...", "content": "..."\}`
--   New (v4): `\{"type": "blob", "modality": "image", "mime_type": "...", "content": "..."\}`
+-   Old (v1-3): `{"type": "binary", "media_type": "...", "content": "..."}`
+-   New (v4): `{"type": "blob", "modality": "image", "mime_type": "...", "content": "..."}`
 
 Note: The `modality` field is only included for image, audio, and video content types as specified in the OTel spec. DocumentUrl and unsupported media types omit the `modality` field.
 
@@ -64212,8 +64754,8 @@ The only dependencies are:
 
 You can install Pydantic AI with the `ag-ui` extra to ensure you have all the required AG-UI dependencies:
 
--   [pip](#tab-panel-170)
--   [uv](#tab-panel-171)
+-   [pip](#tab-panel-634)
+-   [uv](#tab-panel-635)
 
 Terminal
 
@@ -64231,8 +64773,8 @@ To run the examples you'll also need:
 
 -   [uvicorn](https://www.uvicorn.org/) or another ASGI compatible server
 
--   [pip](#tab-panel-172)
--   [uv](#tab-panel-173)
+-   [pip](#tab-panel-636)
+-   [uv](#tab-panel-637)
 
 Terminal
 
@@ -64784,8 +65326,8 @@ Pydantic AI can act as an [MCP client](https://modelcontextprotocol.io/quickstar
 
 You need to either install [`pydantic-ai`](/docs/ai/overview/install), or [`pydantic-ai-slim`](/docs/ai/overview/install#slim-install) with the `mcp` optional group:
 
--   [pip](#tab-panel-50)
--   [uv](#tab-panel-51)
+-   [pip](#tab-panel-38)
+-   [uv](#tab-panel-39)
 
 Terminal
 
@@ -64993,7 +65535,7 @@ We made this decision given that the SSE transport is deprecated.
 
 ### Environment Variables
 
-The configuration file supports environment variable expansion using the `$\{VAR\}` and `$\{VAR:-default\}` syntax, [like Claude Code](https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcp-json). This is useful for keeping sensitive information like API keys or host names out of your configuration files:
+The configuration file supports environment variable expansion using the `${VAR}` and `${VAR:-default}` syntax, [like Claude Code](https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcp-json). This is useful for keeping sensitive information like API keys or host names out of your configuration files:
 
 mcp\_config\_with\_env.json
 
@@ -65016,12 +65558,12 @@ mcp\_config\_with\_env.json
 
 When loading this configuration with [`load_mcp_servers()`](/docs/ai/api/pydantic-ai/mcp/#pydantic_ai.mcp.load_mcp_servers):
 
--   `$\{VAR\}` references will be replaced with the corresponding environment variable values.
--   `$\{VAR:-default\}` references will use the environment variable value if set, otherwise the default value.
+-   `${VAR}` references will be replaced with the corresponding environment variable values.
+-   `${VAR:-default}` references will use the environment variable value if set, otherwise the default value.
 
 Caution
 
-If a referenced environment variable using `$\{VAR\}` syntax is not defined, a `ValueError` will be raised. Use the `$\{VAR:-default\}` syntax to provide a fallback value.
+If a referenced environment variable using `${VAR}` syntax is not defined, a `ValueError` will be raised. Use the `${VAR:-default}` syntax to provide a fallback value.
 
 ### Usage
 
@@ -65569,8 +66111,8 @@ Note that it does not yet support integration elicitation or sampling, which are
 
 To use the `FastMCPToolset`, you will need to install [`pydantic-ai-slim`](/docs/ai/overview/install#slim-install) with the `fastmcp` optional group:
 
--   [pip](#tab-panel-52)
--   [uv](#tab-panel-53)
+-   [pip](#tab-panel-40)
+-   [uv](#tab-panel-41)
 
 Terminal
 
@@ -65595,7 +66137,7 @@ A `FastMCPToolset` can then be created from:
 -   An HTTP SSE URL: `FastMCPToolset('http://localhost:8000/sse')`
 -   A Python Script: `FastMCPToolset('my_server.py')`
 -   A Node.js Script: `FastMCPToolset('my_server.js')`
--   A JSON MCP Configuration: `FastMCPToolset(\{'mcpServers': \{'my_server': \{'command': 'python', 'args': ['mcp_server.py']\}\}\})`
+-   A JSON MCP Configuration: `FastMCPToolset({'mcpServers': {'my_server': {'command': 'python', 'args': ['mcp_server.py']}}})`
 
 If you already have a [FastMCP Server](https://gofastmcp.com/servers) in the same codebase as your Pydantic AI agent, you can create a `FastMCPToolset` directly from it and save agent a network round trip:
 
@@ -65872,8 +66414,8 @@ _(This example is complete, it can be run "as is")_
 
 To use `AnthropicModel` models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `anthropic` optional group:
 
--   [pip](#tab-panel-60)
--   [uv](#tab-panel-61)
+-   [pip](#tab-panel-48)
+-   [uv](#tab-panel-49)
 
 Terminal
 
@@ -66266,6 +66808,53 @@ print(f'Cache read tokens: {usage.cache_read_tokens}')
 -   Additional `CachePoint` markers in messages are removed from oldest to newest when the limit is exceeded
 -   This ensures critical caching (instructions/tools) is maintained while still benefiting from message-level caching
 
+## Message Compaction
+
+Anthropic supports [automatic context compaction](https://docs.anthropic.com/en/docs/build-with-claude/compaction) to manage long conversations. When input tokens exceed a configured threshold, the API automatically generates a summary that replaces older messages while preserving context.
+
+The easiest way to enable compaction is with the [`AnthropicCompaction`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicCompaction) capability:
+
+anthropic\_compaction.py
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.anthropic import AnthropicCompaction
+
+agent = Agent(
+    'anthropic:claude-sonnet-4-6',
+    capabilities=[AnthropicCompaction(token_threshold=100_000)],
+)
+```
+
+The capability accepts:
+
+-   **`token_threshold`** (default: 150,000, minimum: 50,000): Compaction triggers when input tokens exceed this value.
+-   **`instructions`**: Custom instructions for how the summary should be generated.
+-   **`pause_after_compaction`**: When `True`, the response stops after the compaction block with `stop_reason='compaction'`, allowing explicit handling before continuing.
+
+Alternatively, you can configure compaction directly via model settings using [`anthropic_context_management`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicModelSettings.anthropic_context_management):
+
+anthropic\_compaction\_settings.py
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+agent = Agent('anthropic:claude-sonnet-4-6')
+result = agent.run_sync(
+    'Hello!',
+    model_settings=AnthropicModelSettings(
+        anthropic_context_management={
+            'edits': [{'type': 'compact_20260112', 'trigger': {'type': 'input_tokens', 'value': 100_000}}]
+        }
+    ),
+)
+```
+
+Note
+
+Compaction blocks returned by Anthropic contain readable text summaries. They are automatically round-tripped in subsequent requests when included in the message history.
+
 ---
 
 # [Bedrock](https://pydantic.dev/docs/ai/models/bedrock/)
@@ -66276,8 +66865,8 @@ print(f'Cache read tokens: {usage.cache_read_tokens}')
 
 To use `BedrockConverseModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `bedrock` optional group:
 
--   [pip](#tab-panel-66)
--   [uv](#tab-panel-67)
+-   [pip](#tab-panel-54)
+-   [uv](#tab-panel-55)
 
 Terminal
 
@@ -66648,8 +67237,8 @@ Unlike other providers that use httpx for HTTP requests, Bedrock uses boto3's na
 
 To use `CerebrasModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `cerebras` optional group:
 
--   [pip](#tab-panel-68)
--   [uv](#tab-panel-69)
+-   [pip](#tab-panel-56)
+-   [uv](#tab-panel-57)
 
 Terminal
 
@@ -66743,8 +67332,8 @@ agent = Agent(model)
 
 To use `CohereModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `cohere` optional group:
 
--   [pip](#tab-panel-70)
--   [uv](#tab-panel-71)
+-   [pip](#tab-panel-58)
+-   [uv](#tab-panel-59)
 
 Terminal
 
@@ -66838,8 +67427,8 @@ The `GoogleModel` is a model that uses the [`google-genai`](https://pypi.org/pro
 
 To use `GoogleModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `google` optional group:
 
--   [pip](#tab-panel-62)
--   [uv](#tab-panel-63)
+-   [pip](#tab-panel-50)
+-   [uv](#tab-panel-51)
 
 Terminal
 
@@ -67029,10 +67618,10 @@ After a Flex request, you can inspect [`ModelResponse`](/docs/ai/api/pydantic-ai
 
 You can access models from the [Model Garden](https://cloud.google.com/model-garden?hl=en) that support the `generateContent` API and are available under your GCP project, including but not limited to Gemini, using one of the following `model_name` patterns:
 
--   `\{model_id\}` for Gemini models
--   `\{publisher\}/\{model_id\}`
--   `publishers/\{publisher\}/models/\{model_id\}`
--   `projects/\{project\}/locations/\{location\}/publishers/\{publisher\}/models/\{model_id\}`
+-   `{model_id}` for Gemini models
+-   `{publisher}/{model_id}`
+-   `publishers/{publisher}/models/{model_id}`
+-   `projects/{project}/locations/{location}/publishers/{publisher}/models/{model_id}`
 
 ```python
 from pydantic_ai import Agent
@@ -67235,8 +67824,8 @@ See the [Google Dev Blog](https://developers.googleblog.com/unlock-gemini-reason
 
 To use `GroqModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `groq` optional group:
 
--   [pip](#tab-panel-72)
--   [uv](#tab-panel-73)
+-   [pip](#tab-panel-60)
+-   [uv](#tab-panel-61)
 
 Terminal
 
@@ -67332,8 +67921,8 @@ agent = Agent(model)
 
 To use `HuggingFaceModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `huggingface` optional group:
 
--   [pip](#tab-panel-74)
--   [uv](#tab-panel-75)
+-   [pip](#tab-panel-62)
+-   [uv](#tab-panel-63)
 
 Terminal
 
@@ -67436,8 +68025,8 @@ agent = Agent(model)
 
 To use `MistralModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `mistral` optional group:
 
--   [pip](#tab-panel-76)
--   [uv](#tab-panel-77)
+-   [pip](#tab-panel-64)
+-   [uv](#tab-panel-65)
 
 Terminal
 
@@ -67531,8 +68120,8 @@ agent = Agent(model)
 
 To use OpenAI models or OpenAI-compatible APIs, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
 
--   [pip](#tab-panel-58)
--   [uv](#tab-panel-59)
+-   [pip](#tab-panel-46)
+-   [uv](#tab-panel-47)
 
 Terminal
 
@@ -67747,6 +68336,36 @@ print(result2.output)
 #> This is an excellent joke invented by Samuel Colvin, it needs no explanation.
 ```
 
+#### Message Compaction
+
+The Responses API supports [compacting message history](https://platform.openai.com/docs/guides/conversation-state#compaction-advanced) to reduce token usage in long conversations. Compaction produces an encrypted summary that replaces older messages while preserving context.
+
+The easiest way to enable compaction is with the [`OpenAICompaction`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAICompaction) capability, which automatically calls the compact endpoint when the message count exceeds a threshold:
+
+openai\_compaction.py
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAICompaction
+
+agent = Agent(
+    'openai-responses:gpt-4o',
+    capabilities=[OpenAICompaction(message_count_threshold=10)],
+)
+
+message_history = []
+for question in ['What is 2+2?', 'And 3+3?', 'And 4+4?']:
+    result = agent.run_sync(question, message_history=message_history)
+    message_history = result.all_messages()
+    # After 10 messages, history is automatically compacted before each request
+```
+
+For advanced use cases, you can call [`compact_messages`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIResponsesModel.compact_messages) directly on the model.
+
+Tip
+
+For best results, combine compaction with [`openai_previous_response_id='auto'`](#automatically-referencing-earlier-responses) in your model settings. This lets OpenAI's server-side history work alongside compaction for improved context continuity. Note that this sends conversation data to OpenAI's server-side storage.
+
 ## OpenAI-compatible Models
 
 Many providers and models are compatible with the OpenAI API, and can be used with `OpenAIChatModel` in Pydantic AI. Before getting started, check the [installation and configuration](#install) instructions above.
@@ -67934,7 +68553,7 @@ For Ollama Cloud, use the `base_url='https://ollama.com/v1'` and set the `OLLAMA
 
 ### Azure AI Foundry
 
-To use [Azure AI Foundry](https://ai.azure.com/) as your provider, you can set the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `OPENAI_API_VERSION` environment variables and use [`AzureProvider`](/docs/ai/api/pydantic-ai/providers/#pydantic_ai.providers.azure.AzureProvider) by name:
+To use [Azure AI Foundry](https://ai.azure.com/) as your provider, set `AZURE_OPENAI_ENDPOINT` to a URL whose path ends in `/v1` (for example `https://<resource>.openai.azure.com/openai/v1/` or `https://<resource>.services.ai.azure.com/openai/v1/`), set `AZURE_OPENAI_API_KEY`, and use [`AzureProvider`](/docs/ai/api/pydantic-ai/providers/#pydantic_ai.providers.azure.AzureProvider) by name:
 
 ```python
 from pydantic_ai import Agent
@@ -67953,13 +68572,64 @@ from pydantic_ai.providers.azure import AzureProvider
 model = OpenAIChatModel(
     'gpt-5.2',
     provider=AzureProvider(
-        azure_endpoint='your-azure-endpoint',
-        api_version='your-api-version',
+        azure_endpoint='https://your-resource.openai.azure.com/openai/v1/',
         api_key='your-api-key',
     ),
 )
 agent = Agent(model)
 ...
+```
+
+This targets the [Azure OpenAI v1 API](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle), which Microsoft recommends for all new projects. It also pairs naturally with the Responses API -- see [Using Azure with the Responses API](#using-azure-with-the-responses-api) below.
+
+[`AzureProvider`](/docs/ai/api/pydantic-ai/providers/#pydantic_ai.providers.azure.AzureProvider) also recognises [Azure AI Foundry serverless model deployments](https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-models/concepts/endpoints) at `https://<model>.<region>.models.ai.azure.com` and connects to them the same way.
+
+#### Connecting to an existing `api-version`\-based deployment
+
+If your resource still uses the dated `api-version` API, pass `api_version` (or set the `OPENAI_API_VERSION` environment variable) and point `azure_endpoint` at the resource root instead:
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.azure import AzureProvider
+
+model = OpenAIChatModel(
+    'gpt-5.2',
+    provider=AzureProvider(
+        azure_endpoint='https://your-resource.openai.azure.com/',
+        api_version='2024-12-01-preview',
+        api_key='your-api-key',
+    ),
+)
+agent = Agent(model)
+...
+```
+
+#### Using Azure with the Responses API
+
+Azure AI Foundry also supports the OpenAI Responses API through [`OpenAIResponsesModel`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIResponsesModel). This is particularly recommended when working with document inputs ([`DocumentUrl`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.DocumentUrl) and [`BinaryContent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.BinaryContent)), as Azure's Chat Completions API does not support these input types.
+
+Document processing with Azure using Responses API
+
+```python
+from pydantic_ai import Agent, BinaryContent
+from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.providers.azure import AzureProvider
+
+pdf_bytes = b'%PDF-1.4 ...'  # Your PDF content
+
+model = OpenAIResponsesModel(
+    'gpt-5.2',
+    provider=AzureProvider(
+        azure_endpoint='https://your-resource.openai.azure.com/openai/v1/',
+        api_key='your-api-key',
+    ),
+)
+agent = Agent(model)
+result = agent.run_sync([
+    'Summarize this document',
+    BinaryContent(data=pdf_bytes, media_type='application/pdf'),
+])
 ```
 
 ### Vercel AI Gateway
@@ -68310,8 +68980,8 @@ agent = Agent(model)
 
 To use `OpenRouterModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openrouter` optional group:
 
--   [pip](#tab-panel-82)
--   [uv](#tab-panel-83)
+-   [pip](#tab-panel-66)
+-   [uv](#tab-panel-67)
 
 Terminal
 
@@ -68423,8 +69093,8 @@ result = agent.run_sync('What is the latest news in AI?')
 
 As Outlines is a library allowing you to run models from various different providers, it does not include the necessary dependencies for any provider by default. As a result, to use the [`OutlinesModel`](/docs/ai/api/models/outlines/#pydantic_ai.models.outlines.OutlinesModel), you must install `pydantic-ai-slim` with an optional group composed of outlines, a dash, and the name of the specific model provider you would use through Outlines. For instance:
 
--   [pip](#tab-panel-78)
--   [uv](#tab-panel-79)
+-   [pip](#tab-panel-68)
+-   [uv](#tab-panel-69)
 
 Terminal
 
@@ -68440,8 +69110,8 @@ uv add "pydantic-ai-slim[outlines-transformers]"
 
 Or
 
--   [pip](#tab-panel-80)
--   [uv](#tab-panel-81)
+-   [pip](#tab-panel-70)
+-   [uv](#tab-panel-71)
 
 Terminal
 
@@ -68934,8 +69604,8 @@ In this example, if the OpenAI model fails, the agent will automatically fall ba
 
 The next example demonstrates the exception-handling capabilities of `FallbackModel`. If all models fail, a [`FallbackExceptionGroup`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.FallbackExceptionGroup) is raised, which contains all the exceptions encountered during the `run` execution.
 
--   [Python >=3.11](#tab-panel-54)
--   [Python <3.11](#tab-panel-55)
+-   [Python >=3.11](#tab-panel-42)
+-   [Python <3.11](#tab-panel-43)
 
 fallback\_model\_failure.py
 
@@ -69157,8 +69827,8 @@ This decorator will miss `ModelAPIError` exceptions when using `FallbackModel`, 
 
 To handle both cases, you can use Python 3.11+ `except*` syntax, which catches matching exceptions from exception groups as well as bare exceptions. Note that `except*` always delivers the caught exceptions as an `ExceptionGroup` (even if the original was a bare exception), so re-raising will propagate an `ExceptionGroup` rather than the original exception type:
 
--   [Python >=3.11](#tab-panel-56)
--   [Python <3.11](#tab-panel-57)
+-   [Python >=3.11](#tab-panel-44)
+-   [Python <3.11](#tab-panel-45)
 
 middleware\_with\_fallback.py
 
@@ -69242,8 +69912,8 @@ except FallbackExceptionGroup as exc_group:
 
 To use [`XaiModel`](/docs/ai/api/models/xai/#pydantic_ai.models.xai.XaiModel), you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `xai` optional group:
 
--   [pip](#tab-panel-64)
--   [uv](#tab-panel-65)
+-   [pip](#tab-panel-52)
+-   [uv](#tab-panel-53)
 
 Terminal
 
@@ -69396,6 +70066,7 @@ To help you get started with Pydantic AI Gateway, some code examples on the Pyda
 -   **Cost Limits**: Set spending limits at project, user, and API key levels with daily, weekly, and monthly caps.
 -   **BYOK and managed providers:** Bring your own API keys (BYOK) from LLM providers, or pay for inference directly through the platform.
 -   **Multi-provider support:** Access models from OpenAI, Anthropic, Google Vertex, Groq, and AWS Bedrock. _More providers coming soon_.
+-   **Routing groups:** Configure [routing groups](#routing-groups) to fail over between providers serving the same model, or load-balance traffic across them by weight.
 -   **Backend observability:** Log every request through [Pydantic Logfire](https://pydantic.dev/logfire) or any OpenTelemetry backend (_coming soon_).
 -   **Zero translation**: Unlike traditional AI gateways that translate everything to one common schema, **Pydantic AI Gateway** allows requests to flow through directly in each provider's native format. This gives you immediate access to new model features as soon as they are released.
 -   **Enterprise ready**: Inherits Logfire's enterprise features -- including SSO, custom roles and permissions.
@@ -69476,8 +70147,8 @@ AWS Bedrock
 
 Before you start, make sure you are on version 1.16 or later of `pydantic-ai`. To update to the latest version run:
 
--   [uv](#tab-panel-92)
--   [pip](#tab-panel-93)
+-   [uv](#tab-panel-80)
+-   [pip](#tab-panel-81)
 
 Terminal
 
@@ -69569,8 +70240,8 @@ Before you start, log out of Claude Code using `/logout`.
 
 Set your gateway credentials as environment variables, using the base URL that matches your Logfire region:
 
--   [US](#tab-panel-94)
--   [EU](#tab-panel-95)
+-   [US](#tab-panel-82)
+-   [EU](#tab-panel-83)
 
 Terminal
 
@@ -69604,8 +70275,8 @@ export PYDANTIC_AI_GATEWAY_API_KEY="YOUR_GATEWAY_API_KEY"
 
 Then add the following configuration to `~/.codex/config.toml`, using the base URL that matches your Logfire region:
 
--   [US](#tab-panel-96)
--   [EU](#tab-panel-97)
+-   [US](#tab-panel-84)
+-   [EU](#tab-panel-85)
 
 ```toml
 model = "gpt-5.4"
@@ -69643,8 +70314,8 @@ Launch Codex by typing `codex`. All requests will now route through the Pydantic
 
 Use the base URL that matches your Logfire region (`gateway-us` or `gateway-eu`).
 
--   [US](#tab-panel-98)
--   [EU](#tab-panel-99)
+-   [US](#tab-panel-86)
+-   [EU](#tab-panel-87)
 
 openai\_sdk.py
 
@@ -69686,8 +70357,8 @@ print(response.choices[0].message.content)
 
 Use the base URL that matches your Logfire region (`gateway-us` or `gateway-eu`).
 
--   [US](#tab-panel-100)
--   [EU](#tab-panel-101)
+-   [US](#tab-panel-88)
+-   [EU](#tab-panel-89)
 
 anthropic\_sdk.py
 
@@ -69726,6 +70397,113 @@ response = client.messages.create(
 print(response.content[0].text)
 #> Hello user
 ```
+
+#### Vercel AI SDK
+
+The [Vercel AI SDK](https://ai-sdk.dev/) can route through the Gateway by pointing each provider's `baseURL` at the matching proxy path (e.g. `/proxy/openai` or `/proxy/anthropic`). Use the base URL that matches your Logfire region (`gateway-us` or `gateway-eu`).
+
+-   [US](#tab-panel-90)
+-   [EU](#tab-panel-91)
+
+```typescript
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateText } from "ai";
+
+const apiKey = process.env.PYDANTIC_AI_GATEWAY_API_KEY;
+if (!apiKey) throw new Error("set PYDANTIC_AI_GATEWAY_API_KEY");
+
+const openai = createOpenAI({
+  apiKey,
+  baseURL: "https://gateway-us.pydantic.dev/proxy/openai",
+});
+
+async function main() {
+  const openaiResult = await generateText({
+    model: openai("gpt-5.2"),
+    prompt: "what color is the sky? reply concisely",
+  });
+  console.log("openai:", openaiResult.text);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```typescript
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateText } from "ai";
+
+const apiKey = process.env.PYDANTIC_AI_GATEWAY_API_KEY;
+if (!apiKey) throw new Error("set PYDANTIC_AI_GATEWAY_API_KEY");
+
+const openai = createOpenAI({
+  apiKey,
+  baseURL: "https://gateway-eu.pydantic.dev/proxy/openai",
+});
+
+async function main() {
+  const openaiResult = await generateText({
+    model: openai("gpt-5.2"),
+    prompt: "what color is the sky? reply concisely",
+  });
+  console.log("openai:", openaiResult.text);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+## Routing groups
+
+A **routing group** is a named collection of providers that all serve the same model. Each member has a **priority**, a **weight**, and an **active** flag, and those three values together let a single group express two different routing strategies:
+
+-   **Failover / fallback**: Assign members different priorities. The Gateway always tries the highest-priority active member first, and only falls through to a lower-priority member when the higher one is unavailable (for example if it is down, rate-limited, or returns an error).
+-   **Load balancing**: Assign two or more members the same priority and give each a weight. The Gateway splits traffic across those members in proportion to their weights.
+
+The two strategies compose: you can have, for example, a top priority tier with two providers load-balanced 70/30, and a second priority tier that only receives traffic when both top-tier providers fail.
+
+### Creating a routing group
+
+Routing groups are managed from your organization's Gateway settings in Logfire:
+
+1.  Open **Gateway -> Routing Groups** and click **Add Routing Group**.
+2.  Give the group a slug (e.g. `anthropic-routing`) and an optional description.
+3.  Open the group's **Members** page and add one or more providers. For each member set:
+    -   **Priority** - higher values are tried first. Use different priorities across members for failover.
+    -   **Weight** - load-balancing weight used between members that share the same priority.
+    -   **Active** - inactive members are skipped during routing.
+
+### Using a routing group
+
+Point the Gateway provider at the group via the `route` parameter (the group's slug):
+
+routing\_group.py
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.gateway import gateway_provider
+
+provider = gateway_provider(
+  'anthropic',
+  api_key='pylf_v...',
+  route='anthropic-routing',  # (1)
+)
+model = AnthropicModel('claude-sonnet-4-6', provider=provider)
+agent = Agent(model)
+
+result = agent.run_sync('Where does "hello world" come from?')
+print(result.output)
+"""
+The first known use of "hello, world" was in a 1974 textbook about the C programming language.
+"""
+```
+
+The slug of the routing group you created in Logfire.
 
 ## Troubleshooting
 
@@ -69789,7 +70567,7 @@ We built Pydantic AI with one simple aim: to bring that FastAPI feeling to GenAI
 
 5.  **Powerful Evals**: Enables you to systematically test and [evaluate](/docs/ai/evals/) the performance and accuracy of the agentic systems you build, and monitor the performance over time in Pydantic Logfire.
 
-6.  **Extensible by Design**: Build agents from composable [capabilities](/docs/ai/core-concepts/capabilities) that bundle tools, hooks, instructions, and model settings into reusable units. Use built-in capabilities for [web search](/docs/ai/core-concepts/capabilities#provider-adaptive-tools), [thinking](/docs/ai/core-concepts/capabilities#thinking), and [MCP](/docs/ai/core-concepts/capabilities#provider-adaptive-tools), build your own, or install [third-party capability packages](/docs/ai/guides/extensibility). Define agents entirely in [YAML/JSON](/docs/ai/core-concepts/agent-spec) -- no code required.
+6.  **Extensible by Design**: Build agents from composable [capabilities](/docs/ai/core-concepts/capabilities) that bundle tools, hooks, instructions, and model settings into reusable units. Use built-in capabilities for [web search](/docs/ai/core-concepts/capabilities#provider-adaptive-tools), [thinking](/docs/ai/core-concepts/capabilities#thinking), and [MCP](/docs/ai/core-concepts/capabilities#provider-adaptive-tools), pick from the [Pydantic AI Harness](/docs/ai/harness/overview) capability library, build your own, or install [third-party capability packages](/docs/ai/guides/extensibility). Define agents entirely in [YAML/JSON](/docs/ai/core-concepts/agent-spec) -- no code required.
 
 7.  **MCP, A2A, and UI**: Integrates the [Model Context Protocol](/docs/ai/mcp/overview), [Agent2Agent](/docs/ai/integrations/a2a), and various [UI event stream](/docs/ai/integrations/ui/overview) standards to give your agent access to external tools and data, let it interoperate with other agents, and build interactive applications with streaming event-based communication.
 
@@ -70039,8 +70817,8 @@ Join [Slack](https://logfire.pydantic.dev/docs/join-slack/) or file an issue on 
 
 Pydantic AI is available on PyPI as [`pydantic-ai`](https://pypi.org/project/pydantic-ai/) so installation is as simple as:
 
--   [pip](#tab-panel-84)
--   [uv](#tab-panel-85)
+-   [pip](#tab-panel-72)
+-   [uv](#tab-panel-73)
 
 Terminal
 
@@ -70070,8 +70848,8 @@ We distribute the [`pydantic_ai_examples`](https://github.com/pydantic/pydantic-
 
 To install examples, use the `examples` optional group:
 
--   [pip](#tab-panel-86)
--   [uv](#tab-panel-87)
+-   [pip](#tab-panel-74)
+-   [uv](#tab-panel-75)
 
 Terminal
 
@@ -70091,8 +70869,8 @@ To run the examples, follow instructions in the [examples docs](/docs/ai/example
 
 If you know which model you're going to use and want to avoid installing superfluous packages, you can use the [`pydantic-ai-slim`](https://pypi.org/project/pydantic-ai-slim/) package. For example, if you're using just [`OpenAIChatModel`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIChatModel), you would run:
 
--   [pip](#tab-panel-88)
--   [uv](#tab-panel-89)
+-   [pip](#tab-panel-76)
+-   [uv](#tab-panel-77)
 
 Terminal
 
@@ -70139,8 +70917,8 @@ uv add "pydantic-ai-slim[openai]"
 
 You can also install dependencies for multiple models and use cases, for example:
 
--   [pip](#tab-panel-90)
--   [uv](#tab-panel-91)
+-   [pip](#tab-panel-78)
+-   [uv](#tab-panel-79)
 
 Terminal
 
@@ -70337,7 +71115,9 @@ If the fix could reasonably go more than one way, or you're unsure it's actually
 
 ### Features, integrations, or API changes
 
-Before writing code, ask whether the change needs to live in core at all. Many additions work better as a [capability](/docs/ai/core-concepts/capabilities) -- a self-contained extension you publish as your own package and use immediately without waiting on us. Capabilities are the primary extension point for Pydantic AI. Once yours has real users and a stable shape, come back and we can talk about upstreaming.
+Before writing code, ask whether the change needs to live in core at all. Most new agent behaviors belong in [**Pydantic AI Harness**](https://github.com/pydantic/pydantic-ai-harness), the official capability library -- not in this repo. Pydantic AI core is for the agent loop, model providers, and capabilities that require model-specific support or are fundamental to the agent experience. Standalone capabilities -- guardrails, memory, context management, file system access, etc. -- belong in the harness, where they can iterate faster. See [What goes where?](/docs/ai/harness/overview#what-goes-where) for the full distinction.
+
+**If your idea is a capability**, open an issue on [pydantic-ai-harness](https://github.com/pydantic/pydantic-ai-harness/issues) instead. You can also publish capabilities as your own package using the `pydantic-ai-<name>` convention -- see [Publishing capability packages](/docs/ai/guides/extensibility#publishing-capability-packages). Once a capability has real users and a stable shape, we can talk about upstreaming to harness or core.
 
 If it does belong in core:
 
@@ -70390,7 +71170,12 @@ PRs are automatically reviewed by Devin and our own tooling. These reviews are a
 
 We receive far more contributions than we can review, and we focus where it has the most impact. We cannot promise to get to every PR, even good ones, and we'd rather say so up front than leave your work open indefinitely with no signal.
 
-Features that align with our roadmap and have active champions get priority. Features that could live as a [capability](/docs/ai/core-concepts/capabilities) or workaround in user code: shipping it yourself is often the fastest path. Once it has traction, come back and we can talk about upstreaming.
+How we weigh priorities:
+
+-   **User demand** -- features that more users need get priority. Champion-backed features with production use cases outrank speculative additions.
+-   **Provider significance** -- work that affects frontier providers (Anthropic, OpenAI, Google) or providers we know are heavily used gets priority. A model integration for a niche provider will wait; a fix for Anthropic won't.
+-   **Roadmap alignment** -- features that align with our current focus areas get priority. Right now that includes the capabilities/hooks API, provider-adaptive tools, and the [Pydantic AI Harness](https://github.com/pydantic/pydantic-ai-harness) capability library.
+-   **Capabilities over core** -- features that could live as a [capability](/docs/ai/core-concepts/capabilities) should go to [Pydantic AI Harness](https://github.com/pydantic/pydantic-ai-harness) or ship as your own package -- that's often the fastest path. Once it has traction, come back and we can talk about upstreaming.
 
 ## If your PR or issue has gone quiet
 
@@ -71873,8 +72658,8 @@ The DuckDuckGo search tool allows you to search the web for information. It is b
 
 To use [`duckduckgo_search_tool`](/docs/ai/api/pydantic-ai/common_tools/#pydantic_ai.common_tools.duckduckgo.duckduckgo_search_tool), you need to install [`pydantic-ai-slim`](/docs/ai/overview/install#slim-install) with the `duckduckgo` optional group:
 
--   [pip](#tab-panel-102)
--   [uv](#tab-panel-103)
+-   [pip](#tab-panel-92)
+-   [uv](#tab-panel-93)
 
 Terminal
 
@@ -71963,8 +72748,8 @@ The web fetch tool allows your agent to fetch the content of web pages and conve
 
 To use `web_fetch_tool`, you need to install [`pydantic-ai-slim`](/docs/ai/overview/install#slim-install) with the `web-fetch` optional group:
 
--   [pip](#tab-panel-104)
--   [uv](#tab-panel-105)
+-   [pip](#tab-panel-94)
+-   [uv](#tab-panel-95)
 
 Terminal
 
@@ -72016,8 +72801,8 @@ The Tavily search tool allows you to search the web for information. It is built
 
 To use [`tavily_search_tool`](/docs/ai/api/pydantic-ai/common_tools/#pydantic_ai.common_tools.tavily.tavily_search_tool), you need to install [`pydantic-ai-slim`](/docs/ai/overview/install#slim-install) with the `tavily` optional group:
 
--   [pip](#tab-panel-106)
--   [uv](#tab-panel-107)
+-   [pip](#tab-panel-96)
+-   [uv](#tab-panel-97)
 
 Terminal
 
@@ -72122,8 +72907,8 @@ Exa is a neural search engine that finds high-quality, relevant results across b
 
 To use Exa tools, you need to install [`pydantic-ai-slim`](/docs/ai/overview/install#slim-install) with the `exa` optional group:
 
--   [pip](#tab-panel-108)
--   [uv](#tab-panel-109)
+-   [pip](#tab-panel-98)
+-   [uv](#tab-panel-99)
 
 Terminal
 
@@ -73534,7 +74319,7 @@ async def fast_tool() -> str:
 -   **Agent-level timeout**: Set `tool_timeout` on the [`Agent`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent) to apply a default timeout to all tools.
 -   **Per-tool timeout**: Set `timeout` on individual tools via [`@agent.tool`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.tool), [`@agent.tool_plain`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.tool_plain), or the [`Tool`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.Tool) dataclass. This overrides the agent-level default.
 
-When a timeout occurs, the tool is considered to have failed and the model receives a retry prompt with the message `"Timed out after \{timeout\} seconds."`. This counts towards the tool's retry limit just like validation errors or explicit [`ModelRetry`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.ModelRetry) exceptions.
+When a timeout occurs, the tool is considered to have failed and the model receives a retry prompt with the message `"Timed out after {timeout} seconds."`. This counts towards the tool's retry limit just like validation errors or explicit [`ModelRetry`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.ModelRetry) exceptions.
 
 ### Custom Args Validator
 
