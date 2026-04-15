@@ -27,14 +27,22 @@ function extractSessionId(input: unknown): string | null {
   return null;
 }
 
-function extractListLimit(input: unknown): number | undefined {
-  if (input && typeof input === "object" && "limit" in input) {
-    const value = (input as { limit: unknown }).limit;
-    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-      return value;
-    }
+// The list_sessions tool embeds each session's UUID in an HTML comment
+// (`<!-- id=... -->`) on its line so the agent can resolve "Session 07" → UUID
+// without leaking the UUID to the user. We extract the same comments here so
+// the rendered panel mirrors exactly what the agent decided to show — order
+// and all — instead of duplicating the tool's filter logic on the frontend.
+const SESSION_ID_COMMENT = /<!--\s*id=([0-9a-f-]+)\s*-->/gi;
+
+function extractSessionIdsFromOutput(output: unknown): string[] | null {
+  if (typeof output !== "string") {
+    return null;
   }
-  return undefined;
+  const ids: string[] = [];
+  for (const match of output.matchAll(SESSION_ID_COMMENT)) {
+    ids.push(match[1]);
+  }
+  return ids.length > 0 ? ids : null;
 }
 
 function DataPartRenderer({ part }: { part: DataUIPart<CustomUIDataTypes> }) {
@@ -143,9 +151,9 @@ const PurePreviewMessage = ({
                   : null;
               const showSessionList =
                 toolName === "list_sessions" && isOutputAvailable;
-              const sessionListLimit = showSessionList
-                ? extractListLimit(part.input)
-                : undefined;
+              const sessionListIds = showSessionList
+                ? extractSessionIdsFromOutput(part.output)
+                : null;
               return (
                 <div className="flex flex-col gap-2" key={key}>
                   <ToolCall
@@ -160,7 +168,7 @@ const PurePreviewMessage = ({
                     <RetrievedTracksPanel sessionId={retrievalSessionId} />
                   )}
                   {showSessionList && (
-                    <SessionListPanel limit={sessionListLimit} />
+                    <SessionListPanel sessionIds={sessionListIds} />
                   )}
                 </div>
               );

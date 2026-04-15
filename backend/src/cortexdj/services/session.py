@@ -42,11 +42,16 @@ async def list_sessions_enriched(
 ) -> tuple[list[dict[str, Any]], int]:
     """Return sessions enriched with display index, dominant-state label, and segment stats.
 
-    display_index is a stable 1-based ordinal computed from chronological
-    insertion order, so "Session 01" remains "Session 01" across requests as
-    long as no rows are deleted. The display index is always assigned ASC by
-    `created_at` regardless of the `order` argument, which only controls the
-    order rows are returned in.
+    display_index is a 1-based ordinal computed from chronological insertion
+    order (ASC by `created_at`), regardless of the `order` argument — `order`
+    only controls the order rows are returned in.
+
+    **Known limitation:** display indices are *not* persisted, so they
+    renumber if any session row is deleted. "Session 07" today may bind to
+    a different UUID tomorrow if Session 03 was removed in between. This is
+    acceptable for the current single-tenant demo (sessions are only ever
+    inserted by the seed script), but if/when real per-user sessions land
+    this should become a persisted column on `sessions`.
 
     order:
       - "recent" (default): newest first. `limit=1` returns the most recently

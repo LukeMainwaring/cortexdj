@@ -108,12 +108,24 @@ function SessionCard({
 }
 
 type Props = {
-  limit?: number;
-  order?: "recent" | "stable";
+  // When provided, the panel renders exactly these sessions in this order —
+  // typically the UUIDs the agent's `list_sessions` tool included in its
+  // output. When null/undefined, the panel falls back to showing every
+  // session it fetched.
+  sessionIds?: string[] | null;
 };
 
-const PureSessionListPanel = ({ limit = 50, order = "recent" }: Props) => {
-  const { data, isLoading, error } = useEnrichedSessions(limit, order);
+// Fetch a generous slice so any subset the agent might choose is covered by
+// the cached query. 500 is well above the demo's ceiling (32 DEAP rows) and
+// still a single query — if the catalog ever scales past this we should
+// fetch the requested ids directly instead of filtering client-side.
+const PANEL_FETCH_LIMIT = 500;
+
+const PureSessionListPanel = ({ sessionIds }: Props) => {
+  const { data, isLoading, error } = useEnrichedSessions(
+    PANEL_FETCH_LIMIT,
+    "recent",
+  );
   const chatActions = useChatActions();
   const handleAnalyze = chatActions
     ? (label: string) => chatActions.sendMessage(`Analyze ${label}`)
@@ -128,12 +140,33 @@ const PureSessionListPanel = ({ limit = 50, order = "recent" }: Props) => {
   }
 
   if (error || !data) {
-    return null;
+    return (
+      <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-3 text-rose-600 text-xs dark:text-rose-400">
+        Couldn't load EEG sessions. Check that the backend is running and try
+        again.
+      </div>
+    );
   }
 
-  const showingSubset = data.sessions.length < data.total;
+  const sessionsById = new Map(data.sessions.map((s) => [s.id, s]));
+  const filteredSessions =
+    sessionIds && sessionIds.length > 0
+      ? sessionIds
+          .map((id) => sessionsById.get(id))
+          .filter((s): s is NonNullable<typeof s> => s != null)
+      : data.sessions;
+
+  if (filteredSessions.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-3 text-muted-foreground text-xs">
+        No EEG sessions to show.
+      </div>
+    );
+  }
+
+  const showingSubset = filteredSessions.length < data.total;
   const heading = showingSubset
-    ? `Showing ${data.sessions.length} of your ${data.total} EEG sessions`
+    ? `Showing ${filteredSessions.length} of your ${data.total} EEG sessions`
     : "Here are your EEG sessions";
 
   return (
@@ -148,7 +181,7 @@ const PureSessionListPanel = ({ limit = 50, order = "recent" }: Props) => {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {data.sessions.map((s) => (
+          {filteredSessions.map((s) => (
             <SessionCard key={s.id} onAnalyze={handleAnalyze} session={s} />
           ))}
         </div>
