@@ -197,6 +197,60 @@
         }
       }
     },
+    "/api/sessions/enriched": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "List Sessions Enriched",
+        "description": "List EEG sessions with derived display labels and quadrant distributions.",
+        "operationId": "listSessionsEnriched",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSummaryListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{session_id}": {
       "get": {
         "tags": [
@@ -848,6 +902,88 @@
           "created_at"
         ],
         "title": "SessionSchema"
+      },
+      "SessionSummaryListResponse": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionSummarySchema"
+            },
+            "type": "array",
+            "title": "Sessions"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessions",
+          "total"
+        ],
+        "title": "SessionSummaryListResponse"
+      },
+      "SessionSummarySchema": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "display_index": {
+            "type": "integer",
+            "title": "Display Index"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "dominant_state": {
+            "type": "string",
+            "title": "Dominant State"
+          },
+          "state_distribution": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "State Distribution"
+          },
+          "segment_count": {
+            "type": "integer",
+            "title": "Segment Count"
+          },
+          "track_count": {
+            "type": "integer",
+            "title": "Track Count"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "title": "Duration Seconds"
+          },
+          "avg_arousal": {
+            "type": "number",
+            "title": "Avg Arousal"
+          },
+          "avg_valence": {
+            "type": "number",
+            "title": "Avg Valence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_index",
+          "label",
+          "dominant_state",
+          "state_distribution",
+          "segment_count",
+          "track_count",
+          "duration_seconds",
+          "avg_arousal",
+          "avg_valence"
+        ],
+        "title": "SessionSummarySchema"
       },
       "SimilarTrackSchema": {
         "properties": {

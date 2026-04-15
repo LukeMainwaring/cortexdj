@@ -32,9 +32,11 @@ function getToolVerb(name: string): string {
 export function ToolCall({
   part,
   isStreaming,
+  hideOutput,
 }: {
   part: DynamicToolUIPart | ToolUIPart;
   isStreaming?: boolean;
+  hideOutput?: boolean;
 }) {
   const toolName = getToolName(part);
   const isRunning =
@@ -80,7 +82,7 @@ export function ToolCall({
                 {JSON.stringify(part.input, null, 2)}
               </pre>
             )}
-          {isComplete && part.output != null && (
+          {isComplete && !hideOutput && part.output != null && (
             <pre className="overflow-x-auto rounded-md bg-muted/50 p-2 text-muted-foreground">
               {typeof part.output === "string"
                 ? part.output

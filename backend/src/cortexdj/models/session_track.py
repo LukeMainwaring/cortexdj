@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Sequence
 
-from sqlalchemy import DateTime, ForeignKey, String, func, select
+from sqlalchemy import DateTime, ForeignKey, String, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,6 +31,18 @@ class SessionTrack(Base):
     async def get_by_state(cls, db: AsyncSession, dominant_state: str, *, limit: int = 50) -> Sequence[SessionTrack]:
         result = await db.execute(select(cls).where(cls.dominant_state == dominant_state).limit(limit))
         return result.scalars().all()
+
+    @classmethod
+    async def get_distinct_track_counts(cls, db: AsyncSession, session_ids: Sequence[str]) -> dict[str, int]:
+        """Count distinct tracks per session for the given session ids."""
+        if not session_ids:
+            return {}
+        result = await db.execute(
+            select(cls.session_id, func.count(distinct(cls.track_id)))
+            .where(cls.session_id.in_(session_ids))
+            .group_by(cls.session_id)
+        )
+        return {sid: int(count) for sid, count in result.all()}
 
     @classmethod
     async def get_relaxing_tracks(cls, db: AsyncSession, *, limit: int = 50) -> Sequence[SessionTrack]:

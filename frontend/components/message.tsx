@@ -14,6 +14,7 @@ import { Response } from "./elements/response";
 import { ToolCall } from "./elements/tool-call";
 import { MessageActions } from "./message-actions";
 import { RetrievedTracksPanel } from "./retrieved-tracks-panel";
+import { SessionListPanel } from "./session-list-panel";
 import { SessionVisualization } from "./session-visualization";
 
 function extractSessionId(input: unknown): string | null {
@@ -130,9 +131,12 @@ const PurePreviewMessage = ({
                 isOutputAvailable
                   ? extractSessionId(part.input)
                   : null;
+              const showSessionList =
+                toolName === "list_sessions" && isOutputAvailable;
               return (
                 <div className="flex flex-col gap-2" key={key}>
                   <ToolCall
+                    hideOutput={showSessionList}
                     isStreaming={isLoading && !hasTextParts}
                     part={part}
                   />
@@ -142,6 +146,7 @@ const PurePreviewMessage = ({
                   {retrievalSessionId && (
                     <RetrievedTracksPanel sessionId={retrievalSessionId} />
                   )}
+                  {showSessionList && <SessionListPanel />}
                 </div>
               );
             }

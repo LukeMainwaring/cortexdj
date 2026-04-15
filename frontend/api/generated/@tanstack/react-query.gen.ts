@@ -4,8 +4,8 @@ import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOption
 import type { AxiosError } from 'axios';
 
 import { client } from '../client.gen';
-import { connectSpotify, dbHealthCheck, deleteThread, disconnectSpotify, getAudioPreview, getSession, getSessionSegments, getSimilarTracks, getSpotifyStatus, getThreadMessages, listSessions, listThreads, type Options, renameThread, spotifyCallback, streamChat } from '../sdk.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponse, DbHealthCheckData, DbHealthCheckResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetAudioPreviewData, GetAudioPreviewError, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSimilarTracksData, GetSimilarTracksError, GetSimilarTracksResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError, StreamChatData } from '../types.gen';
+import { connectSpotify, dbHealthCheck, deleteThread, disconnectSpotify, getAudioPreview, getSession, getSessionSegments, getSimilarTracks, getSpotifyStatus, getThreadMessages, listSessions, listSessionsEnriched, listThreads, type Options, renameThread, spotifyCallback, streamChat } from '../sdk.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponse, DbHealthCheckData, DbHealthCheckResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetAudioPreviewData, GetAudioPreviewError, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSimilarTracksData, GetSimilarTracksError, GetSimilarTracksResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedError, ListSessionsEnrichedResponse, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError, StreamChatData } from '../types.gen';
 
 /**
  * Stream Chat
@@ -203,6 +203,55 @@ export const listSessionsInfiniteOptions = (options?: Options<ListSessionsData>)
         return data;
     },
     queryKey: listSessionsInfiniteQueryKey(options)
+});
+
+export const listSessionsEnrichedQueryKey = (options?: Options<ListSessionsEnrichedData>) => createQueryKey('listSessionsEnriched', options);
+
+/**
+ * List Sessions Enriched
+ *
+ * List EEG sessions with derived display labels and quadrant distributions.
+ */
+export const listSessionsEnrichedOptions = (options?: Options<ListSessionsEnrichedData>) => queryOptions<ListSessionsEnrichedResponse, AxiosError<ListSessionsEnrichedError>, ListSessionsEnrichedResponse, ReturnType<typeof listSessionsEnrichedQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listSessionsEnriched({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listSessionsEnrichedQueryKey(options)
+});
+
+export const listSessionsEnrichedInfiniteQueryKey = (options?: Options<ListSessionsEnrichedData>): QueryKey<Options<ListSessionsEnrichedData>> => createQueryKey('listSessionsEnriched', options, true);
+
+/**
+ * List Sessions Enriched
+ *
+ * List EEG sessions with derived display labels and quadrant distributions.
+ */
+export const listSessionsEnrichedInfiniteOptions = (options?: Options<ListSessionsEnrichedData>) => infiniteQueryOptions<ListSessionsEnrichedResponse, AxiosError<ListSessionsEnrichedError>, InfiniteData<ListSessionsEnrichedResponse>, QueryKey<Options<ListSessionsEnrichedData>>, number | Pick<QueryKey<Options<ListSessionsEnrichedData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+// @ts-ignore
+{
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+        // @ts-ignore
+        const page: Pick<QueryKey<Options<ListSessionsEnrichedData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+            query: {
+                offset: pageParam
+            }
+        };
+        const params = createInfiniteParams(queryKey, page);
+        const { data } = await listSessionsEnriched({
+            ...options,
+            ...params,
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listSessionsEnrichedInfiniteQueryKey(options)
 });
 
 export const getSessionQueryKey = (options: Options<GetSessionData>) => createQueryKey('getSession', options);

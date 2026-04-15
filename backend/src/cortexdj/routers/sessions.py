@@ -3,7 +3,12 @@ from fastapi import APIRouter, HTTPException
 from cortexdj.dependencies.db import AsyncPostgresSessionDep
 from cortexdj.models.eeg_segment import EegSegment
 from cortexdj.schemas.eeg_segment import SegmentListResponse, SegmentSchema
-from cortexdj.schemas.session import SessionListResponse, SessionSchema
+from cortexdj.schemas.session import (
+    SessionListResponse,
+    SessionSchema,
+    SessionSummaryListResponse,
+    SessionSummarySchema,
+)
 from cortexdj.services import session as session_service
 from cortexdj.services.trajectory import compute_trajectory_summary
 
@@ -16,6 +21,18 @@ async def list_sessions(db: AsyncPostgresSessionDep, limit: int = 50, offset: in
     sessions, total = await session_service.list_sessions(db, limit=limit, offset=offset)
     return SessionListResponse(
         sessions=[SessionSchema.model_validate(s) for s in sessions],
+        total=total,
+    )
+
+
+@sessions_router.get("/enriched")
+async def list_sessions_enriched(
+    db: AsyncPostgresSessionDep, limit: int = 50, offset: int = 0
+) -> SessionSummaryListResponse:
+    """List EEG sessions with derived display labels and quadrant distributions."""
+    summaries, total = await session_service.list_sessions_enriched(db, limit=limit, offset=offset)
+    return SessionSummaryListResponse(
+        sessions=[SessionSummarySchema.model_validate(s) for s in summaries],
         total=total,
     )
 

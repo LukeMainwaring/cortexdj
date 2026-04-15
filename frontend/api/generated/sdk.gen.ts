@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetAudioPreviewData, GetAudioPreviewErrors, GetAudioPreviewResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetAudioPreviewData, GetAudioPreviewErrors, GetAudioPreviewResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -78,6 +78,17 @@ export const getSimilarTracks = <ThrowOnError extends boolean = false>(options: 
 export const listSessions = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsData, ThrowOnError>) => (options?.client ?? client).get<ListSessionsResponses, ListSessionsErrors, ThrowOnError>({
     responseType: 'json',
     url: '/api/sessions',
+    ...options
+});
+
+/**
+ * List Sessions Enriched
+ *
+ * List EEG sessions with derived display labels and quadrant distributions.
+ */
+export const listSessionsEnriched = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsEnrichedData, ThrowOnError>) => (options?.client ?? client).get<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/sessions/enriched',
     ...options
 });
 
