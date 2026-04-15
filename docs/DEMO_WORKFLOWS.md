@@ -43,7 +43,7 @@ The agent queries historical EEG classification data — not listening history o
 
 ### Plain-Language Neuroscience
 
-> "What was my brain doing during session [ID]?"
+> "What was my brain doing during Session 04?"
 
 The agent translates raw EEG classification data into an accessible narrative — explaining dominant emotional states, notable transitions, and the underlying neural signatures. It references specific frequency bands (alpha, beta, theta) and explains what they indicate about cognitive and emotional processing.
 
@@ -57,7 +57,7 @@ The agent translates raw EEG classification data into an accessible narrative �
 
 ### Cross-Session Brain Pattern Comparison
 
-> "Compare session [ID1] and session [ID2] — what changed?"
+> "Compare Session 03 and Session 18 — what changed?"
 
 Side-by-side comparison of brain responses across two different listening sessions. Reveals how the same person's brain states differ across different music or different days.
 
@@ -66,11 +66,11 @@ Side-by-side comparison of brain responses across two different listening sessio
 - "Comparing sessions" spinner → checkmark
 - Delta values: arousal and valence differences between sessions
 - Dominant state comparison: did the participant shift from stressed to relaxed?
-- The agent interprets the deltas — "Your brain was significantly more relaxed during session 2, with a 0.3 drop in arousal"
+- The agent interprets the deltas — "Your brain was significantly more relaxed during Session 18, with a 0.3 drop in arousal"
 
 ### Persistent Brain Context
 
-> "Set my brain context to session [ID]"
+> "Set my brain context to Session 11"
 
 Then in follow-up messages:
 
@@ -86,7 +86,7 @@ The agent persists brain state context (dominant mood, arousal, valence) in the 
 
 ### Brain-State Track Retrieval (Contrastive)
 
-> "Find me new songs that match how I was feeling during session [ID]"
+> "Find me new songs that match how I was feeling during Session 07"
 
 Unlike `build_mood_playlist` (which curates from tracks already labeled in the EEG database), this uses a contrastive EEG↔CLAP encoder to embed the session's raw brain signal and search a pgvector index of pre-computed track audio embeddings. The agent returns Spotify tracks the user may have never heard — recommendations grounded in the joint EEG-audio embedding space, not a keyword filter on a quadrant label.
 
@@ -101,7 +101,7 @@ Unlike `build_mood_playlist` (which curates from tracks already labeled in the E
 **Variations:**
 
 - *"Suggest some music that sounds like my brain state in that last session"*
-- *"What tracks would match the vibe of session [ID]?"*
+- *"What tracks would match the vibe of Session 12?"*
 - *"Find new songs for this session's mood"*
 
 **Prereqs:** The retrieval index must be populated (`uv run --directory backend seed-track-index`) and a contrastive checkpoint must exist (`uv run --directory backend train-contrastive` or via Modal). If the index is empty the tool returns a `note` with operator instructions, which the agent relays verbatim instead of hallucinating a recovery.
@@ -119,16 +119,17 @@ A 4-step workflow demonstrating the complete EEG analysis pipeline.
 > "Show me my EEG sessions"
 
 - Agent calls `list_sessions` — "Loading EEG sessions" spinner → checkmark
-- Results list sessions with participant IDs, timestamps, and segment counts
-- Sessions come from the DEAP dataset (32 participants, 40 music video trials each)
+- A `<SessionListPanel>` card grid renders inline beneath the tool call: each card shows a stable label ("Session 01" … "Session 32"), a derived dominant-state caption ("Mostly excited", "Calm & focused throughout", "Mixed, leaning excited"), a stacked quadrant distribution bar (emerald/sky/amber/rose), and per-session track + segment counts
+- The agent's natural-language reply references sessions by their **Session NN** label — UUIDs, participant IDs, and recording timestamps are intentionally hidden
+- Each session represents one DEAP listening sitting (40 music videos at ~1 minute each); for demo purposes treat the whole grid as your own listening history
 
 **Step 2 — Analyze a session:**
 
-> "Analyze session [paste an ID from the list]"
+> "Analyze Session 04"
 
-- Agent calls `analyze_session` — "Analyzing brain states" spinner → checkmark
+- Agent resolves the **Session 04** label to its underlying UUID from the prior `list_sessions` output and calls `analyze_session` — "Analyzing brain states" spinner → checkmark
 - Response includes:
-  - Session metadata (participant, duration, recording source)
+  - High-level session summary (label, duration, dominant state)
   - Summary with dominant state and arousal/valence averages
   - Per-segment timeline with individual arousal/valence scores and band powers
   - Track information with per-track emotion summaries
@@ -206,7 +207,7 @@ The full end-to-end retrieval demo: analyze a session and discover new matching 
 
 **Step 1 — Analyze the session:**
 
-> "Analyze session [paste an ID from list_sessions]"
+> "Analyze Session 07"
 
 - Agent calls `analyze_session` — `<SessionVisualization>` renders inline with the Trajectory tab (default, animated path through Russell's affect space) and Timeline tab, plus the stacked frequency-band-power chart below
 - The agent narrates the emotional arc using `trajectory_summary` fields (dwell fractions per quadrant, transition count, centroid, path length)
@@ -231,17 +232,17 @@ The full end-to-end retrieval demo: analyze a session and discover new matching 
 
 ## Quick Demos
 
-**List sessions:** *"Show me all EEG sessions"* — loads session index with participant info and timestamps.
+**List sessions:** *"Show me all EEG sessions"* — renders the `<SessionListPanel>` card grid with stable Session NN labels, derived dominant-state captions, and quadrant distribution bars.
 
-**Analyze a session:** *"Analyze session [ID]"* — full breakdown with per-segment timeline, band powers, and track associations.
+**Analyze a session:** *"Analyze Session 04"* — full breakdown with per-segment timeline, band powers, and track associations; the agent resolves the label to a UUID internally.
 
-**Explain brain state:** *"What was my brain doing during session [ID]?"* — plain-language neuroscience narrative with frequency band context.
+**Explain brain state:** *"What was my brain doing during Session 09?"* — plain-language neuroscience narrative with frequency band context.
 
-**Compare sessions:** *"Compare sessions [ID1] and [ID2]"* — side-by-side with arousal/valence deltas and dominant state changes.
+**Compare sessions:** *"Compare Session 03 and Session 18"* — side-by-side with arousal/valence deltas and dominant state changes.
 
 **Find mood tracks:** *"Find tracks that triggered excited brain states"* — EEG-derived recommendations by emotion quadrant.
 
-**Retrieve matching tracks (contrastive):** *"Find songs that match my brain state in session [ID]"* — contrastive EEG↔CLAP retrieval from the pgvector audio index; renders the similarity-bar track list inline with preview playback. Distinct from the quadrant-filter tools above: these may be tracks the user has never heard.
+**Retrieve matching tracks (contrastive):** *"Find songs that match my brain state in Session 07"* — contrastive EEG↔CLAP retrieval from the pgvector audio index; renders the similarity-bar track list inline with preview playback. Distinct from the quadrant-filter tools above: these may be tracks the user has never heard.
 
 **Build playlist:** *"Build me a stressed-out playlist"* — mood playlist from brain data with user confirmation gate.
 
@@ -312,7 +313,8 @@ These workflows will become available as upcoming roadmap features are implement
 ## Presenter Tips
 
 - **Start fresh:** Each workflow assumes a new chat thread. Click the new chat button in the sidebar.
-- **Reference by ID:** Session IDs from `list_sessions` are used in follow-up prompts. Copy-paste from the results.
+- **Reference by label, not UUID:** After `list_sessions` runs, refer to sessions by their **Session NN** label (e.g. "analyze Session 07"). The agent resolves the label to the underlying UUID internally — UUIDs, participant IDs, and recorded-at timestamps are intentionally hidden from the chat surface.
+- **Inline visualizations are the screenshot:** `list_sessions` renders the `<SessionListPanel>` card grid; `analyze_session` renders `<SessionVisualization>` (animated trajectory + timeline + band-power chart); `retrieve_tracks_from_brain_state` renders `<RetrievedTracksPanel>` with similarity bars and inline previews. The raw tool-output JSON is hidden behind a collapsible — expand it only if you specifically want to show the reasoning pipeline.
 - **Expand tool calls:** Click the collapsible tool call indicators to show input parameters and raw output JSON. This demonstrates the agent's reasoning pipeline.
 - **Brain context persistence:** Refresh the page mid-workflow to show that brain context survives page reloads — it's stored in the thread's database column, not browser state.
 - **Spotify connection:** Workflows using `get_listening_history`, `get_my_playlists`, `get_my_saved_tracks`, or `add_tracks_to_playlist` require Spotify to be connected in Settings. The tools are hidden from the agent when not connected.
