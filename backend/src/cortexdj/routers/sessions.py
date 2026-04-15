@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 
 from cortexdj.dependencies.db import AsyncPostgresSessionDep
@@ -27,10 +29,19 @@ async def list_sessions(db: AsyncPostgresSessionDep, limit: int = 50, offset: in
 
 @sessions_router.get("/enriched")
 async def list_sessions_enriched(
-    db: AsyncPostgresSessionDep, limit: int = 50, offset: int = 0
+    db: AsyncPostgresSessionDep,
+    limit: int = 50,
+    offset: int = 0,
+    order: Literal["recent", "stable"] = "recent",
 ) -> SessionSummaryListResponse:
-    """List EEG sessions with derived display labels and quadrant distributions."""
-    summaries, total = await session_service.list_sessions_enriched(db, limit=limit, offset=offset)
+    """List EEG sessions with derived display labels and quadrant distributions.
+
+    `order=recent` (default) returns newest first; `order=stable` returns
+    chronological-insertion order (Session 01 → Session NN).
+    """
+    summaries, total = await session_service.list_sessions_enriched(
+        db, limit=limit, offset=offset, order=order
+    )
     return SessionSummaryListResponse(
         sessions=[SessionSummarySchema.model_validate(s) for s in summaries],
         total=total,

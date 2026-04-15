@@ -27,6 +27,16 @@ function extractSessionId(input: unknown): string | null {
   return null;
 }
 
+function extractListLimit(input: unknown): number | undefined {
+  if (input && typeof input === "object" && "limit" in input) {
+    const value = (input as { limit: unknown }).limit;
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 function DataPartRenderer({ part }: { part: DataUIPart<CustomUIDataTypes> }) {
   switch (part.type) {
     default:
@@ -133,6 +143,9 @@ const PurePreviewMessage = ({
                   : null;
               const showSessionList =
                 toolName === "list_sessions" && isOutputAvailable;
+              const sessionListLimit = showSessionList
+                ? extractListLimit(part.input)
+                : undefined;
               return (
                 <div className="flex flex-col gap-2" key={key}>
                   <ToolCall
@@ -146,7 +159,9 @@ const PurePreviewMessage = ({
                   {retrievalSessionId && (
                     <RetrievedTracksPanel sessionId={retrievalSessionId} />
                   )}
-                  {showSessionList && <SessionListPanel />}
+                  {showSessionList && (
+                    <SessionListPanel limit={sessionListLimit} />
+                  )}
                 </div>
               );
             }

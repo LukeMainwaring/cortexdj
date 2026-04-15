@@ -203,7 +203,7 @@
           "sessions"
         ],
         "summary": "List Sessions Enriched",
-        "description": "List EEG sessions with derived display labels and quadrant distributions.",
+        "description": "List EEG sessions with derived display labels and quadrant distributions.\n\n`order=recent` (default) returns newest first; `order=stable` returns\nchronological-insertion order (Session 01 → Session NN).",
         "operationId": "listSessionsEnriched",
         "parameters": [
           {
@@ -224,6 +224,20 @@
               "type": "integer",
               "default": 0,
               "title": "Offset"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "recent",
+                "stable"
+              ],
+              "type": "string",
+              "default": "recent",
+              "title": "Order"
             }
           }
         ],

@@ -85,6 +85,9 @@ export const listSessions = <ThrowOnError extends boolean = false>(options?: Opt
  * List Sessions Enriched
  *
  * List EEG sessions with derived display labels and quadrant distributions.
+ *
+ * `order=recent` (default) returns newest first; `order=stable` returns
+ * chronological-insertion order (Session 01 → Session NN).
  */
 export const listSessionsEnriched = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsEnrichedData, ThrowOnError>) => (options?.client ?? client).get<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError>({
     responseType: 'json',

@@ -1,4 +1,4 @@
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,13 +34,26 @@ async def list_sessions(db: AsyncSession, *, limit: int = 50, offset: int = 0) -
 
 
 async def list_sessions_enriched(
-    db: AsyncSession, *, limit: int = 50, offset: int = 0
+    db: AsyncSession,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+    order: Literal["recent", "stable"] = "recent",
 ) -> tuple[list[dict[str, Any]], int]:
     """Return sessions enriched with display index, dominant-state label, and segment stats.
 
     display_index is a stable 1-based ordinal computed from chronological
     insertion order, so "Session 01" remains "Session 01" across requests as
-    long as no rows are deleted.
+    long as no rows are deleted. The display index is always assigned ASC by
+    `created_at` regardless of the `order` argument, which only controls the
+    order rows are returned in.
+
+    order:
+      - "recent" (default): newest first. `limit=1` returns the most recently
+        recorded session — the right answer for prompts like "show me my most
+        recent EEG session".
+      - "stable": oldest first (Session 01 → Session NN). Use when the caller
+        wants a deterministic catalog walk.
     """
     chronological = await Session.get_chronological_ids(db)
     total = len(chronological)
@@ -50,7 +63,8 @@ async def list_sessions_enriched(
     index_by_id: dict[str, int] = {sid: i + 1 for i, (sid, _) in enumerate(chronological)}
     duration_by_id: dict[str, float] = dict(chronological)
 
-    page_ids = [sid for sid, _ in chronological[offset : offset + limit]]
+    ordered = list(reversed(chronological)) if order == "recent" else chronological
+    page_ids = [sid for sid, _ in ordered[offset : offset + limit]]
     if not page_ids:
         return [], total
 

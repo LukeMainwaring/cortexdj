@@ -623,6 +623,10 @@ export type ListSessionsEnrichedData = {
          * Offset
          */
         offset?: number;
+        /**
+         * Order
+         */
+        order?: 'recent' | 'stable';
     };
     url: '/api/sessions/enriched';
 };

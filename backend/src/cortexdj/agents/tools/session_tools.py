@@ -9,10 +9,15 @@ from cortexdj.services import session as session_service
 async def list_sessions(ctx: RunContext[AgentDeps], limit: int = 100) -> str:
     """List recorded EEG sessions with friendly labels and dominant brain states.
 
-    Returns a markdown list using stable display indices ("Session 01" ... "Session NN")
-    and a human-readable label derived from each session's dominant emotional quadrant.
-    The full session UUID is included on each line for use as an argument to other
-    tools (e.g. `analyze_session`); never echo the UUID to the user.
+    Returns sessions newest-first by default — so `limit=1` is the right call
+    for prompts like "show me my most recent EEG session". Display indices
+    are stable ASC by recording time (Session 01 = oldest, Session NN = newest),
+    so a low-numbered session is *not* a recent one. The full session UUID
+    is included on each line for use as an argument to other tools
+    (e.g. `analyze_session`); never echo the UUID to the user.
+
+    The frontend renders these as a clickable card grid mirroring the same
+    `limit`, so passing a small limit also visually narrows the panel.
     """
     summaries, total = await session_service.list_sessions_enriched(ctx.deps.db, limit=limit)
 

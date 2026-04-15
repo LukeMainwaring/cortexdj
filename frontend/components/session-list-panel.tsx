@@ -107,8 +107,13 @@ function SessionCard({
   );
 }
 
-const PureSessionListPanel = () => {
-  const { data, isLoading, error } = useEnrichedSessions();
+type Props = {
+  limit?: number;
+  order?: "recent" | "stable";
+};
+
+const PureSessionListPanel = ({ limit = 50, order = "recent" }: Props) => {
+  const { data, isLoading, error } = useEnrichedSessions(limit, order);
   const chatActions = useChatActions();
   const handleAnalyze = chatActions
     ? (label: string) => chatActions.sendMessage(`Analyze ${label}`)
@@ -126,13 +131,20 @@ const PureSessionListPanel = () => {
     return null;
   }
 
+  const showingSubset = data.sessions.length < data.total;
+  const heading = showingSubset
+    ? `Showing ${data.sessions.length} of your ${data.total} EEG sessions`
+    : "Here are your EEG sessions";
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-0.5">
-          <div className="font-medium text-sm">Here are your EEG sessions</div>
+          <div className="font-medium text-sm">{heading}</div>
           <div className="text-muted-foreground text-xs">
-            {data.total} total · click a card to analyze
+            {showingSubset
+              ? `${data.total} total · click a card to analyze`
+              : "click a card to analyze"}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">

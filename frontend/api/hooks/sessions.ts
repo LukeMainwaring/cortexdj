@@ -8,9 +8,12 @@ import {
 // Ensure client is configured with baseURL
 import "../client";
 
-export const useEnrichedSessions = (limit = 50) => {
+export const useEnrichedSessions = (
+  limit = 50,
+  order: "recent" | "stable" = "recent",
+) => {
   return useQuery({
-    ...listSessionsEnrichedOptions({ query: { limit } }),
+    ...listSessionsEnrichedOptions({ query: { limit, order } }),
     staleTime: 60_000,
   });
 };

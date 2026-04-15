@@ -211,6 +211,9 @@ export const listSessionsEnrichedQueryKey = (options?: Options<ListSessionsEnric
  * List Sessions Enriched
  *
  * List EEG sessions with derived display labels and quadrant distributions.
+ *
+ * `order=recent` (default) returns newest first; `order=stable` returns
+ * chronological-insertion order (Session 01 → Session NN).
  */
 export const listSessionsEnrichedOptions = (options?: Options<ListSessionsEnrichedData>) => queryOptions<ListSessionsEnrichedResponse, AxiosError<ListSessionsEnrichedError>, ListSessionsEnrichedResponse, ReturnType<typeof listSessionsEnrichedQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -231,6 +234,9 @@ export const listSessionsEnrichedInfiniteQueryKey = (options?: Options<ListSessi
  * List Sessions Enriched
  *
  * List EEG sessions with derived display labels and quadrant distributions.
+ *
+ * `order=recent` (default) returns newest first; `order=stable` returns
+ * chronological-insertion order (Session 01 → Session NN).
  */
 export const listSessionsEnrichedInfiniteOptions = (options?: Options<ListSessionsEnrichedData>) => infiniteQueryOptions<ListSessionsEnrichedResponse, AxiosError<ListSessionsEnrichedError>, InfiniteData<ListSessionsEnrichedResponse>, QueryKey<Options<ListSessionsEnrichedData>>, number | Pick<QueryKey<Options<ListSessionsEnrichedData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
