@@ -11,8 +11,6 @@ Usage:
     uv run compare-models --retrain --quick  # retrain both quickly
 """
 
-from __future__ import annotations
-
 import argparse
 import copy
 import hashlib

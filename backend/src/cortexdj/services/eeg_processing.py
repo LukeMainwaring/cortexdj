@@ -1,7 +1,5 @@
 """EEG processing service — orchestrates preprocessing, classification, and session analysis."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 

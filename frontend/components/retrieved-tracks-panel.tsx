@@ -4,14 +4,19 @@ import { memo, useCallback, useMemo, useState } from "react";
 import type { SimilarTrackSchema } from "@/api/generated/types.gen";
 import { useSimilarTracks } from "@/api/hooks/sessions";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { WaveformViz } from "@/components/waveform-viz";
+import { BACKEND_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 // Backend serves the cached m4a under its own CORS policy so wavesurfer can
 // fetch + decodeAudioData; Apple's preview CDN does not reliably set CORS
 // headers for cross-origin Web Audio decoding.
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8003";
 
 function previewUrl(cacheKey: string): string {
   return `${BACKEND_URL}/api/audio/preview/${cacheKey}`;
@@ -181,15 +186,22 @@ function TrackRow({
           </div>
         </div>
         <SimilarityBar similarity={track.similarity} />
-        <a
-          aria-label={`Open ${track.title} on Spotify`}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-          href={spotifyUrl}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <ExternalLinkIcon />
-        </a>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                aria-label={`Open ${track.title} on Spotify`}
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                href={spotifyUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <ExternalLinkIcon />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>Open in Spotify</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       {audioUrl ? (
         <WaveformViz

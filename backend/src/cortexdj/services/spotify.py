@@ -4,8 +4,6 @@ Client Credentials flow is used for public search operations.
 User OAuth flow is used for playlist creation and listening history.
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 from collections.abc import Callable

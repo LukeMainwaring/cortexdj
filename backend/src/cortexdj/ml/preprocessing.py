@@ -4,8 +4,6 @@ Handles bandpass filtering, feature extraction (differential entropy across
 5 frequency bands), and band power computation for EEG signals.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 import numpy as np

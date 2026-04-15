@@ -12,8 +12,6 @@ derived features — so we re-read the `.dat` file via the session's
 pickle on every request.
 """
 
-from __future__ import annotations
-
 import asyncio
 import functools
 import logging

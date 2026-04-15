@@ -13,8 +13,6 @@ Outputs:
     - valence_logits: (batch, 2) binary classification
 """
 
-from __future__ import annotations
-
 import torch
 import torch.nn as nn
 

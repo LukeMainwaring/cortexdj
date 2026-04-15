@@ -8,8 +8,6 @@ Usage:
     uv run seed-sessions --participants 1 2 3
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import logging

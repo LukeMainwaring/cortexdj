@@ -14,8 +14,6 @@ Run:
   uv run --directory backend python -m cortexdj.scripts.build_track_index --limit 500
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import logging

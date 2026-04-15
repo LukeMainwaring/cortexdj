@@ -17,8 +17,6 @@ Run (Modal):
   modal run backend/scripts/modal_train.py --command train-contrastive
 """
 
-from __future__ import annotations
-
 import argparse
 import dataclasses
 import logging

@@ -9,8 +9,6 @@ Macro-F1 is the headline metric: unlike raw accuracy, it scores a
 constant predictor at ≤0.50, making majority-class collapse visible.
 """
 
-from __future__ import annotations
-
 import logging
 
 import numpy as np

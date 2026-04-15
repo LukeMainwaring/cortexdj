@@ -6,8 +6,6 @@ Spotify app. iTunes Search API is the audio-bytes source; Spotify stays
 as the source of truth for track identity.
 """
 
-from __future__ import annotations
-
 import asyncio
 import hashlib
 import json
