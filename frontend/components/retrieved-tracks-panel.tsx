@@ -42,7 +42,7 @@ function similarityTone(similarity: number): string {
   return "bg-muted-foreground/40";
 }
 
-const PlayIcon = ({ size = 14 }: { size?: number }) => (
+const PlayIcon = ({ size = 11 }: { size?: number }) => (
   <svg
     aria-hidden="true"
     fill="currentColor"
@@ -55,7 +55,7 @@ const PlayIcon = ({ size = 14 }: { size?: number }) => (
   </svg>
 );
 
-const PauseIcon = ({ size = 14 }: { size?: number }) => (
+const PauseIcon = ({ size = 11 }: { size?: number }) => (
   <svg
     aria-hidden="true"
     fill="currentColor"
@@ -146,11 +146,34 @@ function TrackRow({
   }, [hasPreview, isPlaying, onPlay, onPause]);
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border bg-background/60 px-3 py-2">
-      <div className="flex items-center gap-3">
-        <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-muted-foreground text-xs">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-2 rounded-lg border p-3 transition-colors",
+        isPlaying
+          ? "border-primary/50 bg-primary/5"
+          : "border-border bg-background/60",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="flex size-5 shrink-0 items-center justify-center font-medium text-muted-foreground text-xs">
           {rank}
-        </div>
+        </span>
+        <Button
+          aria-label={
+            hasPreview
+              ? isPlaying
+                ? `Pause preview of ${track.title}`
+                : `Play preview of ${track.title}`
+              : `No preview available for ${track.title}`
+          }
+          className="size-7 shrink-0 rounded-full"
+          disabled={!hasPreview}
+          onClick={handleToggle}
+          size="icon"
+          type="button"
+        >
+          {isPlaying ? <PauseIcon /> : <PlayIcon />}
+        </Button>
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-sm">{track.title}</div>
           <div className="truncate text-muted-foreground text-xs">
@@ -158,39 +181,20 @@ function TrackRow({
           </div>
         </div>
         <SimilarityBar similarity={track.similarity} />
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            aria-label={
-              hasPreview
-                ? isPlaying
-                  ? `Pause preview of ${track.title}`
-                  : `Play preview of ${track.title}`
-                : `No preview available for ${track.title}`
-            }
-            className="size-7 rounded-full p-0"
-            disabled={!hasPreview}
-            onClick={handleToggle}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            {isPlaying ? <PauseIcon /> : <PlayIcon />}
-          </Button>
-          <a
-            aria-label={`Open ${track.title} on Spotify`}
-            className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-            href={spotifyUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <ExternalLinkIcon />
-          </a>
-        </div>
+        <a
+          aria-label={`Open ${track.title} on Spotify`}
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+          href={spotifyUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <ExternalLinkIcon />
+        </a>
       </div>
       {audioUrl ? (
         <WaveformViz
           audioUrl={audioUrl}
-          height={32}
+          height={36}
           onPause={onPause}
           onPlay={onPlay}
           playing={isPlaying}
