@@ -2,10 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getSessionSegmentsOptions,
   getSimilarTracksOptions,
+  listSessionsEnrichedOptions,
 } from "../generated/@tanstack/react-query.gen";
 
 // Ensure client is configured with baseURL
 import "../client";
+
+export const useEnrichedSessions = (
+  limit = 50,
+  order: "recent" | "stable" = "recent",
+) => {
+  return useQuery({
+    ...listSessionsEnrichedOptions({ query: { limit, order } }),
+    staleTime: 60_000,
+  });
+};
 
 export const useSessionSegments = (sessionId: string) => {
   return useQuery({

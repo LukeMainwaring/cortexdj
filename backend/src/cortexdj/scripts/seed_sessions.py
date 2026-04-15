@@ -113,7 +113,7 @@ async def seed_participant(
             id=session_id,
             participant_id=f"P{participant_id:02d}",
             dataset_source="deap",
-            recorded_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            recorded_at=datetime.now(timezone.utc),
             duration_seconds=float(n_trials * 60),
             metadata_extra={"n_trials": n_trials, "sampling_rate": DEFAULT_SAMPLING_RATE},
         )

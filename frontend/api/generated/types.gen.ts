@@ -166,6 +166,68 @@ export type SessionSchema = {
 };
 
 /**
+ * SessionSummaryListResponse
+ */
+export type SessionSummaryListResponse = {
+    /**
+     * Sessions
+     */
+    sessions: Array<SessionSummarySchema>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * SessionSummarySchema
+ */
+export type SessionSummarySchema = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Display Index
+     */
+    display_index: number;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Dominant State
+     */
+    dominant_state: string;
+    /**
+     * State Distribution
+     */
+    state_distribution: {
+        [key: string]: number;
+    };
+    /**
+     * Segment Count
+     */
+    segment_count: number;
+    /**
+     * Track Count
+     */
+    track_count: number;
+    /**
+     * Duration Seconds
+     */
+    duration_seconds: number;
+    /**
+     * Avg Arousal
+     */
+    avg_arousal: number;
+    /**
+     * Avg Valence
+     */
+    avg_valence: number;
+};
+
+/**
  * SimilarTrackSchema
  */
 export type SimilarTrackSchema = {
@@ -548,6 +610,44 @@ export type ListSessionsResponses = {
 };
 
 export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type ListSessionsEnrichedData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Order
+         */
+        order?: 'recent' | 'stable';
+    };
+    url: '/api/sessions/enriched';
+};
+
+export type ListSessionsEnrichedErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSessionsEnrichedError = ListSessionsEnrichedErrors[keyof ListSessionsEnrichedErrors];
+
+export type ListSessionsEnrichedResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionSummaryListResponse;
+};
+
+export type ListSessionsEnrichedResponse = ListSessionsEnrichedResponses[keyof ListSessionsEnrichedResponses];
 
 export type GetSessionData = {
     body?: never;

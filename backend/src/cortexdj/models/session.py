@@ -40,3 +40,13 @@ class Session(Base):
             select(cls).where(cls.participant_id == participant_id).order_by(cls.recorded_at.desc())
         )
         return result.scalars().all()
+
+    @classmethod
+    async def get_chronological_ids(cls, db: AsyncSession) -> list[tuple[str, float]]:
+        """Return all (id, duration_seconds) pairs ordered by insertion time.
+
+        Used to assign stable display indices ("Session 01"…"Session NN")
+        independent of pagination.
+        """
+        result = await db.execute(select(cls.id, cls.duration_seconds).order_by(cls.created_at.asc()))
+        return [(row.id, float(row.duration_seconds)) for row in result.all()]

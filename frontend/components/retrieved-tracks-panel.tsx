@@ -27,11 +27,11 @@ type Props = {
   k?: number;
 };
 
-// Similarity is cosine in [-1, 1]. Display as a horizontal bar mapped to
-// [0, 1] so the visual always grows rightward even for weak / negative
-// matches. Raw score is still shown numerically beside the bar.
+// Similarity is cosine in [-1, 1]. Clamp negatives to 0 so the bar fill
+// honestly reflects the raw match strength: a 0.30 score reads as a 30%
+// bar, not a 65% bar.
 function normalizeSimilarity(similarity: number): number {
-  return Math.max(0, Math.min(1, (similarity + 1) / 2));
+  return Math.max(0, Math.min(1, similarity));
 }
 
 // Tailwind-driven color ramp matching the project's existing semantic hues
@@ -96,13 +96,13 @@ function SimilarityBar({ similarity }: { similarity: number }) {
   const normalized = normalizeSimilarity(similarity);
   const pct = Math.round(normalized * 100);
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-1.5">
       <div
         aria-label={`Similarity ${similarity.toFixed(2)}`}
         aria-valuemax={1}
         aria-valuemin={-1}
         aria-valuenow={Number(similarity.toFixed(2))}
-        className="relative h-1.5 w-20 overflow-hidden rounded-full bg-muted"
+        className="relative h-1.5 w-14 overflow-hidden rounded-full bg-muted"
         role="progressbar"
       >
         <div
@@ -113,8 +113,8 @@ function SimilarityBar({ similarity }: { similarity: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-10 text-right font-mono text-muted-foreground text-xs tabular-nums">
-        {similarity.toFixed(2)}
+      <span className="whitespace-nowrap text-right font-mono text-muted-foreground text-xs tabular-nums">
+        {`${pct}% match`}
       </span>
     </div>
   );
@@ -280,12 +280,13 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
 
   return (
     <div className="my-2 flex flex-col gap-3 rounded-lg border bg-card p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="font-medium text-sm">Matching Tracks</div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
-          <span className="font-medium">Top:</span>
-          <span>{tracks.length}</span>
-        </span>
+      <div className="flex flex-col gap-1">
+        <div className="font-medium text-sm">
+          {`I found ${tracks.length} song${tracks.length === 1 ? "" : "s"} that best match the neural signature of that EEG session.`}
+        </div>
+        <div className="text-muted-foreground text-xs">
+          Top matches, ranked by similarity:
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         {tracks.map((track, idx) => (

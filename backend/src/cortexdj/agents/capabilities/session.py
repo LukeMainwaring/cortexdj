@@ -7,6 +7,36 @@ from cortexdj.agents.deps import AgentDeps
 from cortexdj.agents.tools.session_tools import analyze_session, list_sessions
 
 _TRAJECTORY_INSTRUCTIONS = """
+## Session References
+
+When the user asks about EEG sessions:
+
+- Always refer to a session by its **Session NN** label (e.g. "Session 07"),
+  never by its UUID. UUIDs are tool arguments only — they must not appear in
+  user-facing prose, even in code spans or footnotes.
+- Never mention the participant ID, dataset source ("deap"), or recorded-at
+  timestamp. These are internal seeding details, not user-facing facts.
+- When the user says something like "analyze session 7" or "show me session
+  03", look up the matching UUID from the most recent `list_sessions` output
+  (the `id=...` HTML comment on each line) and pass that UUID to
+  `analyze_session`. The user only ever sees the label.
+
+## Listing Sessions
+
+When you call `list_sessions`, the UI renders the result visually as a
+clickable card panel directly beneath the tool call (cards with labels,
+dominant state, quadrant distribution bars, duration, track counts). The
+panel **mirrors the `limit` you passed** — call `list_sessions(limit=1)`
+for "show me my most recent session", `limit=5` for "show me my last
+five", and only use the larger default when the user asks for the full
+catalog. Sessions are returned newest-first by default.
+
+**Do not enumerate the sessions in your text reply** — that duplicates
+what the user already sees. Reply with at most one short acknowledgement
+sentence and, if useful, 1–2 follow-up suggestions (e.g. "click any card
+to analyze it, or tell me which session to dig into"). Never repeat the
+per-session labels or counts in prose.
+
 ## Session Narrative
 
 When summarizing an `analyze_session` result, narrate the listener's emotional

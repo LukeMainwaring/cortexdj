@@ -65,3 +65,30 @@ class EegSegment(Base):
     async def get_session_summary(cls, db: AsyncSession, session_id: str) -> dict[str, Any]:
         segments = await cls.get_by_session(db, session_id)
         return cls.summarize_segments(session_id, segments)
+
+    @classmethod
+    async def get_state_aggregates(
+        cls, db: AsyncSession, session_ids: Sequence[str]
+    ) -> list[tuple[str, str, int, float, float]]:
+        """Aggregate segments by (session_id, dominant_state).
+
+        Returns rows of (session_id, dominant_state, n_segments, avg_arousal, avg_valence)
+        for use by the enriched session list — avoids fetching every segment row.
+        """
+        if not session_ids:
+            return []
+        result = await db.execute(
+            select(
+                cls.session_id,
+                cls.dominant_state,
+                func.count().label("n_segments"),
+                func.avg(cls.arousal_score).label("avg_arousal"),
+                func.avg(cls.valence_score).label("avg_valence"),
+            )
+            .where(cls.session_id.in_(session_ids))
+            .group_by(cls.session_id, cls.dominant_state)
+        )
+        return [
+            (row.session_id, row.dominant_state, int(row.n_segments), float(row.avg_arousal), float(row.avg_valence))
+            for row in result.all()
+        ]
