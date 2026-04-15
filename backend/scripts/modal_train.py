@@ -67,6 +67,7 @@ BACKEND_IGNORE = [
     "**/.mypy_cache",
     "**/.ruff_cache",
     "**/.pytest_cache",
+    "**/.DS_Store",
     "data/deap/**",  # lives in the cortexdj-deap Modal Volume
     "data/checkpoints/**",  # training output, not input
     "data/synthetic/**",  # unused by DEAP training
@@ -81,6 +82,11 @@ image = (
         add_python=None,  # image already ships python3.13
     )
     .env({"UV_COMPILE_BYTECODE": "1", "UV_LINK_MODE": "copy"})
+    # ffmpeg gives librosa's audioread fallback a decoder for the iTunes m4a
+    # (AAC) previews — libsndfile can't read AAC, and the slim base has no
+    # system audio backend, so without this contrastive training dies on the
+    # first audio load with audioread.NoBackendError.
+    .apt_install("ffmpeg")
     .add_local_dir(str(BACKEND_DIR), REMOTE_BACKEND, copy=True, ignore=BACKEND_IGNORE)
     # backend/pyproject.toml has `readme = "../README.md"` — hatchling reads it at
     # build time, so the repo-root README has to land at /app/README.md.
