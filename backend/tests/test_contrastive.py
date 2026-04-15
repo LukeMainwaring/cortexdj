@@ -5,8 +5,6 @@ the encoder's output shape/normalization. CBraMod and CLAP are mocked
 to keep the suite fast and HF-free.
 """
 
-from __future__ import annotations
-
 import math
 from typing import Any
 

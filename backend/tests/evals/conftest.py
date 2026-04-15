@@ -6,8 +6,6 @@ the deterministic ``prepare_tools`` tests (TestModel-backed) and the
 real-model ``@pytest.mark.eval`` tests.
 """
 
-from __future__ import annotations
-
 from typing import Any
 from unittest.mock import MagicMock
 

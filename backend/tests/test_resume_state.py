@@ -7,8 +7,6 @@ round-trip, a stale `run_key` invalidating the file, and an absent file
 returning `None`.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

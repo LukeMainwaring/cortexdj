@@ -7,8 +7,6 @@ orchestration logic's handling of edge cases (empty index, k clamping,
 lookup failures, cosine→similarity conversion).
 """
 
-from __future__ import annotations
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 

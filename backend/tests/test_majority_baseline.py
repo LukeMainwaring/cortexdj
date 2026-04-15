@@ -7,8 +7,6 @@ pin its numerical behavior on synthetic label distributions with known
 properties.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import numpy.typing as npt
 import pytest

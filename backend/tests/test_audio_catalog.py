@@ -6,8 +6,6 @@ Regressions here will silently drop the 86% real-library hit rate, so
 we'd rather catch them at pytest time.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from cortexdj.services.audio_catalog import (

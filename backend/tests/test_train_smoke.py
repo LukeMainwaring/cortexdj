@@ -7,8 +7,6 @@ feature, then asserts that both classes are actually being predicted and
 that the two heads aren't accidentally tied to each other.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import torch
 import torch.nn as nn
