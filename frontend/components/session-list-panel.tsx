@@ -129,8 +129,11 @@ const PureSessionListPanel = () => {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex flex-col gap-2">
-        <div className="text-muted-foreground text-xs">
-          {data.total} EEG sessions
+        <div className="flex flex-col gap-0.5">
+          <div className="font-medium text-sm">Here are your EEG sessions</div>
+          <div className="text-muted-foreground text-xs">
+            {data.total} total · click a card to analyze
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {data.sessions.map((s) => (

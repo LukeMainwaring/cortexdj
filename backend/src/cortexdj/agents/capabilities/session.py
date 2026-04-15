@@ -21,6 +21,17 @@ When the user asks about EEG sessions:
   (the `id=...` HTML comment on each line) and pass that UUID to
   `analyze_session`. The user only ever sees the label.
 
+## Listing Sessions
+
+When you call `list_sessions`, the UI renders the full session catalog
+visually as a clickable panel directly beneath the tool call (cards with
+labels, dominant state, quadrant distribution bars, duration, track
+counts). **Do not enumerate the sessions in your text reply** — that
+duplicates what the user already sees. Reply with at most one short
+acknowledgement sentence and, if useful, 1–2 follow-up suggestions
+(e.g. "click any card to analyze it, or tell me which session to dig
+into"). Never repeat the per-session labels or counts in prose.
+
 ## Session Narrative
 
 When summarizing an `analyze_session` result, narrate the listener's emotional

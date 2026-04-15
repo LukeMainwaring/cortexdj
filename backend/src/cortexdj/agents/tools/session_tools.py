@@ -6,7 +6,7 @@ from cortexdj.agents.deps import AgentDeps
 from cortexdj.services import session as session_service
 
 
-async def list_sessions(ctx: RunContext[AgentDeps], limit: int = 20) -> str:
+async def list_sessions(ctx: RunContext[AgentDeps], limit: int = 100) -> str:
     """List recorded EEG sessions with friendly labels and dominant brain states.
 
     Returns a markdown list using stable display indices ("Session 01" ... "Session NN")
