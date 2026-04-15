@@ -3,7 +3,14 @@
 import { memo } from "react";
 import type { SessionSummarySchema } from "@/api/generated/types.gen";
 import { useEnrichedSessions } from "@/api/hooks/sessions";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useChatActions } from "./chat-actions-provider";
 
 const QUADRANT_ORDER = ["relaxed", "calm", "excited", "stressed"] as const;
 type Quadrant = (typeof QUADRANT_ORDER)[number];
@@ -47,16 +54,33 @@ function QuadrantBar({
   );
 }
 
-function SessionCard({ session }: { session: SessionSummarySchema }) {
+function SessionCard({
+  session,
+  onAnalyze,
+}: {
+  session: SessionSummarySchema;
+  onAnalyze?: (label: string) => void;
+}) {
   const minutes = session.duration_seconds / 60;
   const dominantTone =
     QUADRANT_TEXT[session.dominant_state as Quadrant] ?? "text-foreground";
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:border-foreground/20">
+  const label = `Session ${session.display_index.toString().padStart(2, "0")}`;
+  const isClickable = onAnalyze != null;
+
+  const card = (
+    <button
+      className={cn(
+        "flex w-full flex-col gap-2 rounded-lg border border-border bg-card p-3 text-left transition-colors",
+        isClickable
+          ? "cursor-pointer hover:border-foreground/40 hover:bg-muted/30 focus-visible:border-foreground/60 focus-visible:outline-none"
+          : "cursor-default",
+      )}
+      disabled={!isClickable}
+      onClick={isClickable ? () => onAnalyze(label) : undefined}
+      type="button"
+    >
       <div className="flex items-baseline justify-between">
-        <span className="font-medium text-foreground text-sm">
-          Session {session.display_index.toString().padStart(2, "0")}
-        </span>
+        <span className="font-medium text-foreground text-sm">{label}</span>
         <span className="text-muted-foreground text-xs">
           ~{minutes.toFixed(0)} min
         </span>
@@ -68,12 +92,27 @@ function SessionCard({ session }: { session: SessionSummarySchema }) {
       <div className="text-[10px] text-muted-foreground">
         {session.track_count} tracks · {session.segment_count} segments
       </div>
-    </div>
+    </button>
+  );
+
+  if (!isClickable) {
+    return card;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{card}</TooltipTrigger>
+      <TooltipContent side="top">Click to analyze session</TooltipContent>
+    </Tooltip>
   );
 }
 
 const PureSessionListPanel = () => {
   const { data, isLoading, error } = useEnrichedSessions();
+  const chatActions = useChatActions();
+  const handleAnalyze = chatActions
+    ? (label: string) => chatActions.sendMessage(`Analyze ${label}`)
+    : undefined;
 
   if (isLoading) {
     return (
@@ -88,23 +127,25 @@ const PureSessionListPanel = () => {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="text-muted-foreground text-xs">
-        {data.total} EEG sessions
+    <TooltipProvider delayDuration={200}>
+      <div className="flex flex-col gap-2">
+        <div className="text-muted-foreground text-xs">
+          {data.total} EEG sessions
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {data.sessions.map((s) => (
+            <SessionCard key={s.id} onAnalyze={handleAnalyze} session={s} />
+          ))}
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          Each card represents one listening sitting. Quadrant colors:{" "}
+          <span className="text-emerald-500">relaxed</span> ·{" "}
+          <span className="text-sky-500">calm</span> ·{" "}
+          <span className="text-amber-500">excited</span> ·{" "}
+          <span className="text-rose-500">tense</span>.
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {data.sessions.map((s) => (
-          <SessionCard key={s.id} session={s} />
-        ))}
-      </div>
-      <div className="text-[10px] text-muted-foreground">
-        Each card represents one listening sitting. Quadrant colors:{" "}
-        <span className="text-emerald-500">relaxed</span> ·{" "}
-        <span className="text-sky-500">calm</span> ·{" "}
-        <span className="text-amber-500">excited</span> ·{" "}
-        <span className="text-rose-500">tense</span>.
-      </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
