@@ -1,3 +1,8 @@
+---
+paths:
+  - "backend/**/*.py"
+---
+
 # Backend Patterns
 
 Python/FastAPI conventions for the CortexDJ backend.
