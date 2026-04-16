@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
-See @README.md for a project overview and @DEVELOPMENT.md for a development guide.
+For architecture and project overview, read `README.md`. For setup, commands, training workflows, and database migrations, read `DEVELOPMENT.md`.
 
 When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes.
 
@@ -27,20 +27,8 @@ uv run --directory backend pre-commit run --all-files
 # --label-split fixed_5 to reproduce papers that used the >= 5 threshold.
 uv run --directory backend train-model
 
-# Quick dev run (10 epochs, 3 folds) — works on MPS
-uv run --directory backend train-model --quick
-
-# Train EEGNet instead
-uv run --directory backend train-model --model eegnet
-
-# Compare EEGNet vs CBraMod on DEAP (always shows a MajorityBaseline reference row)
-uv run --directory backend compare-models
-
 # GPU training via Modal (run `modal setup` once to authenticate)
 modal run backend/scripts/modal_train.py
-
-# Seed database with EEG sessions (requires DEAP data)
-uv run --directory backend seed-sessions
 
 # Create local database migration
 ./backend/scripts/create-db-revision-docker.sh "<migration_message>"
@@ -92,7 +80,6 @@ Next.js 16 with App Router.
 - **`components/session-visualization.tsx`**: Tabbed session viewer — wraps `components/emotion-trajectory.tsx` (default, animated SVG trajectory through Russell's affect space) and a recharts arousal/valence timeline in Radix Tabs, with the band-power chart shared below. Auto-rendered by `components/message.tsx` when an `analyze_session` tool call is detected
 - **`components/emotion-trajectory.tsx`**: Custom SVG + `motion/react` chart that plots each 4-second segment as a point in the valence/arousal plane, draws a smoothed rolling-mean path via an animated `motion.path` (`style={{ pathLength: progress }}`), and exposes a play/pause + scrubber driven by a `requestAnimationFrame` loop
 - **`components/retrieved-tracks-panel.tsx`**: Ranked tracks rendered beneath `retrieve_tracks_from_brain_state` tool calls — similarity bars, inline 30s preview playback via a shared `<audio>` ref, Spotify deep-links, branched 404/503/500 error states
-- **`components/greeting.tsx`**: CortexDJ-branded empty state
 - **`api/hooks/sessions.ts`**: TanStack Query wrappers around the generated sessions client — `useSessionSegments` and `useSimilarTracks`; follow this pattern when wrapping new generated endpoints. Retries skip 404 (missing session) and 503 (missing contrastive checkpoint)
 
 ### Data Flow
@@ -103,12 +90,10 @@ Next.js 16 with App Router.
 4. `HistoryProcessor` summarizes large tool results from prior turns to prevent token bloat
 5. Pydantic AI agent decides which tools to call
 6. Agent streams response back as SSE (Vercel AI SDK format)
-7. Frontend renders with tool-call transparency, brain context badge, and inline visualization panels for structured tool output: `<SessionVisualization>` (Trajectory + Timeline tabs + band powers) on `analyze_session` — the backend's `trajectory_summary` feeds both the chart and the agent narration via `SessionCapability.get_instructions`. `<RetrievedTracksPanel>` on `retrieve_tracks_from_brain_state` — the `services/retrieval.py` lazy-loads the contrastive encoder behind an `asyncio.Lock`, LRU-caches the DEAP pickle parse, runs a pgvector HNSW cosine search, and the panel renders similarity bars + inline preview playback
+7. Frontend renders with tool-call transparency, brain context badge, and inline panels: `<SessionVisualization>` on `analyze_session`, `<RetrievedTracksPanel>` on `retrieve_tracks_from_brain_state` (component-level details in the Frontend section above)
 
 ## Additional Instructions
 
-- This project uses Pydantic AI for agent orchestration.
-- Uses Vercel AI SDK's `useChat` for streaming chat (frontend only).
 - Backend port: 8003, Frontend port: 3003, PostgreSQL port: 5433
 - Model checkpoints are gitignored -- use `uv run train-model` to train.
 - After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`.

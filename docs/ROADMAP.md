@@ -53,7 +53,15 @@
 - Audio feature correlation — correlate Spotify energy/danceability/acousticness with arousal/valence from `EegSegment` (SQL join on existing tables; complements the shipped CLAP-based retrieval by surfacing different track features)
 - Genre brain mapping — aggregate brain states by Spotify genre
 
-> Shipped: **EEG↔CLAP contrastive retrieval** — brain-state-matched Spotify recommendations via a trained joint embedding between EEG windows and LAION-CLAP audio embeddings. See README for architecture; this originally sat in Phase 5 as "Recommendation engine combining brain-state preferences with Spotify audio features."
+### Deferred research: EEG↔CLAP contrastive retrieval
+
+An EEG-to-audio contrastive encoder was wired end-to-end (see `ml/contrastive*.py`, `services/retrieval.py`, `track_audio_embeddings` pgvector index) but is not producing usable retrieval signal at DEAP scale. A within-subject cross-trial evaluation — with every subject present in both train and val — also plateaued at the per-pool uniform-random baseline, ruling out subject transfer as the bottleneck. Four-second EEG windows encode mood, arousal, and attention; they do not encode the timbral and harmonic track identity that dominates LAION-CLAP audio embeddings.
+
+Directions that would make this tractable:
+
+- Per-user calibration with continual learning from in-app feedback — explicit (thumbs up/down) and implicit (skip rate, replay) labels personalize the encoder without burdening the user.
+- Longer-integration EEG windows (30s+) or multimodal fusion (skin conductance, accelerometer, fNIRS) to raise per-inference SNR.
+- Retrieve against emotion-quadrant centroids rather than specific track identities, aligning the target with what EEG actually encodes — building on the quadrant classifier that already works.
 
 ## Phase 6: Platform
 

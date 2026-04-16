@@ -44,9 +44,9 @@ graph TB
 4. **Pydantic AI agent** orchestrates session analysis, brain state explanation, Spotify playlist curation, and contrastive track retrieval through natural language conversation
 5. **Session analysis** provides detailed brain state breakdowns with per-segment timelines, band power distributions, and associated track metadata
 6. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
-7. **EEG↔CLAP contrastive retrieval** — `EegCLAPEncoder` (CBraMod backbone + SimCLR projection head) learns a joint 512-d embedding between raw EEG windows and LAION-CLAP audio via symmetric soft-target InfoNCE. At query time, `retrieve_tracks_from_brain_state` embeds a session and runs a pgvector HNSW cosine search against a pre-computed track index, returning top-k Spotify tracks — including ones the user has never heard. Distinct from the quadrant-filter playlist tools, which curate from already-labeled EEG data
+7. **EEG↔CLAP contrastive retrieval** (research direction — see Limitations) — `EegCLAPEncoder` (CBraMod backbone + SimCLR projection head) learns a joint 512-d embedding between raw EEG windows and LAION-CLAP audio via symmetric soft-target InfoNCE. At query time, `retrieve_tracks_from_brain_state` embeds a session and runs a pgvector HNSW cosine search against a pre-computed track index, returning top-k Spotify tracks — including ones the user has never heard. Distinct from the quadrant-filter playlist tools, which curate from already-labeled EEG data
 8. **Spotify integration** provides search, library access, and playlist management tools — user-authenticated tools are hidden when Spotify is not connected. Audio previews for the retrieval index come from the **iTunes Search API** (Spotify deprecated `preview_url` for standard-mode apps in Nov 2024); Spotify stays the source of truth for track identity and playlist mutation
-9. **Inline tool visualization** — the chat UI auto-renders visual panels beneath tool calls that return structured data. `analyze_session` renders `<SessionVisualization>` with an animated trajectory through Russell's arousal/valence affect space, a recharts arousal/valence timeline, and a stacked frequency-band-power chart; the backend computes a `trajectory_summary` (dwell per quadrant, transitions, centroid, dispersion, path length) that feeds the chart narration and the agent's prompt. `retrieve_tracks_from_brain_state` renders `<RetrievedTracksPanel>` with ranked tracks, similarity bars, inline 30s preview playback, and Spotify deep-links
+9. **Inline tool visualization** — the chat UI auto-renders SVG trajectory + timeline panels beneath `analyze_session` calls, and ranked-track cards with inline 30s previews beneath retrieval calls
 10. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display; a history processor summarizes large tool results from prior turns to prevent token bloat
 
 ### Why Dual Models + Agent?
@@ -74,48 +74,7 @@ graph TB
 
 ## Project Structure
 
-```
-cortexdj/
-├── backend/
-│   ├── src/cortexdj/
-│   │   ├── app.py                    # FastAPI app + lifespan (EEGNet loading)
-│   │   ├── agents/
-│   │   │   ├── brain_agent.py        # Pydantic AI agent + system prompt
-│   │   │   ├── deps.py              # AgentDeps (db, eeg_model, spotify, brain_context)
-│   │   │   ├── capabilities/        # Session, Insight, Playlist, Classification
-│   │   │   ├── tools/               # Tool implementations per capability
-│   │   │   └── history_processor.py # Summarizes large tool results to prevent token bloat
-│   │   ├── ml/
-│   │   │   ├── model.py             # EEGNet dual-head classifier (arousal + valence)
-│   │   │   ├── dataset.py           # DEAP EEG datasets (feature/raw modes)
-│   │   │   ├── preprocessing.py     # Bandpass filtering, DE features, band powers
-│   │   │   ├── pretrained.py        # CBraMod pretrained dual-head wrapper
-│   │   │   ├── train.py             # Training with LOSO/grouped CV, model comparison
-│   │   │   ├── predict.py           # Inference wrapper (EEGNet + CBraMod)
-│   │   │   ├── contrastive.py       # EegCLAPEncoder + ClapAudioEncoder + symmetric_info_nce loss
-│   │   │   ├── contrastive_dataset.py  # DeapClapPairDataset + build_audio_embedding_cache
-│   │   │   └── contrastive_train.py    # Contrastive training w/ TensorBoard + embedding projector
-│   │   ├── models/                   # Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message, TrackAudioEmbedding
-│   │   ├── schemas/                  # Pydantic request/response schemas
-│   │   ├── services/                 # eeg_processing, spotify, session, thread, title_generator, trajectory, retrieval, audio_catalog
-│   │   ├── routers/                  # agent (SSE), sessions, threads, health, retrieval
-│   │   ├── dependencies/            # FastAPI DI (db sessions, EEG model)
-│   │   ├── migrations/              # Alembic
-│   │   ├── scripts/                 # seed_sessions
-│   │   └── core/config.py           # pydantic-settings
-│   ├── tests/                        # pytest (preprocessing, dataset, ML)
-│   ├── data/
-│   │   ├── deap/                    # DEAP dataset .dat files (gitignored, see DEAP_SETUP.md)
-│   │   └── checkpoints/             # Model checkpoints (gitignored)
-│   ├── Dockerfile                    # Multi-stage (uv builder -> app -> local)
-│   └── pyproject.toml
-├── frontend/                         # Next.js chat UI
-│   ├── app/(chat)/                  # Chat page + API proxy route
-│   ├── components/                  # chat, messages, greeting, brain-context-badge, session-visualization, emotion-trajectory
-│   └── api/                         # Generated client + hooks
-├── docker-compose.yml               # PostgreSQL + backend
-└── README.md
-```
+Standard monorepo — `backend/` (FastAPI + ML pipelines under `src/cortexdj/`), `frontend/` (Next.js App Router), `docker-compose.yml` for Postgres. See `CLAUDE.md` for a directory-level architecture map.
 
 ## Setup
 
@@ -190,16 +149,14 @@ Both produce:
 
 ## Design Decisions
 
-- **Dual model backends.** Custom EEGNet on hand-crafted DE features for lightweight inference; CBraMod pretrained encoder (fine-tuned on DEAP) for higher accuracy. Both produce identical `EEGPredictionResult` outputs. Configurable via `EEG_MODEL_BACKEND`.
-- **DEAP dataset support.** Real EEG benchmark (32 participants, music + emotion labels). LOSO cross-validation for rigorous evaluation.
-- **Robust training loop.** The training loop (`ml/train.py`) binarizes DEAP's 1–9 Likert self-reports at each subject's own median by default (`--label-split median_per_subject`), computes per-fold per-head class weights via `ml/metrics.py`, applies label smoothing, and early-stops on EMA-smoothed macro-F1 with a minimum-epochs floor. `compare-models` always renders a `MajorityBaseline` reference row so majority-class predictions are immediately visible.
-- **DEAP-only training pipeline.** All training and seeding uses the DEAP dataset (freely available via Kaggle). Synthetic data generators will return for Muse 2 BCI development (4 channels, 256Hz, different montage) when Phase 3 begins.
-- **Contrastive retrieval via pgvector HNSW.** The `track_audio_embeddings` table stores 512-d LAION-CLAP audio embeddings with an HNSW cosine index (`m=16, ef_construction=64`). HNSW over IVFFlat because IVFFlat requires training on existing rows and would be built on an empty table in the same migration, forcing a reindex after every seed pass; HNSW handles incremental inserts natively and has better recall at the project's 2k–10k row scale. The quadrant-filter tools still use plain SQL on the `eeg_segments` table — pgvector is purely for the new contrastive retrieval path, not for the existing arousal/valence filters.
-- **iTunes as audio source.** Spotify deprecated `preview_url` for standard-mode apps on 2024-11-27 (empirically verified 0/10 hits against this project's 2018 app). The audio catalog (`services/audio_catalog.py`) cross-references Spotify identity to iTunes Search for the actual 30s m4a preview bytes using a precision-first match heuristic: reject any result with `|duration_delta| > 3s`, rank survivors by artist-name Jaccard. Empirically validated at ~86% hit rate on 50 real saved tracks. Misses go to a log file; no retry loops.
-- **Spotify is optional.** User-authenticated tools (library, playlist management) hidden via `prepare_tools` when not connected; public tools (search, track info) always available. Mutation tools require explicit user confirmation (`user_confirmed=True`) to prevent accidental writes.
-- **EEGNet architecture.** Custom dual-head PyTorch model with spatial and temporal convolutions — designed for EEG, not a generic CNN.
+- **Dual model backends.** Custom EEGNet on hand-crafted DE features for lightweight inference; CBraMod pretrained encoder (fine-tuned on DEAP) for higher accuracy. Both produce identical `EEGPredictionResult` outputs and evaluate via LOSO cross-validation on the DEAP benchmark (32 participants, music + emotion labels). Configurable via `EEG_MODEL_BACKEND`.
+- **Robust training loop.** DEAP's 1–9 Likert self-reports are binarized at each subject's own median by default, with class-weighted loss and label smoothing to handle residual imbalance. Headline metric is macro-F1 against a `MajorityBaseline` reference row, not raw accuracy.
+- **Contrastive retrieval via pgvector HNSW** (research direction — see Limitations). `track_audio_embeddings` stores 512-d LAION-CLAP vectors with an HNSW cosine index; HNSW over IVFFlat because it handles incremental inserts natively and doesn't require retraining on each seed pass.
+- **iTunes as audio source.** Spotify deprecated `preview_url` for standard-mode apps on 2024-11-27 (empirically verified 0/10 hits against this project's 2018 app). `services/audio_catalog.py` cross-references Spotify identity to the iTunes Search API for the actual 30s m4a preview bytes.
+- **Spotify is optional.** User-authenticated tools (library, playlist management) hidden via `prepare_tools` when not connected; public tools (search, track info) always available. Mutation tools require explicit user confirmation to prevent accidental writes.
 - **Thread-backed brain context.** Persistent per-thread JSONB column storing dominant mood, arousal, valence — survives page refreshes. Dynamically injected into the agent system prompt via `get_instructions()` so the agent is immediately context-aware.
-- **History processor.** Large tool results (track lists, playlists) are automatically summarized in prior conversation turns, keeping the current turn's data intact while preventing token bloat in multi-turn sessions.
-- **Inline tool visualization.** The chat message renderer detects `analyze_session` tool calls and renders a `<SessionVisualization>` component directly beneath the existing tool-call collapsible. It wraps a **Trajectory** view (custom SVG + `motion/react` with animated `pathLength`, quadrant backgrounds, playback scrubber) and a **Timeline** view (recharts) in Radix Tabs, with the band-power chart shared below both. The component fetches `/api/sessions/{id}/segments` via a wrapped TanStack Query hook (`useSessionSegments`) so the agent's tool output stays unchanged and decoupled from the UI.
-- **Trajectory summary in the agent context.** The `trajectory_summary` (dwell per quadrant, transitions, centroid, dispersion, path length) is computed on read in `services/trajectory.py` and embedded in `analyze_session`'s tool output. The dense `smoothed` per-segment trail is stripped from the tool payload (the frontend fetches it separately via the segments route) to avoid bloating the agent context. `SessionCapability.get_instructions` tells the agent to narrate the emotional arc using these fields instead of citing only the single dominant state.
-- **Agentic orchestration.** The agent decides which tools to call per query, enabling multi-step reasoning (analyze session -> explain brain state -> build playlist).
+- **Inline tool visualization.** Chat UI auto-renders visualization panels beneath tool calls that return structured data. The backend computes a `trajectory_summary` (dwell per quadrant, transitions, centroid, dispersion, path length) that feeds both the SVG trajectory chart and the agent narration via `SessionCapability.get_instructions`.
+
+## Limitations
+
+The EEG↔CLAP contrastive retrieval path described above is a deferred research direction, not a shipped capability — at DEAP scale, 4-second EEG windows do not carry enough track-specific signal to align with LAION-CLAP audio embeddings. The quadrant classification pipeline and quadrant-filtered playlist curation are working as described. See [Deferred research: EEG↔CLAP contrastive retrieval](docs/ROADMAP.md#deferred-research-eegclap-contrastive-retrieval) for evidence and forward direction.

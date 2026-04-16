@@ -127,10 +127,6 @@ Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is 
 
 Strategies are cached independently (`_CACHE_VERSION` encodes the strategy in the `.npz` filename), so switching is free after the first build.
 
-**Reading the output.** Each epoch logs `Val acc A/V`, `macro-F1`, and per-class `pred A [low, high] V [low, high]` counts. The fold summary prints both accuracy and macro-F1 columns plus a `Mean recall` line. The headline metric is `Avg F1` — raw accuracy on balanced labels can hide majority-class predictions. `compare-models` always renders a `MajorityBaseline` reference row from the dataset labels; a trained model should beat it on `Avg F1` by at least +0.05. If a fold produces non-finite loss, the loop skips the batch and logs `[Phase N] Epoch K/T: skipped M non-finite-loss batches` — zero such warnings is the expected state.
-
-**Local MPS training.** EEGNet quick runs work well on Apple Silicon (`--quick` finishes in under a minute per fold). `non_blocking=True` data transfers and `set_float32_matmul_precision("high")` are gated on CUDA only — PyTorch 2.9–2.11 has had intermittent MPS async-correctness regressions on the pinned-memory path, and TF32 is a CUDA-only matmul setting. Full 32-fold CBraMod training still wants a CUDA GPU; see the Modal section below.
-
 ### GPU Training (Modal)
 
 Full LOSO with CBraMod takes 12+ hours on Apple Silicon. Use [Modal](https://modal.com) for a one-off GPU run (~1 hour on A10G, ~$1-2):
@@ -169,8 +165,6 @@ modal run backend/scripts/modal_train.py --command train-contrastive --args="--q
 
 DEAP source files (~3.1 GB of `.dat`) live in a persistent `cortexdj-deap` Modal Volume seeded once via the loop above. Subsequent training runs attach the volume instantly instead of re-uploading. The first GPU run regenerates `data/deap/.cache/*.npz` (preprocessing cache) inside the volume; `modal_train.py` calls `deap_volume.commit()` after training so that cache persists for later runs. Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
 
-CUDA runs auto-configure themselves: batch size defaults to 128 (vs. 64 on MPS/CPU), bf16 mixed precision is enabled, `cudnn.benchmark` is on, and DataLoader uses 8 workers with `prefetch_factor=4`. No extra flags are needed for the common case — `modal run backend/scripts/modal_train.py` is the happy path. Override with `--args="--batch-size 192"` etc. if you want to push the A10G harder.
-
 ### Database Seeding
 
 ```bash
@@ -190,35 +184,4 @@ uv run --directory backend seed-track-index --limit 500           # smaller pool
 uv run --directory backend seed-track-index --skip-library        # genre seeds only (no user OAuth)
 ```
 
-### Verification Scripts
-
-One-off scripts under `backend/scripts/` that aren't registered as console entry points but are useful for manually sanity-checking external integrations.
-
-```bash
-# Probe services/audio_catalog.resolve_preview against real Spotify saved tracks.
-# Fetches N saved tracks via user OAuth, runs each through the iTunes matcher,
-# and reports match rate + duration-delta distribution + downloaded sample sha.
-# Re-run this when tuning the match heuristic to see regression/improvement
-# against a live library.
-uv run --directory backend python backend/scripts/probe_audio_catalog.py --limit 50
-```
-
-## Common Commands
-
-### Backend
-
-```bash
-uv sync --directory backend                   # Install dependencies
-docker compose up -d                          # Start PostgreSQL + backend
-uv run --directory backend pre-commit run --all-files  # Linting + type checking
-```
-
-### Frontend
-
-```bash
-pnpm -C frontend install
-pnpm -C frontend dev                          # Start dev server on port 3003
-pnpm -C frontend lint                         # Lint with ultracite
-pnpm -C frontend format                       # Format with ultracite
-pnpm -C frontend generate-client              # Regenerate API client
-```
+One-off verification scripts live under `backend/scripts/` with usage in their own docstrings (e.g. `probe_audio_catalog.py` for tuning the iTunes matcher against a live Spotify library).

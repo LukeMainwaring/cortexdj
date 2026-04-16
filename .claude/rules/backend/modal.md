@@ -1,3 +1,9 @@
+---
+paths:
+  - "backend/scripts/modal_*.py"
+  - "backend/scripts/modal_train.py"
+---
+
 # Modal Rules and Guidelines for LLMs
 
 This file provides rules and guidelines for LLMs when implementing Modal code in cortexdj.

@@ -1,3 +1,9 @@
+---
+paths:
+  - "backend/src/cortexdj/agents/**/*.py"
+  - "backend/tests/evals/**/*.py"
+---
+
 # Pydantic AI Rules
 
 ## Docs are split between two places
