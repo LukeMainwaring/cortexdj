@@ -3,76 +3,66 @@
 > Forward-looking plan. Shipped features are documented in [README.md](../README.md).
 > Pretrained model details: [pretrained-models-analysis.md](pretrained-models-analysis.md)
 
-## Demo
+## Phase 1: Near-term polish
 
 - Public demo mode — pre-loaded DEAP sessions anyone can explore without EEG hardware or Spotify auth; reuses seeded sessions and the shipped `SessionVisualization`
-
-## Visualization
-
 - True time-frequency spectrogram — per-channel STFT heatmap (frequency on y-axis, color = power), distinct from the stacked band-power area chart already shipped
 - Session comparison dashboard — side-by-side `SessionVisualization` renders for two session IDs
-- Topographic scalp heatmap — per-channel band-power interpolated over the 10-20 montage (DEAP's 32-channel recordings only; not meaningful for Muse 2's 4 electrodes)
-- Export reports — PDF/image export of session analysis for sharing
 
 ## Phase 2: Real EEG Datasets
 
-- SEED dataset support (15 participants, film clips; available on request from BCMI/SJTU) — adds discrete emotion labels (positive/neutral/negative) alongside DEAP's continuous valence/arousal
+- SEED dataset support (15 participants, film clips) — adds discrete emotion labels (positive/neutral/negative) alongside DEAP's continuous valence/arousal
 - AMIGOS dataset support (40 participants, short + long video clips)
 - Dataset-agnostic data loader with format autodetection (.dat, .mat, .edf)
-- MNE-Python raw data preprocessing (ICA artifact removal, re-referencing)
-- Evaluate REVE on DEAP — pretrained on 60K+ hours / 92 datasets / 25K subjects; note REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement
+- MNE-Python raw data preprocessing — ICA artifact removal, re-referencing
 
 ## Phase 3: Live BCI Device Integration
 
 - Muse 2 headband support via muselsl/pylsl
-- Synthetic 4-channel EEG generator for hardware-free Muse pipeline development (4 channels at 256Hz, TP9/AF7/AF8/TP10 montage)
+- Synthetic 4-channel EEG generator for hardware-free Muse pipeline development (TP9/AF7/AF8/TP10 @ 256 Hz)
 - Real-time EEG stream ingestion endpoint
 - Live classification during Spotify playback
-- WebSocket stream for live brain state updates to frontend (the existing inline `<SessionVisualization>` chart is the target render surface — point the live stream at it)
-- Evaluate CBraMod real-time inference latency for live classification (<500ms target)
-- Benchmark 32ch->4ch transfer accuracy degradation (CBraMod, REVE, LUNA)
-- Calibration flow — 5-minute baseline recording to personalize the classifier per user (prereq for adaptive playlist quality)
-- Session recording during Spotify playback — persist live EEG + track metadata for later analysis (ground truth for the Phase 5 "Now Playing" correlation item)
-- Adaptive playlist — skip/queue tracks based on live brain state (e.g., stressed -> switch to a calmer track)
+- WebSocket stream for live brain state updates — targets the existing inline `<SessionVisualization>` chart
+- CBraMod real-time inference latency benchmark (<500ms target for 4s segments)
+- 32ch→4ch transfer accuracy benchmark (CBraMod, REVE, LUNA) — Muse 2 montage masked on DEAP
+- Per-user calibration — 5-min baseline recording; prereq for adaptive playlist quality
+- Adaptive playlist — skip/queue tracks based on live brain state
 
 ## Phase 4: Advanced ML
 
-- EEG data augmentation — Gaussian noise injection, temporal jittering/random cropping, channel dropout
-- Evaluate additional pretrained encoders beyond CBraMod — EEGPT, BENDR, REVE — as drop-in replacements for the current backend
-- Personalized fine-tuning — few-shot adaptation of the CBraMod encoder (pretrained on TUEG) to individual users on top of DEAP fine-tuning
+- EEG data augmentation — Gaussian noise, temporal jittering, channel dropout
+- Evaluate pretrained encoders beyond CBraMod — EEGPT, BENDR, REVE, LUNA — as drop-in backbone replacements (note: REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement)
+- Personalized fine-tuning — few-shot adaptation of the CBraMod encoder to individual users on top of DEAP fine-tuning
 - Cross-session trend analysis — track embedding trajectories across sessions
-- Attention visualization — extract transformer attention weights for channel/timepoint importance maps
+- Attention visualization — transformer attention weights as channel/timepoint importance maps
 - Model ensemble — combine EEGNet (DE features) and CBraMod (raw EEG) predictions
-- Discrete emotion classification once SEED support lands (Phase 2) — add a positive/neutral/negative head alongside the existing arousal/valence heads (DEAP itself only ships continuous valence/arousal/dominance/liking ratings, so this depends on a dataset with categorical labels)
+- Discrete emotion classification — add a positive/neutral/negative head once SEED support lands (Phase 2); DEAP itself ships only continuous valence/arousal/dominance/liking
 
 ## Phase 5: Spotify Deep Integration
 
-- Real-time "Now Playing" correlation — classify brain state while user listens
+- "Now Playing" correlation — persist live EEG + track metadata during Spotify playback, then classify brain state per track (depends on Phase 3 live-stream endpoint)
 - Library analysis — scan user's saved tracks and predict brain-state compatibility
 - Collaborative filtering — "users with similar brain patterns also liked..."
-- Audio feature correlation — correlate Spotify energy/danceability/acousticness with arousal/valence from `EegSegment` (SQL join on existing tables; complements the shipped CLAP-based retrieval by surfacing different track features)
+- Audio feature correlation — correlate Spotify energy/danceability/acousticness with arousal/valence from `EegSegment`
 - Genre brain mapping — aggregate brain states by Spotify genre
 
 ### Deferred research: EEG↔CLAP contrastive retrieval
 
-An EEG-to-audio contrastive encoder was wired end-to-end (see `ml/contrastive*.py`, `services/retrieval.py`, `track_audio_embeddings` pgvector index) but is not producing usable retrieval signal at DEAP scale. A within-subject cross-trial evaluation — with every subject present in both train and val — also plateaued at the per-pool uniform-random baseline, ruling out subject transfer as the bottleneck. Four-second EEG windows encode mood, arousal, and attention; they do not encode the timbral and harmonic track identity that dominates LAION-CLAP audio embeddings.
+An EEG-to-audio contrastive encoder was wired end-to-end (`ml/contrastive*.py`, `services/retrieval.py`, `track_audio_embeddings` pgvector index) but does not produce usable retrieval signal at DEAP scale — within-subject cross-trial eval also plateaued at the per-pool uniform-random baseline, ruling out subject transfer as the bottleneck. Four-second EEG windows encode mood/arousal/attention, not the timbral and harmonic track identity that dominates LAION-CLAP audio embeddings.
 
 Directions that would make this tractable:
 
-- Per-user calibration with continual learning from in-app feedback — explicit (thumbs up/down) and implicit (skip rate, replay) labels personalize the encoder without burdening the user.
-- Longer-integration EEG windows (30s+) or multimodal fusion (skin conductance, accelerometer, fNIRS) to raise per-inference SNR.
-- Retrieve against emotion-quadrant centroids rather than specific track identities, aligning the target with what EEG actually encodes — building on the quadrant classifier that already works.
+- Per-user calibration + continual learning from explicit (thumbs) and implicit (skip/replay) in-app feedback
+- Longer-integration EEG windows (30s+) or multimodal fusion (skin conductance, fNIRS) to raise per-inference SNR
+- Retrieve against emotion-quadrant centroids rather than specific track identities, aligning the target with what EEG actually encodes
 
 ## Phase 6: Platform
 
 - User authentication (OAuth or magic link)
 - Multi-user session management
-- Cloud deployment (Railway/Render)
-- CD pipeline with model versioning
-- Mobile companion app for BCI device pairing
+- Cloud deployment (Railway/Render) with model versioning
 
 ## Technical Debt
 
-- Expand pytest suite — add async integration tests with model mocking
-- Add WebSocket support for real-time brain state streaming
-- Frontend test infrastructure (currently zero coverage on `frontend/components/`)
+- Expand pytest suite — async integration tests with model mocking
+- Frontend test infrastructure — zero current coverage on `frontend/components/`
