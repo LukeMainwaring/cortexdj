@@ -114,8 +114,6 @@ _MODEL_TYPES: tuple[Literal["eegnet", "cbramod"], ...] = ("eegnet", "cbramod")
 
 @dataclass
 class TrainingConfig:
-    """Bundle of all training hyperparameters."""
-
     model_type: Literal["eegnet", "cbramod"] = "cbramod"
     cv_mode: Literal["loso", "grouped"] = "loso"
     epochs: int = DEFAULT_EPOCHS
@@ -205,7 +203,6 @@ def _default_batch_size_for(device: torch.device) -> int:
 
 
 def _default_epochs_for(device: torch.device, model_type: Literal["eegnet", "cbramod"]) -> int:
-    """CUDA + EEGNet gets the extended budget; everything else stays at DEFAULT_EPOCHS."""
     if device.type == "cuda" and model_type == "eegnet":
         return DEFAULT_EPOCHS_EEGNET_CUDA
     return DEFAULT_EPOCHS
@@ -233,7 +230,6 @@ def _augment_de_features(x: torch.Tensor, noise_std: float, mask_prob: float) ->
 
 
 def _set_seed(seed: int) -> None:
-    """Set random seeds for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -241,7 +237,6 @@ def _set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-# Type for any dataset that has participant_ids
 type ParticipantDataset = DEAPFeatureDataset | DEAPRawDataset
 
 
@@ -398,7 +393,6 @@ def _log_fold_epoch_metrics(
     val_metrics: dict[str, object],
     elapsed: float | None = None,
 ) -> None:
-    """Single shared log line for per-epoch progress across both train-fold funcs."""
     arousal_acc = _metric_float(val_metrics, "arousal_acc")
     valence_acc = _metric_float(val_metrics, "valence_acc")
     avg_f1 = _metric_float(val_metrics, "avg_macro_f1")
@@ -429,12 +423,7 @@ def train_fold_eegnet(
     config: TrainingConfig,
     device: torch.device,
 ) -> tuple[EEGNetClassifier, dict[str, object]]:
-    """Train EEGNet on DE features for one fold.
-
-    Criteria are built by the caller so this function has no dependency
-    on the dataset — it only needs the loaders, the loss objects, and
-    the config.
-    """
+    """Train EEGNet on DE features for one fold."""
     model = EEGNetClassifier().to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
     scheduler = CosineAnnealingLR(optimizer, T_max=config.epochs)
@@ -534,10 +523,6 @@ def train_fold_pretrained(
 
     Phase 1 (first 1/3 epochs): frozen backbone, train heads only with warmup.
     Phase 2 (remaining epochs): unfreeze backbone, full fine-tuning with warmup + cosine decay.
-
-    Reinitializes heads from scratch each fold but reuses the pretrained backbone
-    weights (avoids re-downloading). Class-weighted criteria are supplied by the
-    caller (see `_build_fold_criteria`).
     """
     # Deep copy so each fold starts fresh, reusing cached backbone weights
     model = copy.deepcopy(base_model).to(device)
@@ -931,7 +916,6 @@ def train(config: TrainingConfig) -> None:
         logger.error("No data found.")
         return
 
-    # Build CV splits
     if config.cv_mode == "loso":
         splits = make_loso_splits(dataset, max_folds=config.max_folds)
     else:
@@ -939,7 +923,6 @@ def train(config: TrainingConfig) -> None:
 
     logger.info(f"Cross-validation: {len(splits)} folds ({config.cv_mode})")
 
-    # Pre-load pretrained model once (avoids re-downloading per fold)
     base_pretrained: PretrainedDualHead | None = None
     if config.model_type == "cbramod":
         logger.info("Loading pretrained CBraMod backbone (one-time)...")
@@ -966,8 +949,6 @@ def train(config: TrainingConfig) -> None:
     else:
         prior = _load_resume_state(resume_paths, expected_run_key=run_key)
         if prior is not None:
-            # _load_resume_state refuses to return a tuple unless the .pt
-            # was readable, so best_model_state is guaranteed non-None here.
             prior_metrics, prior_best_fold, prior_best_state, prior_done = prior
             all_metrics = prior_metrics
             completed_folds = prior_done
@@ -1002,9 +983,6 @@ def train(config: TrainingConfig) -> None:
 
         logger.info(f"\n--- Fold {fold_idx + 1}/{len(splits)} (train={len(train_indices)}, val={len(val_indices)}) ---")
 
-        # Build per-fold criteria from training indices before creating the
-        # DataLoader — reads labels from `dataset.samples` directly, so we
-        # never iterate the loader twice in one fold.
         arousal_criterion, valence_criterion = _build_fold_criteria(
             dataset, train_indices, device, config.label_smoothing
         )
@@ -1059,8 +1037,7 @@ def train(config: TrainingConfig) -> None:
             best_fold_idx = fold_idx
 
         # Persist progress so a preemption mid-LOSO doesn't discard prior
-        # folds on restart. Writes are atomic (os.replace) so a kill during
-        # the write can't corrupt the file.
+        # folds on restart.
         _write_resume_state(
             resume_paths,
             run_key=run_key,
@@ -1081,7 +1058,6 @@ def train(config: TrainingConfig) -> None:
     total_time = time.monotonic() - train_start
     _print_results_table(all_metrics, cv_mode=config.cv_mode, total_time=total_time)
 
-    # Save best fold's model
     if best_model_state is not None:
         CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
         checkpoint_name = "cbramod_best.pt" if config.model_type == "cbramod" else "eegnet_best.pt"
@@ -1265,12 +1241,10 @@ def _print_comparison_table(results: dict[str, dict[str, float]], source: str) -
 
 
 def _majority_baseline_metrics(dataset: ParticipantDataset, config: TrainingConfig) -> dict[str, float]:
-    """Compute per-fold MajorityBaseline metrics, averaged across folds.
+    """Per-fold MajorityBaseline metrics, averaged across folds.
 
-    For each fold: fit MajorityBaselinePredictor on the training arousal
-    and valence labels, predict constant on val, score with the same
-    metrics the trained models use. Provides the reference point that
-    makes collapse visually obvious in the comparison table.
+    Provides the reference row that makes model collapse visually obvious
+    in the comparison table.
     """
     if config.cv_mode == "loso":
         splits = make_loso_splits(dataset, max_folds=config.max_folds)
@@ -1351,7 +1325,6 @@ def compare(config: TrainingConfig, *, retrain: bool = False) -> None:
     computed from the dataset labels so collapse is immediately visible.
     """
     if not retrain:
-        # Try loading metrics from existing checkpoints
         results: dict[str, dict[str, float]] = {}
 
         # Baseline is cheap — always compute it for the comparison table.

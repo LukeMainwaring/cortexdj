@@ -296,8 +296,7 @@ def train(config: ContrastiveConfig) -> Path:
     device = _get_device()
     logger.info(f"Device: {device}, config: {config}")
 
-    # Build shared audio cache + stimulus list once, pass into all three
-    # dataset instances so we don't re-load the npz cache three times.
+    # Load the audio cache once and share across train/val/test.
     shared_resolved = load_resolved_stimuli()
     shared_audio_cache = build_audio_embedding_cache(shared_resolved)
 

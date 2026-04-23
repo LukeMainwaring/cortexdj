@@ -116,13 +116,7 @@ def _process_tool_return_part(part: ToolReturnPart) -> ToolReturnPart:
 
 
 def summarize_tool_results(messages: list[ModelMessage]) -> list[ModelMessage]:
-    """Summarize large tool results in historical messages.
-
-    Scans all messages except the most recent one and replaces large tool
-    results with compact summaries. The last message (whether a user prompt
-    or a tool return from the current agent turn) is preserved in full,
-    ensuring the agent has complete data for its current reasoning.
-    """
+    """Compact large tool results in prior messages; the current turn is preserved in full."""
     if len(messages) <= 1:
         return messages
 

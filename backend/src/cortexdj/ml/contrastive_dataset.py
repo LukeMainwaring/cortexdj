@@ -40,7 +40,7 @@ from cortexdj.ml.dataset import (
 
 logger = logging.getLogger(__name__)
 
-_CACHE_VERSION = "v2"  # bumped when _audio_cache_key dropped file mtime for host portability
+_CACHE_VERSION = "v2"
 STIMULI_RESOLVED_PATH = DATA_DIR / "deap_stimuli_resolved.json"
 
 CBRAMOD_SEGMENT_SAMPLES = CBRAMOD_SAMPLING_RATE * 4  # 800 samples at 200Hz
@@ -130,9 +130,9 @@ def build_audio_embedding_cache(
 ) -> dict[int, npt.NDArray[np.float32]]:
     """Return `{trial_id: (512,) float32}` for all resolved DEAP stimuli.
 
-    Caches to `backend/data/deap/.cache/clap_audio_{hash}.npz`. The hash
-    includes the CLAP model id and each m4a file's mtime, so touching a
-    cache file or switching models invalidates cleanly.
+    Caches to `backend/data/deap/.cache/clap_audio_{hash}.npz`. The hash is
+    host-portable (see `_audio_cache_key`) so cache files shipped in a Modal
+    image hit on workers that never ran `fetch_deap_audio.py`.
     """
     key = _audio_cache_key(resolved, CLAP_MODEL_ID)
     cache_path = _audio_cache_path(key)
@@ -195,10 +195,9 @@ class DeapClapPairDataset(Dataset[tuple[torch.Tensor, torch.Tensor, int, int]]):
         self.data_dir = Path(data_dir) if data_dir else DEAP_DATA_DIR
         self.source_segment_samples = SEGMENT_SAMPLES  # 512 at 128Hz
         self.target_segment_samples = CBRAMOD_SEGMENT_SAMPLES  # 800 at 200Hz
-        # `augment` is wired but currently unused — reserved for future
-        # EEG-native augmentation (channel dropout, Gaussian noise). Train
-        # and val datasets must be separate instances with different flags
-        # so augmentation state cannot leak across splits.
+        # Flag is plumbed but unused pending EEG-native augmentation; train/val
+        # must remain separate instances so any future augmentation can't leak
+        # across splits.
         self.augment = augment
 
         self.resolved_stimuli = resolved_stimuli or load_resolved_stimuli()

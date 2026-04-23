@@ -97,10 +97,8 @@ async def _fetch_genre_seed_candidates(client: spotipy.Spotify, max_tracks: int)
     from cortexdj.services.spotify import run_spotify
 
     candidates: list[dict[str, Any]] = []
-    # Floor of 5 keeps small-limit smoke runs useful — at per_seed=1 each genre
-    # returns a single (possibly obscure) track, which makes a 20-track dev
-    # index nearly useless for retrieval verification. 12 seeds × 5 = 60
-    # candidates minimum, which the caller can dedupe and slice down.
+    # Floor of 5 per seed so a small-limit dev index still has enough variety
+    # to verify retrieval quality (obscure single-track pulls are near-useless).
     per_seed = max(5, max_tracks // len(GENRE_SEEDS))
     for seed in GENRE_SEEDS:
         if len(candidates) >= max_tracks:

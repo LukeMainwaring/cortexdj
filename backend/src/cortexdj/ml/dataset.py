@@ -260,12 +260,7 @@ class DEAPFeatureDataset(Dataset[tuple[torch.Tensor, int, int]]):
         return torch.tensor(features, dtype=torch.float32), arousal_label, valence_label
 
     def get_labels(self, indices: list[int] | None = None) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-        """Return `(arousal_labels, valence_labels)` as int64 arrays.
-
-        If `indices` is provided, returns labels only for those sample
-        positions. Used by the training loop to compute per-fold class
-        weights without iterating the DataLoader.
-        """
+        """Return `(arousal_labels, valence_labels)` as int64 arrays, optionally restricted to `indices`."""
         return _extract_labels(self.samples, indices)
 
 
@@ -397,12 +392,7 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
         return torch.tensor(segment, dtype=torch.float32), arousal_label, valence_label
 
     def get_labels(self, indices: list[int] | None = None) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-        """Return `(arousal_labels, valence_labels)` as int64 arrays.
-
-        If `indices` is provided, returns labels only for those sample
-        positions. Used by the training loop to compute per-fold class
-        weights without iterating the DataLoader.
-        """
+        """Return `(arousal_labels, valence_labels)` as int64 arrays, optionally restricted to `indices`."""
         return _extract_labels(self.samples, indices)
 
 

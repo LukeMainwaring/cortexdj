@@ -85,11 +85,9 @@ def predict_segment(
 ) -> EEGPredictionResult:
     """Run inference on a single EEG segment (n_channels x n_samples)."""
     if isinstance(model, PretrainedDualHead):
-        # Raw EEG path: resample 128Hz -> 200Hz for CBraMod
         resampled = resample(eeg_data, CBRAMOD_SEGMENT_SAMPLES, axis=1)
         input_tensor = torch.tensor(resampled, dtype=torch.float32).unsqueeze(0)
     else:
-        # DE features path for EEGNet
         features = extract_features(eeg_data)
         input_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)
 
@@ -105,7 +103,6 @@ def predict_segment(
     arousal_class = "high" if arousal_score >= 0.5 else "low"
     valence_class = "high" if valence_score >= 0.5 else "low"
 
-    # Scale 0-1 back to 0-10 for quadrant mapping
     dominant_state = scores_to_quadrant(
         arousal_score * 10,
         valence_score * 10,
