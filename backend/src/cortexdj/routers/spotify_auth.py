@@ -24,10 +24,8 @@ config = get_settings()
 
 spotify_auth_router = APIRouter(prefix="/spotify", tags=["spotify"])
 
-# In-memory mapping of OAuth state -> creation time for CSRF protection.
-# State is added during /connect and consumed during /callback.
-# Note: lost on server restart and not shared across workers.
-# Acceptable for a single-user local app; use DB or Redis for production.
+# CSRF state cache for the OAuth flow. In-memory is fine for a single-user
+# local app; move to DB or Redis if this ever runs multi-worker.
 _pending_oauth_states: dict[str, float] = {}
 
 _MAX_PENDING_STATES = 10

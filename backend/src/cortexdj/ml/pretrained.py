@@ -49,17 +49,8 @@ class PretrainedDualHead(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Forward pass: raw EEG -> encoder -> dual heads.
-
-        Args:
-            x: Raw EEG tensor (batch, n_channels, n_times).
-
-        Returns:
-            (arousal_logits, valence_logits) each of shape (batch, 2).
-        """
         out = self.encoder(x, return_features=True)
         features = out["features"]  # (batch, ..., embed_dim)
-        # Flatten all spatial dims and average-pool to (batch, embed_dim)
         pooled = features.reshape(features.shape[0], -1, features.shape[-1]).mean(dim=1)
 
         arousal_logits = self.arousal_head(pooled)
@@ -85,14 +76,7 @@ def load_pretrained_dual_head(
     n_times: int = 800,
     sfreq: float = 200.0,
 ) -> PretrainedDualHead:
-    """Load a pretrained model and wrap it with dual emotion heads.
-
-    Args:
-        model_name: Pretrained model identifier. Currently supports "cbramod".
-        n_chans: Number of EEG channels in the input data.
-        n_times: Number of time samples per segment.
-        sfreq: Sampling frequency of the input data (Hz).
-    """
+    """Load a pretrained model and wrap it with dual emotion heads."""
     if model_name != "cbramod":
         msg = f"Unsupported pretrained model: {model_name}. Currently only 'cbramod' is supported."
         raise ValueError(msg)
@@ -107,7 +91,6 @@ def load_pretrained_dual_head(
         n_outputs=1,  # placeholder — we replace the head
     )
 
-    # Determine embedding dimension by running a dummy forward pass
     backbone.eval()
     with torch.no_grad():
         dummy = torch.randn(1, n_chans, n_times)

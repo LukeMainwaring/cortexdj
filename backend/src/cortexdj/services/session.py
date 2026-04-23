@@ -43,22 +43,10 @@ async def list_sessions_enriched(
     """Return sessions enriched with display index, dominant-state label, and segment stats.
 
     display_index is a 1-based ordinal computed from chronological insertion
-    order (ASC by `created_at`), regardless of the `order` argument — `order`
-    only controls the order rows are returned in.
-
-    **Known limitation:** display indices are *not* persisted, so they
-    renumber if any session row is deleted. "Session 07" today may bind to
-    a different UUID tomorrow if Session 03 was removed in between. This is
-    acceptable for the current single-tenant demo (sessions are only ever
-    inserted by the seed script), but if/when real per-user sessions land
-    this should become a persisted column on `sessions`.
-
-    order:
-      - "recent" (default): newest first. `limit=1` returns the most recently
-        recorded session — the right answer for prompts like "show me my most
-        recent EEG session".
-      - "stable": oldest first (Session 01 → Session NN). Use when the caller
-        wants a deterministic catalog walk.
+    order; `order` only controls the returned ordering. Indices are *not*
+    persisted, so a deletion renumbers every subsequent session — acceptable
+    for the single-tenant demo but should become a real column before
+    multi-user sessions land.
     """
     chronological = await Session.get_chronological_ids(db)
     total = len(chronological)
