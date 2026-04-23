@@ -2,7 +2,7 @@
 name: updating-deps-auto
 description: "Autonomous dependency update: bump all deps, validate with auto-fix, research changelogs, apply refactors, run code review, and create a PR. Designed for scheduled/unattended execution."
 model: opus
-effort: high
+effort: xhigh
 ---
 
 # Autonomous Dependency Update
