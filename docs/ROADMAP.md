@@ -31,6 +31,7 @@
 ## Phase 4: Advanced ML
 
 - EEG data augmentation — Gaussian noise, temporal jittering, channel dropout
+- Extend the autoresearch harness (`backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out; warm the Modal image to cut the ~15-min cold-start on each run
 - Evaluate pretrained encoders beyond CBraMod — EEGPT, BENDR, REVE, LUNA — as drop-in backbone replacements (note: REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement)
 - Personalized fine-tuning — few-shot adaptation of the CBraMod encoder to individual users on top of DEAP fine-tuning
 - Cross-session trend analysis — track embedding trajectories across sessions

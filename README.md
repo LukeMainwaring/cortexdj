@@ -74,7 +74,7 @@ graph TB
 
 ## Project Structure
 
-Standard monorepo — `backend/` (FastAPI + ML pipelines under `src/cortexdj/`), `frontend/` (Next.js App Router), `docker-compose.yml` for Postgres. See `CLAUDE.md` for a directory-level architecture map.
+Standard monorepo — `backend/` (FastAPI + ML pipelines under `src/cortexdj/`), `frontend/` (Next.js App Router), `docker-compose.yml` for Postgres. An autonomous experiment harness for iterating on the EEGNet classifier lives at `backend/autoresearch/` (see [DEVELOPMENT.md § Autoresearch](DEVELOPMENT.md#autoresearch-autonomous-eegnet-iteration)). See `CLAUDE.md` for a directory-level architecture map.
 
 ## Setup
 

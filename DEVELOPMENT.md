@@ -165,6 +165,25 @@ modal run backend/scripts/modal_train.py --command train-contrastive --args="--q
 
 DEAP source files (~3.1 GB of `.dat`) live in a persistent `cortexdj-deap` Modal Volume seeded once via the loop above. Subsequent training runs attach the volume instantly instead of re-uploading. The first GPU run regenerates `data/deap/.cache/*.npz` (preprocessing cache) inside the volume; `modal_train.py` calls `deap_volume.commit()` after training so that cache persists for later runs. Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
 
+### Autoresearch (autonomous EEGNet iteration)
+
+A [Karpathy-style](https://github.com/karpathy/autoresearch) overnight experiment loop for the quadrant classifier — an AI coding agent modifies a single training file, runs a 15-minute experiment on Modal, reads the resulting `avg_macro_f1`, and decides keep-or-revert. Targets the EEGNet pipeline on a fixed 28/4 DEAP subject split.
+
+```bash
+# Run one experiment manually (~30 min end-to-end: ~15 min cold-start + 15 min training)
+uv run --directory backend python scripts/run_autoresearch.py
+# or equivalently:
+modal run backend/scripts/modal_autoresearch.py
+
+# Local dry-run on CPU — no Modal, short budget — for sanity-checking train.py edits
+WALL_CLOCK_BUDGET_SECONDS=30 AUTORESEARCH_RUN_DIR=/tmp/ar_local \
+  uv run --directory backend python -m autoresearch.train
+```
+
+To run the agent loop, point any coding agent (Claude Code, Codex) at `backend/autoresearch/program.md` in a fresh session. The agent reads that file, forms a hypothesis, edits `train.py`, invokes the wrapper, and tails `experiments/experiments.jsonl` to decide keep-or-revert. Overnight (8h) budgets roughly 12–16 experiments.
+
+Results land in `backend/autoresearch/experiments/` (gitignored): one JSONL row per run, a `best.json` pointer to the current champion, and per-run artifacts (`train.py` snapshot, `stdout.log`, `metrics.json`). See `backend/autoresearch/README.md` for the full workflow, the four contracts the agent must preserve, and design rationale.
+
 ### Database Seeding
 
 ```bash
