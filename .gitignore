@@ -26,6 +26,11 @@ backend/data/track_index_miss_log.jsonl
 backend/data/tensorboard_runs/
 backend/.cache/
 backend/.cache*
+
+# Autoresearch run logs (local-only, per-run artifacts)
+backend/autoresearch/experiments/experiments.jsonl
+backend/autoresearch/experiments/best.json
+backend/autoresearch/experiments/runs/
 *.h5
 *.pt
 *.pth
