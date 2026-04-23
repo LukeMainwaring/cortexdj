@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -158,10 +159,16 @@ class Researcher:
 
 
 def _pick_metric(metrics: dict[str, Any], stdout_text: str) -> float | None:
-    """Prefer metrics.json; fall back to grepping FINAL_METRIC from stdout."""
+    """Prefer metrics.json; fall back to grepping FINAL_METRIC from stdout.
+
+    NaN / +-inf are treated as "no metric" — letting them through would
+    poison best.json (any ``metric > NaN`` is False, so the champion
+    locks forever). Non-finite values typically come from a crashed or
+    diverged run that the agent should treat as a failure anyway.
+    """
     for key in ("best_avg_macro_f1", "avg_macro_f1"):
         value = metrics.get(key)
-        if isinstance(value, (int, float)):
+        if isinstance(value, (int, float)) and math.isfinite(value):
             return float(value)
 
     final: float | None = None
@@ -169,9 +176,11 @@ def _pick_metric(metrics: dict[str, Any], stdout_text: str) -> float | None:
         stripped = line.strip()
         if stripped.startswith("FINAL_METRIC="):
             try:
-                final = float(stripped.split("=", 1)[1])
+                parsed = float(stripped.split("=", 1)[1])
             except ValueError:
                 continue
+            if math.isfinite(parsed):
+                final = parsed
     return final
 
 
@@ -196,7 +205,15 @@ def main(gpu: str = "A10G") -> None:
     train_py_sha = hashlib.sha256(train_py_local).hexdigest()
 
     runner = Researcher.with_options(gpu=gpu)()  # type: ignore[attr-defined]
-    result = cast(dict[str, Any], runner.run.remote(run_id))
+    try:
+        result = cast(dict[str, Any], runner.run.remote(run_id))
+    except Exception as exc:
+        # Modal failed before returning — auth, timeout, worker death, network.
+        # The agent's loop tails experiments.jsonl to decide keep-or-revert;
+        # if we don't log here, the loop silently breaks its invariant. Log an
+        # infra_failed row and re-raise so the caller also sees the error.
+        _append_infra_failure(run_id, gpu, train_py_sha, repr(exc))
+        raise
 
     train_py_returned = result.get("train_py") or train_py_local
     (local_run_dir / "train.py").write_bytes(bytes(train_py_returned))
@@ -237,12 +254,43 @@ def main(gpu: str = "A10G") -> None:
     _print_summary(log_entry)
 
 
+def _append_infra_failure(run_id: str, gpu: str, train_py_sha: str, reason: str) -> None:
+    """Log a JSONL row when the Modal call itself fails (as opposed to training failing).
+
+    Keeps the agent's ``tail experiments.jsonl`` loop invariant: every
+    invocation produces exactly one log line.
+    """
+    entry: dict[str, Any] = {
+        "run_id": run_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "status": "infra_failed",
+        "metric": None,
+        "arousal_f1": None,
+        "valence_f1": None,
+        "duration_s": None,
+        "steps": None,
+        "epochs": None,
+        "train_py_sha256": train_py_sha,
+        "is_best": False,
+        "gpu": gpu,
+        "error": reason,
+    }
+    JSONL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with JSONL_PATH.open("a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
 def _update_best(run_dir: Path, run_id: str, metric: float) -> bool:
+    # Defense in depth — _pick_metric already filters non-finite values, but a
+    # bad caller slipping NaN through would permanently lock best.json.
+    if not math.isfinite(metric):
+        return False
     current_best: float | None = None
     if BEST_PATH.exists():
         try:
             current_best = float(json.loads(BEST_PATH.read_text()).get("metric", 0.0))
-        except Exception:
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"[autoresearch] WARN: best.json unreadable ({exc!r}); overwriting with {metric:.4f}")
             current_best = None
     if current_best is None or metric > current_best:
         BEST_PATH.write_text(

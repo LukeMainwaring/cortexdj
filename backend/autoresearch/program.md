@@ -28,7 +28,11 @@ Scale is 0–1; a constant predictor scores 0.5. Current champion is in
 2. Compute metrics with `evaluate(model, val_ds, device)` from `prepare`.
 3. Stop training when `prepare.WALL_CLOCK_BUDGET_SECONDS` has elapsed.
 4. At the end, print `FINAL_METRIC=<float>` and write `metrics.json`
-   (with at least `avg_macro_f1`) to `$AUTORESEARCH_RUN_DIR`.
+   (with at least `avg_macro_f1`) to `$AUTORESEARCH_RUN_DIR`. `NaN` /
+   `inf` metrics are rejected — the run is logged as `no_metric`.
+5. `model(features)` must return a 2-tuple
+   `(arousal_logits, valence_logits)`, each shape `(batch, 2)`. A
+   different return shape breaks `evaluate()` and the run fails.
 
 ## The loop
 
