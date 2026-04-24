@@ -1,59 +1,116 @@
-# CortexDJ
+<div align="center">
+  <h1>CortexDJ</h1>
+  <p>An AI-powered EEG classifier that detects emotional states during music listening and curates Spotify playlists grounded in what your brain actually did.</p>
 
-An AI-powered EEG brain-wave classifier that detects emotional states during music listening and curates Spotify playlists from brain-derived mood profiles. Combines a custom PyTorch neural network for EEG classification, MNE-Python for signal processing, and a Pydantic AI agent to orchestrate analysis and playlist curation.
+  [![CI](https://github.com/LukeMainwaring/cortexdj/actions/workflows/ci.yml/badge.svg)](https://github.com/LukeMainwaring/cortexdj/actions/workflows/ci.yml)
+</div>
 
-## Architecture
+<div align="center">
+  <img src="docs/assets/end-to-end-session-to-playlist.gif" alt="CortexDJ demo — analyze an EEG session and build a playlist from the brain state" width="700" />
+</div>
 
-```mermaid
-graph TB
-    subgraph Frontend ["Frontend (Next.js 16)"]
-        UI[Chat Panel]
-        UC[useChat Hook]
-        TQ[TanStack Query]
-    end
+## Why CortexDJ?
 
-    subgraph Backend ["Backend (FastAPI)"]
-        Agent[Pydantic AI Agent]
-        Tools[Agent Tools]
-        EEGNet[EEGNet Classifier]
-        Preprocess[EEG Preprocessing]
-        Spotify[Spotify Integration]
-    end
+Music shapes your brain state, and your brain state shapes what music you want next. CortexDJ closes the loop: it classifies your EEG into emotion quadrants (relaxed / calm / excited / stressed) and curates Spotify playlists grounded in what your brain actually did while listening — not what you think you listened to, not what a recommender thinks people like you want.
 
-    subgraph Storage ["Storage"]
-        PG[(PostgreSQL)]
-        DEAP[DEAP Dataset]
-    end
+## Features
 
-    UI --> UC -->|SSE Stream| Agent
-    UI --> TQ -->|REST| Backend
-    Agent --> Tools
-    Tools --> EEGNet -->|Arousal/Valence Classification| PG
-    Tools --> Preprocess -->|Band Power Analysis| DEAP
-    Tools --> Spotify -->|Playlist Curation| PG
-    PG --- DEAP
-```
+- **Brain state classification** — Per-segment arousal/valence prediction mapped to four emotion quadrants (relaxed / calm / excited / stressed) for every 4-second EEG window
+- **Dual model backends** — CBraMod pretrained transformer (4.9M params, raw EEG) or lightweight EEGNet (25K params, differential entropy features), selectable via env var and benchmarked leave-one-subject-out on 32-subject DEAP
+- **Agentic orchestration** — A Pydantic AI agent decides which tools to call per query, enabling multi-step reasoning across session analysis, playlist curation, and track retrieval
+- **Persistent brain context** — Dominant mood / arousal / valence attached to the conversation thread, surviving page refreshes and flowing dynamically into the system prompt
+- **Contrastive EEG↔CLAP retrieval** — Joint 512-d embedding between raw EEG and LAION-CLAP audio, served via pgvector HNSW cosine search (proof-of-concept; see [Limitations](#limitations))
+- **Emotion trajectory visualization** — Animated SVG path through Russell's affect space, plus a stacked band-power chart with delta / theta / alpha / beta / gamma activity
+- **Brain-grounded playlist curation** — Queries historical EEG classifications to find tracks that consistently triggered a target mood, then builds a Spotify playlist with a user-confirmation gate
+- **Inline tool transparency** — Every agent step renders an expandable tool-call panel with input parameters, output JSON, and a domain-specific visualization beneath
 
-### How It Works
+## Demo Workflows
 
-1. **EEG data is preprocessed** using bandpass filtering and differential entropy feature extraction across 5 frequency bands (delta, theta, alpha, beta, gamma)
-2. **Dual model backends** classify arousal (low/high) and valence (low/high) for each 4-second EEG segment, mapping to four emotional quadrants: relaxed, calm, excited, stressed
-   - **EEGNet** (custom, 25K params): operates on hand-crafted DE features — fast, lightweight
-   - **CBraMod** (pretrained, 4.9M params): operates on raw EEG via pretrained transformer encoder fine-tuned on DEAP — higher accuracy
-3. **DEAP dataset** provides real EEG benchmark data (32 participants, 40 music video trials) evaluated with leave-one-subject-out cross-validation. Labels are binarized at each subject's own Likert median by default (`median_per_subject`) to produce balanced classes; class-weighted cross-entropy plus label smoothing are applied per fold. Reported headline metric is **macro-F1** against a `MajorityBaseline` reference row, not raw accuracy.
-4. **Pydantic AI agent** orchestrates session analysis, brain state explanation, Spotify playlist curation, and contrastive track retrieval through natural language conversation
-5. **Session analysis** provides detailed brain state breakdowns with per-segment timelines, band power distributions, and associated track metadata
-6. **Playlist builder** queries historical EEG data to find tracks that consistently triggered specific brain states, then assembles mood-matched playlists (with user confirmation before creating)
-7. **EEG↔CLAP contrastive retrieval** (research direction — see Limitations) — `EegCLAPEncoder` (CBraMod backbone + SimCLR projection head) learns a joint 512-d embedding between raw EEG windows and LAION-CLAP audio via symmetric soft-target InfoNCE. At query time, `retrieve_tracks_from_brain_state` embeds a session and runs a pgvector HNSW cosine search against a pre-computed track index, returning top-k Spotify tracks — including ones the user has never heard. Distinct from the quadrant-filter playlist tools, which curate from already-labeled EEG data
-8. **Spotify integration** provides search, library access, and playlist management tools — user-authenticated tools are hidden when Spotify is not connected. Audio previews for the retrieval index come from the **iTunes Search API** (Spotify deprecated `preview_url` for standard-mode apps in Nov 2024); Spotify stays the source of truth for track identity and playlist mutation
-9. **Inline tool visualization** — the chat UI auto-renders SVG trajectory + timeline panels beneath `analyze_session` calls, and ranked-track cards with inline 30s previews beneath retrieval calls
-10. **Agent streams responses** back as SSE in Vercel AI SDK format with transparent tool-call display; a history processor summarizes large tool results from prior turns to prevent token bloat
+These prompts showcase what CortexDJ can do that general-purpose chatbots can't. See [docs/DEMO_WORKFLOWS.md](docs/DEMO_WORKFLOWS.md) for the full catalog.
 
-### Why Dual Models + Agent?
+### Session analysis with emotion trajectory
+> "Analyze Session 04"
+
+<div align="center">
+  <img src="docs/assets/session-trajectory.png" alt="Session analysis with animated emotion trajectory" width="90%" />
+</div>
+
+`analyze_session` returns per-segment arousal/valence classifications; the chat UI renders an animated SVG path through Russell's affect space plus a stacked band-power chart.
+
+### Brain-state track retrieval
+<div align="center">
+  <img src="docs/assets/retrieved-tracks-panel.png" alt="Retrieved tracks panel with similarity bars and inline audio previews" width="90%" />
+</div>
+
+`retrieve_tracks_from_brain_state` embeds the session's EEG into the joint EEG↔CLAP space and returns top-k tracks from the pgvector index — ranked with cosine-similarity bars and inline 30-second iTunes previews.
+
+### Brain-grounded mood playlist
+> "Build me a playlist of tracks that triggered relaxed brain states"
+
+<div align="center">
+  <img src="docs/assets/brain-grounded-playlist.gif" alt="CortexDJ demo — brain-grounded mood playlist" width="700" />
+</div>
+
+`find_relaxing_tracks` queries historical EEG classifications (not listening history, not popularity) and the agent proposes a playlist, waiting for user confirmation before calling `build_mood_playlist` to create it on Spotify.
+
+### Persistent brain context across the conversation
+> "Set my brain context to Session 11" — then in a follow-up: "Build me a playlist"
+
+<div align="center">
+  <img src="docs/assets/brain-context-persistence.gif" alt="CortexDJ demo — brain context persistence across page refresh" width="700" />
+</div>
+
+`set_brain_context` persists dominant mood / arousal / valence into a JSONB column on the thread; the context pill appears in the chat header and survives page refreshes, and every subsequent agent turn injects it into the system prompt.
+
+## Why dual models + agent?
 
 - **EEGNet** (custom dual-head): Compact CNN designed for EEG data, adapted with separate arousal and valence classification heads. Learns spatial and temporal EEG patterns from differential entropy features.
 - **CBraMod** (pretrained dual-head): Transformer encoder pretrained on the TUEG corpus, fine-tuned with custom dual arousal/valence heads on DEAP. Flexible channel count via asymmetric conditional positional encoding — supports 32-channel DEAP and future 4-channel Muse 2 BCI.
 - **Agent**: Orchestrates classification, analysis, and playlist curation. A query like _"build me a relaxation playlist"_ triggers brain state querying, track filtering by arousal/valence, and Spotify integration — multi-step reasoning that a static pipeline can't do.
+
+## Quick Start
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) (for PostgreSQL)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [pnpm](https://pnpm.io/) (Node package manager)
+- [Node.js](https://nodejs.org/) 20+
+- [GitHub CLI](https://cli.github.com/) (for checkpoint download)
+- OpenAI API key
+
+### Setup
+
+```bash
+# Clone and configure
+git clone https://github.com/LukeMainwaring/cortexdj.git
+cd cortexdj
+cp .env.sample .env
+# Edit .env with your OPENAI_API_KEY
+
+# Start PostgreSQL + backend
+docker compose up -d
+
+# Backend setup
+uv sync --directory backend
+uv run --directory backend pre-commit install
+
+# Download DEAP dataset (see backend/data/DEAP_SETUP.md)
+# Place .dat files in backend/data/deap/
+
+# Download pre-trained checkpoints (skips the 12 h training step; see DEVELOPMENT.md to retrain)
+./backend/scripts/download-checkpoints.sh
+
+# Seed the database
+uv run --directory backend seed-sessions
+
+# Frontend setup
+pnpm -C frontend install
+pnpm -C frontend generate-client
+pnpm -C frontend dev
+
+# Visit http://localhost:3003
+```
 
 ## Tech Stack
 
@@ -66,97 +123,20 @@ graph TB
 | Agent | Pydantic AI with OpenAI |
 | ML | PyTorch (EEGNet), braindecode (CBraMod pretrained), MNE-Python, scipy |
 | EEG Processing | Bandpass filtering, differential entropy, Welch PSD |
-| Database | PostgreSQL |
+| Database | PostgreSQL + pgvector |
 | Spotify | spotipy (OAuth 2.0) |
 | DevOps | Docker Compose, GitHub Actions CI |
 | Testing | pytest |
 | Code Quality | Ruff, mypy (strict), pre-commit, Biome/Ultracite |
 
-## Project Structure
-
-Standard monorepo — `backend/` (FastAPI + ML pipelines under `src/cortexdj/`), `frontend/` (Next.js App Router), `docker-compose.yml` for Postgres. An autonomous experiment harness for iterating on the EEGNet classifier lives at `backend/autoresearch/` (see [DEVELOPMENT.md § Autoresearch](DEVELOPMENT.md#autoresearch-autonomous-eegnet-iteration)). See `CLAUDE.md` for a directory-level architecture map.
-
-## Setup
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) (for PostgreSQL)
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
-- [pnpm](https://pnpm.io/) (Node package manager)
-- [Node.js](https://nodejs.org/) 20+
-- OpenAI API key
-
-### Quick Start
-
-```bash
-# Clone and configure
-git clone https://github.com/LukeMainwaring/cortexdj.git
-cd cortexdj
-cp .env.sample .env
-# Edit .env with your OPENAI_API_KEY
-
-# Start PostgreSQL
-docker compose up -d
-
-# Backend setup
-uv sync --directory backend
-uv run --directory backend pre-commit install
-
-# Download DEAP dataset (see backend/data/DEAP_SETUP.md)
-# Place .dat files in backend/data/deap/
-
-# Train the model (CBraMod with LOSO CV by default)
-uv run --directory backend train-model
-
-# Seed the database
-uv run --directory backend seed-sessions
-
-# Frontend setup
-pnpm -C frontend install
-pnpm -C frontend generate-client
-
-# Run
-# Terminal 1: docker compose up -d (if not already running)
-# Terminal 2: pnpm -C frontend dev
-# Visit http://localhost:3003
-```
-
-## EEG Pipeline
-
-Two model backends are supported — selectable via `EEG_MODEL_BACKEND` env var:
-
-```
-Pipeline A: Custom EEGNet (default)
-  EEG Signal (32 channels @ 128 Hz)
-      ├── Bandpass Filter ──→ 5 frequency bands
-      ├── Differential Entropy ──→ 160-dim feature vector
-      └── EEGNet Classifier ──→ Dual-head predictions
-
-Pipeline B: CBraMod Pretrained (fine-tuned)
-  EEG Signal (32 channels @ 128 Hz)
-      ├── Resample ──→ 200 Hz (CBraMod target)
-      └── CBraMod Encoder + Dual Heads ──→ Predictions
-
-Both produce:
-  ├── Arousal (low/high)
-  └── Valence (low/high)
-          └── Emotion Quadrant
-              ├── Relaxed (low arousal, high valence)
-              ├── Calm (low arousal, low valence)
-              ├── Excited (high arousal, high valence)
-              └── Stressed (high arousal, low valence)
-```
-
-## Design Decisions
-
-- **Dual model backends.** Custom EEGNet on hand-crafted DE features for lightweight inference; CBraMod pretrained encoder (fine-tuned on DEAP) for higher accuracy. Both produce identical `EEGPredictionResult` outputs and evaluate via LOSO cross-validation on the DEAP benchmark (32 participants, music + emotion labels). Configurable via `EEG_MODEL_BACKEND`.
-- **Robust training loop.** DEAP's 1–9 Likert self-reports are binarized at each subject's own median by default, with class-weighted loss and label smoothing to handle residual imbalance. Headline metric is macro-F1 against a `MajorityBaseline` reference row, not raw accuracy.
-- **Contrastive retrieval via pgvector HNSW** (research direction — see Limitations). `track_audio_embeddings` stores 512-d LAION-CLAP vectors with an HNSW cosine index; HNSW over IVFFlat because it handles incremental inserts natively and doesn't require retraining on each seed pass.
-- **iTunes as audio source.** Spotify deprecated `preview_url` for standard-mode apps on 2024-11-27 (empirically verified 0/10 hits against this project's 2018 app). `services/audio_catalog.py` cross-references Spotify identity to the iTunes Search API for the actual 30s m4a preview bytes.
-- **Spotify is optional.** User-authenticated tools (library, playlist management) hidden via `prepare_tools` when not connected; public tools (search, track info) always available. Mutation tools require explicit user confirmation to prevent accidental writes.
-- **Thread-backed brain context.** Persistent per-thread JSONB column storing dominant mood, arousal, valence — survives page refreshes. Dynamically injected into the agent system prompt via `get_instructions()` so the agent is immediately context-aware.
-- **Inline tool visualization.** Chat UI auto-renders visualization panels beneath tool calls that return structured data. The backend computes a `trajectory_summary` (dwell per quadrant, transitions, centroid, dispersion, path length) that feeds both the SVG trajectory chart and the agent narration via `SessionCapability.get_instructions`.
-
 ## Limitations
 
-The EEG↔CLAP contrastive retrieval path described above is a deferred research direction, not a shipped capability — at DEAP scale, 4-second EEG windows do not carry enough track-specific signal to align with LAION-CLAP audio embeddings. The quadrant classification pipeline and quadrant-filtered playlist curation are working as described. See [Deferred research: EEG↔CLAP contrastive retrieval](docs/ROADMAP.md#deferred-research-eegclap-contrastive-retrieval) for evidence and forward direction.
+The EEG↔CLAP contrastive retrieval path described above is a deferred research direction, not a shipped capability — at DEAP scale, 4-second EEG windows do not carry enough track-specific signal to align with LAION-CLAP audio embeddings. The quadrant classification pipeline and quadrant-filtered playlist curation are working as described. See [Deferred research: EEG↔CLAP contrastive retrieval](docs/ROADMAP.md#deferred-research-eegclap-contrastive-retrieval) for the evaluation and the directions that would make it tractable.
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for testing, linting, migrations, ML training workflows, and Modal GPU runs.
+
+## Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features including SEED/AMIGOS dataset support, live Muse 2 BCI integration, and personalized fine-tuning.

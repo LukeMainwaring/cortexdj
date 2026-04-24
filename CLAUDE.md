@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
-For architecture and project overview, read `README.md`. For setup, commands, training workflows, and database migrations, read `DEVELOPMENT.md`.
+For project overview, features, and demo workflows, read `README.md`. For setup, commands, training workflows, and database migrations, read `DEVELOPMENT.md`.
 
 When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes.
 

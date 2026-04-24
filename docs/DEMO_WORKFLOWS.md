@@ -1,6 +1,6 @@
 # Demo Workflows
 
-Prompts and workflows that showcase what CortexDJ can do that general-purpose chatbots (ChatGPT, Claude) cannot. Organized by uniqueness and impressiveness.
+Prompts and workflows that showcase what CortexDJ can do that general-purpose chatbots (ChatGPT, Claude) cannot, organized from the headline demo down to quick one-shot prompts.
 
 ---
 
@@ -185,22 +185,6 @@ A workflow combining Spotify library access with EEG-derived insights. Requires 
 
 **What to watch for:** The agent seamlessly combines EEG data tools with Spotify library tools — querying brain states in one step and writing to Spotify in the next.
 
-### Model Introspection
-
-> "Tell me about the EEG model you're using"
-
-- Agent calls `get_model_info` — "Loading model info" spinner → checkmark
-- Response reveals the loaded model: CBraMod (4.9M param pretrained transformer) or EEGNet (25K param custom CNN)
-- Shows architecture details, input specs (raw EEG vs DE features), dual-head outputs (arousal + valence), and training metrics
-- Demonstrates transparency — the user can see exactly what model is making predictions
-
-**Follow-up:**
-
-> "How does it classify emotions from brain waves?"
-
-- The agent explains the classification pipeline: EEG signal → preprocessing → model inference → arousal/valence binary classification → emotion quadrant mapping
-- References the specific model architecture (criss-cross transformer for CBraMod, spatial/temporal convolutions for EEGNet)
-
 ### Session Deep Dive + New Music Discovery
 
 The full end-to-end retrieval demo: analyze a session and discover new matching music in a single chat thread, with both inline visualizations rendered side by side.
@@ -244,15 +228,9 @@ The full end-to-end retrieval demo: analyze a session and discover new matching 
 
 **Retrieve matching tracks (contrastive):** *"Find songs that match my brain state in Session 07"* — contrastive EEG↔CLAP retrieval from the pgvector audio index; renders the similarity-bar track list inline with preview playback. Distinct from the quadrant-filter tools above: these may be tracks the user has never heard.
 
-**Build playlist:** *"Build me a stressed-out playlist"* — mood playlist from brain data with user confirmation gate.
-
-**Search Spotify:** *"Search Spotify for Radiohead"* — public search, no connection required.
-
 **Track details:** *"Get info on that track"* — Spotify metadata lookup after a search.
 
 **Set brain context:** *"Set my brain context to relaxed with arousal 0.2 and valence 0.8"* — manual context override; badge appears in header.
-
-**Model info:** *"What model are you using?"* — architecture, parameters, and training metrics.
 
 ---
 
@@ -313,11 +291,9 @@ These workflows will become available as upcoming roadmap features are implement
 ## Presenter Tips
 
 - **Start fresh:** Each workflow assumes a new chat thread. Click the new chat button in the sidebar.
-- **Reference by label, not UUID:** After `list_sessions` runs, refer to sessions by their **Session NN** label (e.g. "analyze Session 07"). The agent resolves the label to the underlying UUID internally — UUIDs, participant IDs, and recorded-at timestamps are intentionally hidden from the chat surface.
 - **Inline visualizations are the screenshot:** `list_sessions` renders the `<SessionListPanel>` card grid; `analyze_session` renders `<SessionVisualization>` (animated trajectory + timeline + band-power chart); `retrieve_tracks_from_brain_state` renders `<RetrievedTracksPanel>` with similarity bars and inline previews. The raw tool-output JSON is hidden behind a collapsible — expand it only if you specifically want to show the reasoning pipeline.
 - **Expand tool calls:** Click the collapsible tool call indicators to show input parameters and raw output JSON. This demonstrates the agent's reasoning pipeline.
 - **Brain context persistence:** Refresh the page mid-workflow to show that brain context survives page reloads — it's stored in the thread's database column, not browser state.
 - **Spotify connection:** Workflows using `get_listening_history`, `get_my_playlists`, `get_my_saved_tracks`, or `add_tracks_to_playlist` require Spotify to be connected in Settings. The tools are hidden from the agent when not connected.
 - **Contrastive retrieval prereqs:** `retrieve_tracks_from_brain_state` requires a populated `track_audio_embeddings` index (run `seed-track-index`) and a contrastive checkpoint (`train-contrastive` locally or via Modal). If either is missing, the tool returns a structured payload with operator-fix instructions that the agent relays verbatim — no silent hallucinations.
 - **User confirmation gates:** `build_mood_playlist` and `add_tracks_to_playlist` always ask for confirmation before executing. The agent will never create or modify playlists without explicit approval.
-- **Dark mode:** Toggle the theme to show the full dark mode experience — tool calls, badges, and chat all adapt.

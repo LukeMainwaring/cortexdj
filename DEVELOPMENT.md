@@ -30,6 +30,15 @@ Install pre-commit hooks:
 uv run --directory backend pre-commit install
 ```
 
+### Spotify app (optional)
+
+Playlist and library tools stay hidden unless Spotify is connected. To enable them:
+
+1. Create an app at https://developer.spotify.com/dashboard
+2. Add redirect URI `http://127.0.0.1:8003/api/spotify/callback`
+3. Copy the client ID + secret into `.env` (`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`)
+4. Run the app, then click **Settings → Spotify → Connect** in the UI to authorize
+
 ## Pre-commit hooks
 
 ```bash
@@ -80,90 +89,49 @@ See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instru
 
 ### Model Training
 
+For demoing CortexDJ, skip training entirely — run `./backend/scripts/download-checkpoints.sh` to pull the shipped checkpoints from GitHub Releases into `backend/data/checkpoints/`. The commands below retrain from scratch on DEAP; they're only needed when modifying the ML pipeline.
+
 Three trainable models live side by side: the quadrant classifier (EEGNet or CBraMod backbone) and the contrastive EEG↔CLAP encoder.
 
 ```bash
-# -- Classifier (arousal/valence quadrant prediction) --
+# Classifier (arousal/valence quadrant prediction) — CBraMod by default
+uv run --directory backend train-model                    # full LOSO (50 epochs, 32 folds)
+uv run --directory backend train-model --quick            # 10 epochs, 3 folds
+uv run --directory backend train-model --model eegnet     # lightweight backend
+uv run --directory backend compare-models                 # side-by-side eval
 
-# CBraMod pretrained with LOSO CV (default — 50 epochs, all 32 folds)
-uv run --directory backend train-model
-
-# Quick dev run (10 epochs, 3 folds)
-uv run --directory backend train-model --quick
-
-# EEGNet instead
-uv run --directory backend train-model --model eegnet
-
-# Compare both models (loads checkpoints by default, --retrain to train fresh)
-uv run --directory backend compare-models
-
-# -- Contrastive encoder (EEG ↔ CLAP audio retrieval) --
-
-# Prereqs: hand-curated deap_stimuli.json is committed; run fetch-deap-audio
-# once to resolve each DEAP stimulus to a cached iTunes m4a preview.
-uv run --directory backend fetch-deap-audio
-
-# Full training: 30 epochs, 24/4/4 subject split, SequentialLR warmup+cosine,
-# SimCLR-style projection head, TensorBoard + embedding projector snapshot
-uv run --directory backend train-contrastive
-
-# Quick smoke (5 epochs × 3 train / 1 val / 1 test subjects) — ~45s on MPS
-uv run --directory backend train-contrastive --quick
-
-# Gradient accumulation for larger effective batches on MPS
-uv run --directory backend train-contrastive --grad-accum 4
-
-# Inspect the run
+# Contrastive EEG↔CLAP encoder
+uv run --directory backend fetch-deap-audio               # one-time: resolve DEAP stimuli → iTunes m4a
+uv run --directory backend train-contrastive              # full run
+uv run --directory backend train-contrastive --quick      # 5-epoch smoke test
 uv run --directory backend tensorboard --logdir backend/data/tensorboard_runs
 ```
 
-Model checkpoints saved to `backend/data/checkpoints/` (gitignored). CBraMod is the default runtime backend for the quadrant classifier. Set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model instead. The contrastive checkpoint (`contrastive_best.pt`) is loaded lazily on the first `/api/sessions/{id}/similar-tracks` request or the first agent call to `retrieve_tracks_from_brain_state`.
+Checkpoints land in `backend/data/checkpoints/` (gitignored). CBraMod is the runtime default; set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model. The contrastive checkpoint is loaded lazily on the first retrieval request.
 
-**Label binarization (`--label-split`).** DEAP's 1–9 Likert self-reports are skewed when thresholded at a fixed value. Strategies:
+Label binarization strategies are selectable via `--label-split`; defaults to `median_per_subject` for balanced per-fold labels. Run `uv run --directory backend train-model --help` for the full option set.
 
-- `median_per_subject` (default, recommended): each subject is split at their own Likert median on each axis, giving balanced labels per fold and removing per-subject rating-scale bias.
-- `median_global`: pooled median across all 32 subjects. Slightly less balanced per-fold but deterministic across subjects.
-- `fixed_5`: `>= 5` threshold. Produces a ~24/76 high/low split on DEAP — only useful for reproducing papers that adopted this convention.
+### GPU Training (Modal, optional)
 
-Strategies are cached independently (`_CACHE_VERSION` encodes the strategy in the `.npz` filename), so switching is free after the first build.
-
-### GPU Training (Modal)
-
-Full LOSO with CBraMod takes 12+ hours on Apple Silicon. Use [Modal](https://modal.com) for a one-off GPU run (~1 hour on A10G, ~$1-2):
+Skip this if you downloaded the shipped checkpoints. Full LOSO with CBraMod is 12+ h on Apple Silicon; Modal runs it in ~1 h on A10G (~$1-2).
 
 ```bash
-# One-time setup — auth + DEAP Volume seed
-# (modal is a regular backend dep, installed via `uv sync --directory backend`)
+# One-time setup — auth + DEAP volume seed
 modal setup
 modal volume create cortexdj-deap
-
-# Upload one .dat per invocation so each gets a fresh S3 token (bulk uploads
-# blow past the ~1hr presigned URL TTL on slow uplinks). Idempotent: rerun
-# the loop after a drop and it skips files already in the volume. We exclude
-# .cache/ — it's regenerable preprocessing output and the GPU container will
-# rebuild it on first run, then commit it back to the volume.
 caffeinate -dim bash -c 'for f in backend/data/deap/s*.dat; do
-    echo "Uploading $(basename "$f")..."
-    modal volume put cortexdj-deap "$f" "/$(basename "$f")"
+  modal volume put cortexdj-deap "$f" "/$(basename "$f")"
 done'
-modal volume ls cortexdj-deap /   # sanity check — should list 32 .dat files
 
-# Training runs — wrap long runs in caffeinate so macOS can't sleep
-# and drop the client connection mid-run
-caffeinate -dim modal run backend/scripts/modal_train.py                       # classifier, full LOSO on A10G
-modal run backend/scripts/modal_train.py --args="--quick"                     # quick test run
-modal run backend/scripts/modal_train.py --args="--model eegnet"              # train EEGNet instead
-modal run backend/scripts/modal_train.py --gpu a100                           # faster GPU
-modal run backend/scripts/modal_train.py --command compare-models             # compare both
-
-# Contrastive encoder on Modal (ships deap_stimuli.json + audio_cache/ with the image)
+# Training runs (wrap long runs in caffeinate to keep the client connected)
+caffeinate -dim modal run backend/scripts/modal_train.py                          # classifier, full LOSO
+modal run backend/scripts/modal_train.py --args="--quick"                         # quick test
+modal run backend/scripts/modal_train.py --args="--model eegnet"                  # EEGNet instead
+modal run backend/scripts/modal_train.py --command compare-models                 # compare both
 caffeinate -dim modal run backend/scripts/modal_train.py --command train-contrastive
-modal run backend/scripts/modal_train.py --command train-contrastive --args="--quick"
 ```
 
-**Preemption resume.** Fold-level progress is persisted under `backend/data/deap/.train_state/` (which rides along on the `cortexdj-deap` Modal volume), so a preempted run restarts at the last completed fold rather than starting over. A fresh run with matching hyperparameters auto-resumes; pass `--args="--no-resume"` to wipe prior state and start clean.
-
-DEAP source files (~3.1 GB of `.dat`) live in a persistent `cortexdj-deap` Modal Volume seeded once via the loop above. Subsequent training runs attach the volume instantly instead of re-uploading. The first GPU run regenerates `data/deap/.cache/*.npz` (preprocessing cache) inside the volume; `modal_train.py` calls `deap_volume.commit()` after training so that cache persists for later runs. Checkpoints are automatically downloaded to `backend/data/checkpoints/` when the run completes.
+Fold-level progress persists on the `cortexdj-deap` volume, so preempted runs auto-resume at the last completed fold (`--args="--no-resume"` to start clean). Checkpoints download to `backend/data/checkpoints/` when the run completes.
 
 ### Autoresearch (autonomous EEGNet iteration)
 
@@ -188,19 +156,19 @@ Results land in `backend/autoresearch/experiments/` (gitignored): one JSONL row 
 
 ```bash
 # Seed the `sessions` and `eeg_segments` tables from DEAP .dat files
-uv run --directory backend seed-sessions                          # seed all 32 DEAP participants (cbramod by default)
-uv run --directory backend seed-sessions --participants 1 2 3     # seed specific participants
-uv run --directory backend seed-sessions --model eegnet           # use lightweight EEGNet checkpoint instead
+uv run --directory backend seed-sessions                          # all 32 DEAP participants
+uv run --directory backend seed-sessions --participants 1 2 3     # specific participants
+uv run --directory backend seed-sessions --model eegnet           # use EEGNet checkpoint
 
 # Seed the `track_audio_embeddings` pgvector index for EEG↔CLAP retrieval.
-# Pool = (user Spotify saved tracks) ∪ (12 genre-seed searches). Resolves each
-# candidate to an iTunes 30s m4a via services/audio_catalog.resolve_preview,
-# embeds with LAION-CLAP, upserts via pgvector. Misses go to
-# backend/data/track_index_miss_log.jsonl — no retry loops.
-# Requires Spotify user OAuth (connect via Settings in the UI first).
-uv run --directory backend seed-track-index                       # default limit from TRACK_INDEX_POOL_SIZE
+# Pool = (user Spotify saved tracks) ∪ (12 genre-seed searches). Requires Spotify OAuth.
+uv run --directory backend seed-track-index                       # default pool size
 uv run --directory backend seed-track-index --limit 500           # smaller pool for dev
-uv run --directory backend seed-track-index --skip-library        # genre seeds only (no user OAuth)
+uv run --directory backend seed-track-index --skip-library        # genre seeds only (no OAuth)
 ```
 
-One-off verification scripts live under `backend/scripts/` with usage in their own docstrings (e.g. `probe_audio_catalog.py` for tuning the iTunes matcher against a live Spotify library).
+One-off verification scripts live under `backend/scripts/` with usage in their own docstrings.
+
+## Continuous Integration
+
+Lint, type-check, and frontend-lint run on every PR — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
