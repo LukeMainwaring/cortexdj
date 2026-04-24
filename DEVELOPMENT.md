@@ -119,9 +119,9 @@ Skip this if you downloaded the shipped checkpoints. Full LOSO with CBraMod is 1
 # One-time setup — auth + DEAP volume seed
 modal setup
 modal volume create cortexdj-deap
-for f in backend/data/deap/s*.dat; do
+caffeinate -dim bash -c 'for f in backend/data/deap/s*.dat; do
   modal volume put cortexdj-deap "$f" "/$(basename "$f")"
-done
+done'
 
 # Training runs (wrap long runs in caffeinate to keep the client connected)
 caffeinate -dim modal run backend/scripts/modal_train.py                          # classifier, full LOSO

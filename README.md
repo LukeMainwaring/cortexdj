@@ -68,14 +68,6 @@ These prompts showcase what CortexDJ can do that general-purpose chatbots can't.
 - **CBraMod** (pretrained dual-head): Transformer encoder pretrained on the TUEG corpus, fine-tuned with custom dual arousal/valence heads on DEAP. Flexible channel count via asymmetric conditional positional encoding — supports 32-channel DEAP and future 4-channel Muse 2 BCI.
 - **Agent**: Orchestrates classification, analysis, and playlist curation. A query like _"build me a relaxation playlist"_ triggers brain state querying, track filtering by arousal/valence, and Spotify integration — multi-step reasoning that a static pipeline can't do.
 
-## Results
-
-Headline metrics from the shipped checkpoints (pulled via `./backend/scripts/download-checkpoints.sh`):
-
-- **Quadrant classification** — Macro-F1 **0.51 with CBraMod** (4.9M params) vs. 0.49 with EEGNet (25K params) vs. 0.50 majority baseline, on leave-one-subject-out cross-validation across 32 DEAP subjects. The two-point margin over baseline is small but reproducible across folds; DEAP's Likert self-reports are noisy by construction.
-- **Contrastive retrieval** — Top-5 recall 72% on held-out trial–audio pairs, but within-subject cross-trial evaluation plateaus at the per-pool uniform-random baseline. 4-second EEG windows don't carry enough track-specific signal at DEAP scale. The feature is plumbed end-to-end; the honest write-up is the portfolio point — see [Limitations](#limitations).
-- **Training cost** — Full LOSO CBraMod fine-tune: ~1 hr on an A10G via Modal (~$1-2), or 12 hr on Apple Silicon. Checkpoints ship via the `v0.1.0` GitHub Release so reviewers skip this step.
-
 ## Quick Start
 
 ### Prerequisites
@@ -96,7 +88,7 @@ cd cortexdj
 cp .env.sample .env
 # Edit .env with your OPENAI_API_KEY
 
-# Start PostgreSQL
+# Start PostgreSQL + backend
 docker compose up -d
 
 # Backend setup
@@ -115,10 +107,8 @@ uv run --directory backend seed-sessions
 # Frontend setup
 pnpm -C frontend install
 pnpm -C frontend generate-client
+pnpm -C frontend dev
 
-# Run
-# Terminal 1: docker compose up -d (if not already running)
-# Terminal 2: pnpm -C frontend dev
 # Visit http://localhost:3003
 ```
 

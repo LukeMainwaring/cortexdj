@@ -19,7 +19,7 @@ RELEASE_TAG="${RELEASE_TAG:-v0.1.0}"
 REPO="LukeMainwaring/cortexdj"
 
 if ! command -v gh >/dev/null 2>&1; then
-  echo "Error: GitHub CLI (gh) is required. Install from https://cli.github.com/"
+  echo "Error: GitHub CLI (gh) is required. Install from https://cli.github.com/" >&2
   exit 1
 fi
 
