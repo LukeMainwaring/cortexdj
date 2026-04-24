@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from typing import Any
@@ -13,9 +14,12 @@ from cortexdj.services.spotify import (
     create_playlist,
     fetch_all_pages,
     get_spotify_client,
+    resolve_track_spotify_id,
     run_spotify,
     search_paginated,
 )
+
+_RESOLVE_CONCURRENCY = 5
 
 logger = logging.getLogger(__name__)
 
@@ -122,13 +126,46 @@ async def build_mood_playlist(
 
     internal_ids = [str(t["track_id"]) for t in tracks]
     db_tracks = await Track.get_many(ctx.deps.db, internal_ids)
-    spotify_track_ids = [t.spotify_track_id for t in db_tracks if t.spotify_track_id]
+
+    semaphore = asyncio.Semaphore(_RESOLVE_CONCURRENCY)
+
+    async def _resolve(t: Track) -> tuple[Track, str | None]:
+        async with semaphore:
+            return t, await resolve_track_spotify_id(t)
+
+    resolution = await asyncio.gather(*(_resolve(t) for t in db_tracks))
+    resolved_pairs: list[tuple[Track, str]] = [(t, sid) for t, sid in resolution if sid]
+    dropped_count = len(db_tracks) - len(resolved_pairs)
+
+    if dropped_count:
+        logger.warning(f"Dropped {dropped_count}/{len(db_tracks)} tracks for mood '{mood}' (no Spotify match)")
+
+    if not resolved_pairs:
+        return {
+            "error": "no_tracks_resolvable",
+            "message": ("Could not resolve any of the mood-matched tracks to Spotify. The playlist was not created."),
+            "mood": mood,
+            "attempted_track_count": len(db_tracks),
+        }
+
+    # Persist newly-resolved IDs serially (AsyncSession is not safe for concurrent writes).
+    # spotify_track_id has unique=True on Track, so skip writes that would collide with a
+    # Track already holding that Spotify ID — the playlist can still include the track.
+    for t, sid in resolved_pairs:
+        if t.spotify_track_id == sid:
+            continue
+        existing = await Track.get_by_spotify_id(ctx.deps.db, sid)
+        if existing is None:
+            t.spotify_track_id = sid
+    await ctx.deps.db.flush()
+
+    spotify_track_ids = [sid for _, sid in resolved_pairs]
 
     playlist = Playlist(
         id=str(uuid.uuid4()),
         name=playlist_name,
-        mood_criteria={"target_mood": mood, "track_count": len(tracks)},
-        track_count=len(tracks),
+        mood_criteria={"target_mood": mood, "track_count": len(resolved_pairs)},
+        track_count=len(resolved_pairs),
     )
     ctx.deps.db.add(playlist)
     await ctx.deps.db.flush()
@@ -144,16 +181,23 @@ async def build_mood_playlist(
         playlist.spotify_playlist_id = spotify_result["spotify_playlist_id"]
         await ctx.deps.db.flush()
 
-    return {
+    response: dict[str, Any] = {
         "playlist_name": playlist_name,
         "mood": mood,
-        "track_count": len(tracks),
-        "tracks": [{"title": t["title"], "artist": t["artist"]} for t in tracks[:15]],
-        "tracks_truncated": len(tracks) > 15,
+        "track_count": len(resolved_pairs),
+        "tracks": [{"title": t.title, "artist": t.artist} for t, _ in resolved_pairs[:15]],
+        "tracks_truncated": len(resolved_pairs) > 15,
+        "dropped_track_count": dropped_count,
         "spotify_url": spotify_result.get("spotify_url"),
         "spotify_playlist_id": spotify_result.get("spotify_playlist_id"),
         "note": spotify_result.get("note"),
     }
+
+    if ctx.deps.spotify_client is not None and not spotify_result.get("spotify_playlist_id"):
+        response["error"] = "spotify_create_failed"
+        response["message"] = spotify_result.get("note") or "Spotify playlist creation failed."
+
+    return response
 
 
 # ---------------------------------------------------------------------------

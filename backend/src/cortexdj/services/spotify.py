@@ -8,13 +8,16 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.core.config import get_settings
+
+if TYPE_CHECKING:
+    from cortexdj.models.track import Track
 
 config = get_settings()
 
@@ -175,6 +178,38 @@ async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, 
     ]
 
 
+async def resolve_track_spotify_id(track: "Track") -> str | None:
+    """Return the Spotify track ID for `track`, looking it up if missing.
+
+    Pure lookup — does NOT touch the DB. Callers are responsible for persisting
+    the returned ID onto `track.spotify_track_id` serially, because this
+    function is typically run concurrently via `asyncio.gather` and
+    `AsyncSession` is not safe for concurrent use.
+
+    Returns None if no match is found or Spotify is unconfigured.
+    """
+    if track.spotify_track_id:
+        return track.spotify_track_id
+
+    # Strip quotes so they can't close a field or break the Spotify query grammar.
+    title = track.title.replace('"', "")
+    artist = track.artist.replace('"', "")
+    query = f'track:"{title}" artist:"{artist}"'
+
+    try:
+        results = await search_tracks(query, max_results=1)
+    except Exception as e:  # noqa: BLE001 — one bad lookup shouldn't fail the whole playlist
+        logger.warning(f"Spotify search failed for '{track.title}' by '{track.artist}': {e}")
+        return None
+
+    if not results:
+        logger.warning(f"No Spotify match for '{track.title}' by '{track.artist}'")
+        return None
+
+    track_id: str = results[0]["track_id"]
+    return track_id
+
+
 async def create_playlist(
     name: str,
     track_ids: list[str],
@@ -185,6 +220,9 @@ async def create_playlist(
     """When a user-authenticated client is provided, creates a real playlist
     on the user's Spotify account. Otherwise returns a local-only record.
     """
+    if not track_ids:
+        raise ValueError("create_playlist called with no track IDs")
+
     if client is None:
         logger.info(f"Would create Spotify playlist '{name}' with {len(track_ids)} tracks")
         return {
