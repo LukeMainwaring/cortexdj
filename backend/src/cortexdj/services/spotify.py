@@ -8,13 +8,16 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.core.config import get_settings
+
+if TYPE_CHECKING:
+    from cortexdj.models.track import Track
 
 config = get_settings()
 
@@ -175,6 +178,32 @@ async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, 
     ]
 
 
+async def resolve_track_spotify_id(db: AsyncSession, track: "Track") -> str | None:
+    """Return the Spotify track ID for `track`, resolving+persisting if missing.
+
+    Uses client-credentials Spotify search via `search_tracks`. Persists the
+    resolved ID onto `track.spotify_track_id` so subsequent calls hit the DB,
+    not Spotify. Returns None if no match is found or Spotify is unconfigured.
+    """
+    if track.spotify_track_id:
+        return track.spotify_track_id
+
+    query = f'track:"{track.title}" artist:"{track.artist}"'
+    try:
+        results = await search_tracks(query, max_results=1)
+    except spotipy.SpotifyException as e:
+        logger.warning(f"Spotify search failed for '{track.title}' by '{track.artist}': {e}")
+        return None
+
+    if not results:
+        logger.warning(f"No Spotify match for '{track.title}' by '{track.artist}'")
+        return None
+
+    track.spotify_track_id = results[0]["track_id"]
+    await db.flush()
+    return track.spotify_track_id
+
+
 async def create_playlist(
     name: str,
     track_ids: list[str],
@@ -185,6 +214,9 @@ async def create_playlist(
     """When a user-authenticated client is provided, creates a real playlist
     on the user's Spotify account. Otherwise returns a local-only record.
     """
+    if not track_ids:
+        raise ValueError("create_playlist called with no track IDs")
+
     if client is None:
         logger.info(f"Would create Spotify playlist '{name}' with {len(track_ids)} tracks")
         return {
