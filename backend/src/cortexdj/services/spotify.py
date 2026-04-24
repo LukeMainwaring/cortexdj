@@ -178,20 +178,27 @@ async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, 
     ]
 
 
-async def resolve_track_spotify_id(db: AsyncSession, track: "Track") -> str | None:
-    """Return the Spotify track ID for `track`, resolving+persisting if missing.
+async def resolve_track_spotify_id(track: "Track") -> str | None:
+    """Return the Spotify track ID for `track`, looking it up if missing.
 
-    Uses client-credentials Spotify search via `search_tracks`. Persists the
-    resolved ID onto `track.spotify_track_id` so subsequent calls hit the DB,
-    not Spotify. Returns None if no match is found or Spotify is unconfigured.
+    Pure lookup — does NOT touch the DB. Callers are responsible for persisting
+    the returned ID onto `track.spotify_track_id` serially, because this
+    function is typically run concurrently via `asyncio.gather` and
+    `AsyncSession` is not safe for concurrent use.
+
+    Returns None if no match is found or Spotify is unconfigured.
     """
     if track.spotify_track_id:
         return track.spotify_track_id
 
-    query = f'track:"{track.title}" artist:"{track.artist}"'
+    # Strip quotes so they can't close a field or break the Spotify query grammar.
+    title = track.title.replace('"', "")
+    artist = track.artist.replace('"', "")
+    query = f'track:"{title}" artist:"{artist}"'
+
     try:
         results = await search_tracks(query, max_results=1)
-    except spotipy.SpotifyException as e:
+    except Exception as e:  # noqa: BLE001 — one bad lookup shouldn't fail the whole playlist
         logger.warning(f"Spotify search failed for '{track.title}' by '{track.artist}': {e}")
         return None
 
@@ -199,9 +206,8 @@ async def resolve_track_spotify_id(db: AsyncSession, track: "Track") -> str | No
         logger.warning(f"No Spotify match for '{track.title}' by '{track.artist}'")
         return None
 
-    track.spotify_track_id = results[0]["track_id"]
-    await db.flush()
-    return track.spotify_track_id
+    track_id: str = results[0]["track_id"]
+    return track_id
 
 
 async def create_playlist(

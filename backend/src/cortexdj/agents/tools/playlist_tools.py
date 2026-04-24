@@ -131,7 +131,7 @@ async def build_mood_playlist(
 
     async def _resolve(t: Track) -> tuple[Track, str | None]:
         async with semaphore:
-            return t, await resolve_track_spotify_id(ctx.deps.db, t)
+            return t, await resolve_track_spotify_id(t)
 
     resolution = await asyncio.gather(*(_resolve(t) for t in db_tracks))
     resolved_pairs: list[tuple[Track, str]] = [(t, sid) for t, sid in resolution if sid]
@@ -147,6 +147,17 @@ async def build_mood_playlist(
             "mood": mood,
             "attempted_track_count": len(db_tracks),
         }
+
+    # Persist newly-resolved IDs serially (AsyncSession is not safe for concurrent writes).
+    # spotify_track_id has unique=True on Track, so skip writes that would collide with a
+    # Track already holding that Spotify ID — the playlist can still include the track.
+    for t, sid in resolved_pairs:
+        if t.spotify_track_id == sid:
+            continue
+        existing = await Track.get_by_spotify_id(ctx.deps.db, sid)
+        if existing is None:
+            t.spotify_track_id = sid
+    await ctx.deps.db.flush()
 
     spotify_track_ids = [sid for _, sid in resolved_pairs]
 
