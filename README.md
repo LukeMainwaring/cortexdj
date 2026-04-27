@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/public/images/cortexdj-logo.png" alt="SampleSpace" width="120" />
+  <img src="frontend/public/images/cortexdj-logo.png" alt="CortexDJ logo" width="120" />
   <h1>CortexDJ</h1>
   <p>An AI-powered EEG classifier that detects emotional states during music listening and curates Spotify playlists grounded in what your brain actually did.</p>
 
@@ -29,9 +29,12 @@ Music shapes your brain state, and your brain state shapes what music you want n
 
 These prompts showcase what CortexDJ can do that general-purpose chatbots can't. See [docs/DEMO_WORKFLOWS.md](docs/DEMO_WORKFLOWS.md) for the full catalog.
 
-### Cross-Session Brain Pattern Comparison
-> "Find me one session where i was calm and focused and one session where i was excited throughout"
+### Cross-session brain pattern comparison
+
+> "Find me one session where I was calm and focused and one session where I was excited throughout"
+>
 > "Compare Session 07 and Session 31 — what changed?"
+>
 > "Yes, please explain the brain-band differences behind this difference"
 
 <div align="center">
@@ -43,14 +46,16 @@ These prompts showcase what CortexDJ can do that general-purpose chatbots can't.
 Side-by-side comparison of brain responses across two different listening sessions. Reveals how brain states differ across different music or different days.
 
 ### Brain-state track retrieval
+
 > "Analyze Session 27"
+>
 > "Find me new songs that match how I was feeling during Session 27"
+
 <div align="center">
   <img src="docs/assets/brain-state-track-retrieval.gif" alt="Retrieved tracks panel with similarity bars and inline audio previews" width="700" />
 </div>
 
 Retrieving tracks from brain state embeds the session's EEG into the joint EEG↔CLAP space and returns top-k tracks ranked with cosine-similarity bars and inline 30-second iTunes previews for smoother, accurate music discovery.
-
 
 ## Why dual models + agent?
 
