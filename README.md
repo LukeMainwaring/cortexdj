@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="frontend/public/images/cortexdj-logo.png" alt="SampleSpace" width="120" />
   <h1>CortexDJ</h1>
   <p>An AI-powered EEG classifier that detects emotional states during music listening and curates Spotify playlists grounded in what your brain actually did.</p>
 
@@ -28,39 +29,28 @@ Music shapes your brain state, and your brain state shapes what music you want n
 
 These prompts showcase what CortexDJ can do that general-purpose chatbots can't. See [docs/DEMO_WORKFLOWS.md](docs/DEMO_WORKFLOWS.md) for the full catalog.
 
-### Session analysis with emotion trajectory
-> "Analyze Session 04"
+### Cross-Session Brain Pattern Comparison
+> "Find me one session where i was calm and focused and one session where i was excited throughout"
+> "Compare Session 07 and Session 31 — what changed?"
+> "Yes, please explain the brain-band differences behind this difference"
 
 <div align="center">
-  <img src="docs/assets/session-trajectory.png" alt="Session analysis with animated emotion trajectory" width="90%" />
+  <img src="docs/assets/compare-sessions.png" alt="Comparison of two listening sessions" width="45%" />
+  &nbsp;&nbsp;
+  <img src="docs/assets/compare-sessions-brain-bands.png" alt="Session analysis with brain breakdown" width="45%" />
 </div>
 
-`analyze_session` returns per-segment arousal/valence classifications; the chat UI renders an animated SVG path through Russell's affect space plus a stacked band-power chart.
+Side-by-side comparison of brain responses across two different listening sessions. Reveals how brain states differ across different music or different days.
 
 ### Brain-state track retrieval
+> "Analyze Session 27"
+> "Find me new songs that match how I was feeling during Session 27"
 <div align="center">
-  <img src="docs/assets/retrieved-tracks-panel.png" alt="Retrieved tracks panel with similarity bars and inline audio previews" width="90%" />
+  <img src="docs/assets/brain-state-track-retrieval.gif" alt="Retrieved tracks panel with similarity bars and inline audio previews" width="700" />
 </div>
 
-`retrieve_tracks_from_brain_state` embeds the session's EEG into the joint EEG↔CLAP space and returns top-k tracks from the pgvector index — ranked with cosine-similarity bars and inline 30-second iTunes previews.
+Retrieving tracks from brain state embeds the session's EEG into the joint EEG↔CLAP space and returns top-k tracks ranked with cosine-similarity bars and inline 30-second iTunes previews for smoother, accurate music discovery.
 
-### Brain-grounded mood playlist
-> "Build me a playlist of tracks that triggered relaxed brain states"
-
-<div align="center">
-  <img src="docs/assets/brain-grounded-playlist.gif" alt="CortexDJ demo — brain-grounded mood playlist" width="700" />
-</div>
-
-`find_relaxing_tracks` queries historical EEG classifications (not listening history, not popularity) and the agent proposes a playlist, waiting for user confirmation before calling `build_mood_playlist` to create it on Spotify.
-
-### Persistent brain context across the conversation
-> "Set my brain context to Session 11" — then in a follow-up: "Build me a playlist"
-
-<div align="center">
-  <img src="docs/assets/brain-context-persistence.gif" alt="CortexDJ demo — brain context persistence across page refresh" width="700" />
-</div>
-
-`set_brain_context` persists dominant mood / arousal / valence into a JSONB column on the thread; the context pill appears in the chat header and survives page refreshes, and every subsequent agent turn injects it into the system prompt.
 
 ## Why dual models + agent?
 
