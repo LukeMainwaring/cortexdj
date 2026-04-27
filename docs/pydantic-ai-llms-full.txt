@@ -528,8 +528,8 @@ The retry functionality is built on top of the [tenacity](https://github.com/jd/
 
 To use the retry transports, you need to install `tenacity`, which you can do via the `retries` dependency group:
 
--   [pip](#tab-panel-4)
--   [uv](#tab-panel-5)
+-   [pip](#tab-panel-0)
+-   [uv](#tab-panel-1)
 
 Terminal
 
@@ -1183,10 +1183,10 @@ agent = Agent(model, model_settings=settings)
 
 Although Bedrock Converse doesn't provide a unified API to enable thinking, you can still use [`BedrockModelSettings.bedrock_additional_model_requests_fields`](/docs/ai/api/models/bedrock/#pydantic_ai.models.bedrock.BedrockModelSettings.bedrock_additional_model_requests_fields) [model setting](/docs/ai/core-concepts/agent#model-run-settings) to pass provider-specific configuration:
 
--   [Claude](#tab-panel-0)
--   [OpenAI](#tab-panel-1)
--   [Qwen](#tab-panel-2)
--   [Deepseek](#tab-panel-3)
+-   [Claude](#tab-panel-2)
+-   [OpenAI](#tab-panel-3)
+-   [Qwen](#tab-panel-4)
+-   [Deepseek](#tab-panel-5)
 
 bedrock\_claude\_thinking\_part.py
 
@@ -2957,9 +2957,9 @@ Container configuration for multi-turn conversations.
 
 By default, if previous messages contain a container\_id (from a prior response), it will be reused automatically.
 
-Set to `False` to force a fresh container (ignore any `container_id` from history). Set to a dict (e.g. `{'id': 'container_xxx'}`) to explicitly specify a container.
+Set to `False` to force a fresh container (ignore any `container_id` from history). Set to a container id string (e.g. `'container_xxx'`) to explicitly reuse a container, or to a `BetaContainerParams` dict (e.g. `{'skills': [...]}` or `{'id': 'container_xxx', 'skills': [...]}`) when passing Skills to the Anthropic Skills beta.
 
-**Type:** `BetaContainerParams` | [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\[[`False`](https://docs.python.org/3/library/constants.html#False)\]
+**Type:** `BetaContainerParams` | [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\[[`False`](https://docs.python.org/3/library/constants.html#False)\]
 
 ##### anthropic\_eager\_input\_streaming
 
@@ -8817,6 +8817,12 @@ Optional handler for events from the model's streaming response and the agent's 
 
 **Type:** `EventStreamHandler`\[`AgentDepsT`\] | [`None`](https://docs.python.org/3/library/constants.html#None)
 
+##### root\_capability
+
+The root capability of the agent, containing all registered capabilities.
+
+**Type:** `CombinedCapability`\[`AgentDepsT`\]
+
 ##### toolsets
 
 All toolsets registered on the agent.
@@ -11715,6 +11721,26 @@ async def hide_admin_tools(
 agent = Agent('openai:gpt-5', capabilities=[PrepareTools(hide_admin_tools)])
 ```
 
+### HandleDeferredToolCalls
+
+**Bases:** `AbstractCapability[AgentDepsT]`
+
+Resolves deferred tool calls inline during an agent run using a handler function.
+
+When tools require approval or external execution, the agent normally pauses the run and returns [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) as output. This capability intercepts deferred tool calls, calls the provided handler to resolve them, and continues the agent run automatically.
+
+The handler receives the [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) and the [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests). It may return [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) with results for some or all pending calls, or return `None` to decline handling (the next capability in the chain gets a chance, otherwise the calls bubble up as `DeferredToolRequests` output).
+
+#### Attributes
+
+##### handler
+
+The handler function that resolves deferred tool requests.
+
+Receives the run context and the deferred tool requests, and returns [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) with results for some or all pending calls, or `None` to decline handling. Can be sync or async.
+
+**Type:** [`Callable`](https://docs.python.org/3/library/typing.html#typing.Callable)\[\[[`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext)\[`AgentDepsT`\], [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests)\], [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) | [`None`](https://docs.python.org/3/library/constants.html#None) | [`Awaitable`](https://docs.python.org/3/library/typing.html#typing.Awaitable)\[[`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) | [`None`](https://docs.python.org/3/library/constants.html#None)\]\]
+
 ### WebFetch
 
 **Bases:** `BuiltinOrLocalTool[AgentDepsT]`
@@ -12092,6 +12118,23 @@ Supported by: Google (Gemini), OpenAI Responses (maps `'1:1'`, `'2:3'`, `'3:2'` 
 
 **Type:** `ImageAspectRatio` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `aspect_ratio`
 
+### ProcessEventStream
+
+**Bases:** `AbstractCapability[AgentDepsT]`
+
+A capability that forwards the agent's event stream to a user-provided async handler.
+
+The handler receives the stream of [`AgentStreamEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.AgentStreamEvent)s emitted during model streaming and tool execution for each `ModelRequestNode` and `CallToolsNode`. Two forms are supported:
+
+-   An [`EventStreamHandler`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.EventStreamHandler) -- an `async def` returning `None`. Events are forwarded to the handler while also being passed through unchanged to the rest of the capability chain, so multiple handlers (and the top-level `event_stream_handler` argument) can all see the same stream without changing each other's view. A handler that returns early stops receiving events but does not affect downstream consumers; a handler that raises propagates the exception to the rest of the run. Events are delivered synchronously, so a slow handler back-pressures the rest of the stream.
+-   An `EventStreamProcessor` -- an async generator yielding [`AgentStreamEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.AgentStreamEvent)s. The events it yields replace the inner stream for downstream wrappers and consumers, so it can modify, drop, or add events.
+
+When this capability is registered, `agent.run()` automatically enables streaming so the handler fires without requiring an explicit `event_stream_handler` argument.
+
+Durable execution
+
+Under the current durable-execution integrations ([Temporal](/docs/ai/api/pydantic-ai/durable_exec/#pydantic_ai.durable_exec.temporal.TemporalAgent), [DBOS](/docs/ai/api/pydantic-ai/durable_exec/#pydantic_ai.durable_exec.dbos.DBOSAgent), [Prefect](/docs/ai/api/pydantic-ai/durable_exec/#pydantic_ai.durable_exec.prefect.PrefectAgent)), model streaming happens inside an activity/step rather than in the outer agent loop. This capability's `wrap_run_event_stream` hook fires for tool-call events and the final post-streaming batch, but it does **not** see individual model-response events live -- the underlying durable model consumes those inside the activity before returning. The in-flight `event_stream_handler` parameter does still observe the live events; a future refactor threading the capability chain through the activity boundary is being explored in [#4977](https://github.com/pydantic/pydantic-ai/pull/4977).
+
 ### ReinjectSystemPrompt
 
 **Bases:** `AbstractCapability[AgentDepsT]`
@@ -12158,7 +12201,7 @@ Description of the MCP server. Builtin-only; ignored by local tools.
 
 **Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `description`
 
-### HistoryProcessor
+### ProcessHistory
 
 **Bases:** `AbstractCapability[AgentDepsT]`
 
@@ -12177,6 +12220,12 @@ A capability that combines multiple capabilities.
 A capability that wraps another capability and delegates all methods.
 
 Analogous to [`WrapperToolset`](/docs/ai/api/pydantic-ai/toolsets/#pydantic_ai.toolsets.WrapperToolset) for toolsets. Subclass and override specific methods to modify behavior while delegating the rest.
+
+### HistoryProcessor
+
+**Bases:** `ProcessHistory[AgentDepsT]`
+
+Deprecated alias for [`ProcessHistory`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.ProcessHistory).
 
 ### HookTimeoutError
 
@@ -12866,6 +12915,32 @@ Not called for control flow exceptions ([`SkipToolExecution`](/docs/ai/api/pydan
 
 [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)
 
+##### handle\_deferred\_tool\_calls
+
+`@async`
+
+```python
+def handle_deferred_tool_calls(
+    ctx: RunContext[AgentDepsT],
+    requests: DeferredToolRequests,
+) -> DeferredToolResults | None
+```
+
+Handle deferred tool calls (approval-required or externally-executed) inline during an agent run.
+
+Called by `ToolManager` when:
+
+-   a tool raises [`ApprovalRequired`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.ApprovalRequired) or [`CallDeferred`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.CallDeferred) during execution, or
+-   the model calls a tool registered with `requires_approval=True` (see [Human-in-the-Loop Tool Approval](/docs/ai/tools-toolsets/deferred-tools#human-in-the-loop-tool-approval)) or a tool backed by [external execution](/docs/ai/tools-toolsets/deferred-tools#external-tool-execution).
+
+Uses accumulation dispatch: each capability in the chain receives remaining unresolved requests and can resolve some or all of them. Results are merged and unresolved calls are passed to the next capability.
+
+**Return** a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) to resolve some or all calls. **Return** `None` to leave all calls unresolved.
+
+###### Returns
+
+[`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) | [`None`](https://docs.python.org/3/library/constants.html#None)
+
 ##### prefix\_tools
 
 ```python
@@ -12926,17 +13001,17 @@ Handler type for [`wrap_run`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai
 
 **Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `'Callable[[], Awaitable[AgentRunResult[Any]]]'`
 
+### CAPABILITY\_TYPES
+
+Registry of all capability types that have a serialization name, mapping name to class.
+
+**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractCapability`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\]\] **Default:** `{name: cls for cls in (BuiltinTool, ImageGeneration, IncludeToolReturnSchemas, MCP, PrefixTools, PrepareTools, ProcessHistory, ReinjectSystemPrompt, SetToolMetadata, Thinking, Toolset, WebFetch, WebSearch) if (name := (cls.get_serialization_name())) is not None}`
+
 ### WrapNodeRunHandler
 
 Handler type for [`wrap_node_run`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.wrap_node_run).
 
 **Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `'Callable[[_agent_graph.AgentNode[AgentDepsT, Any]], Awaitable[_agent_graph.AgentNode[AgentDepsT, Any] | End[FinalResult[Any]]]]'`
-
-### CAPABILITY\_TYPES
-
-Registry of all capability types that have a serialization name, mapping name to class.
-
-**Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`type`](https://docs.python.org/3/glossary.html#term-type)\[`AbstractCapability`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\]\] **Default:** `{name: cls for cls in (BuiltinTool, HistoryProcessor, ImageGeneration, IncludeToolReturnSchemas, MCP, PrefixTools, PrepareTools, ReinjectSystemPrompt, SetToolMetadata, Thinking, Toolset, WebFetch, WebSearch) if (name := (cls.get_serialization_name())) is not None}`
 
 ### WrapModelRequestHandler
 
@@ -23310,6 +23385,59 @@ Metadata for deferred tool calls, keyed by `tool_call_id`.
 
 **Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] **Default:** `field(default_factory=(dict[str, dict[str, Any]]))`
 
+#### Methods
+
+##### build\_results
+
+```python
+def build_results(
+    approvals: dict[str, bool | DeferredToolApprovalResult] | None = None,
+    calls: dict[str, DeferredToolCallResult | Any] | None = None,
+    metadata: dict[str, dict[str, Any]] | None = None,
+    approve_all: bool = False,
+) -> DeferredToolResults
+```
+
+Create a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) for these requests.
+
+###### Returns
+
+[`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults)
+
+###### Parameters
+
+**`approvals`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`bool`](https://docs.python.org/3/library/functions.html#bool) | `DeferredToolApprovalResult`\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Results for tool calls that required approval. Keys must match `tool_call_id`s in `self.approvals`.
+
+**`calls`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), `DeferredToolCallResult` | [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Results for tool calls that required external execution. Keys must match `tool_call_id`s in `self.calls`.
+
+**`metadata`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Per-call metadata, keyed by `tool_call_id`.
+
+**`approve_all`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `False`
+
+If `True`, every approval-requesting call not already listed in `approvals` is approved (with default `ToolApproved()`).
+
+###### Raises
+
+-   `ValueError` -- If a key in `approvals`/`calls` doesn't match a pending request of the appropriate kind.
+
+##### remaining
+
+```python
+def remaining(results: DeferredToolResults) -> DeferredToolRequests | None
+```
+
+Return unresolved requests after applying results, or `None` if all resolved.
+
+###### Returns
+
+[`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) | [`None`](https://docs.python.org/3/library/constants.html#None)
+
 ### StructuredDict
 
 ```python
@@ -26643,6 +26771,59 @@ Metadata for deferred tool calls, keyed by `tool_call_id`.
 
 **Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] **Default:** `field(default_factory=(dict[str, dict[str, Any]]))`
 
+#### Methods
+
+##### build\_results
+
+```python
+def build_results(
+    approvals: dict[str, bool | DeferredToolApprovalResult] | None = None,
+    calls: dict[str, DeferredToolCallResult | Any] | None = None,
+    metadata: dict[str, dict[str, Any]] | None = None,
+    approve_all: bool = False,
+) -> DeferredToolResults
+```
+
+Create a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) for these requests.
+
+###### Returns
+
+[`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults)
+
+###### Parameters
+
+**`approvals`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`bool`](https://docs.python.org/3/library/functions.html#bool) | `DeferredToolApprovalResult`\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Results for tool calls that required approval. Keys must match `tool_call_id`s in `self.approvals`.
+
+**`calls`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), `DeferredToolCallResult` | [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Results for tool calls that required external execution. Keys must match `tool_call_id`s in `self.calls`.
+
+**`metadata`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Per-call metadata, keyed by `tool_call_id`.
+
+**`approve_all`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `False`
+
+If `True`, every approval-requesting call not already listed in `approvals` is approved (with default `ToolApproved()`).
+
+###### Raises
+
+-   `ValueError` -- If a key in `approvals`/`calls` doesn't match a pending request of the appropriate kind.
+
+##### remaining
+
+```python
+def remaining(results: DeferredToolResults) -> DeferredToolRequests | None
+```
+
+Return unresolved requests after applying results, or `None` if all resolved.
+
+###### Returns
+
+[`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) | [`None`](https://docs.python.org/3/library/constants.html#None)
+
 ### ToolApproved
 
 Indicates that a tool call has been approved and that the tool function should be executed.
@@ -26694,6 +26875,34 @@ Map of tool call IDs to results for tool calls that required human-in-the-loop a
 Metadata for deferred tool calls, keyed by `tool_call_id`. Each value will be available in the tool's RunContext as `tool_call_metadata`.
 
 **Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] **Default:** `field(default_factory=(dict[str, dict[str, Any]]))`
+
+#### Methods
+
+##### update
+
+```python
+def update(other: DeferredToolResults) -> None
+```
+
+Update this `DeferredToolResults` with entries from another, in-place.
+
+###### Returns
+
+[`None`](https://docs.python.org/3/library/constants.html#None)
+
+##### to\_tool\_call\_results
+
+```python
+def to_tool_call_results() -> dict[str, DeferredToolResult]
+```
+
+Convert results into the internal per-call format used by the tool-execution pipeline.
+
+Normalizes `True`/`False` approvals to `ToolApproved`/`ToolDenied`, and wraps plain external-call values in `ToolReturn`.
+
+###### Returns
+
+[`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), `DeferredToolResult`\]
 
 ### Tool
 
@@ -40520,9 +40729,21 @@ Merges metadata key-value pairs onto selected tools
 
 Yes
 
-[`HistoryProcessor`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HistoryProcessor)
+[`HandleDeferredToolCalls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HandleDeferredToolCalls)
+
+Resolves [deferred tool calls](/docs/ai/tools-toolsets/deferred-tools#resolving-deferred-calls-with-a-handler) inline with a handler function
+
+--
+
+[`ProcessHistory`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.ProcessHistory)
 
 Wraps a [history processor](/docs/ai/core-concepts/message-history#processing-message-history)
+
+--
+
+[`ProcessEventStream`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.ProcessEventStream)
+
+Forwards agent stream events to a handler function
 
 --
 
@@ -41577,6 +41798,26 @@ class ErrorLogger(AbstractCapability[Any]):
         self.errors.append(f'Tool {call.tool_name} failed: {error}')
         raise error  # Re-raise to let the normal retry flow handle it
 ```
+
+#### Deferred tool calls
+
+Capabilities can resolve [deferred tool calls](/docs/ai/tools-toolsets/deferred-tools) -- calls that require approval, or that are executed externally -- directly from the agent run, without ending the run and waiting for a follow-up:
+
+Hook
+
+Signature
+
+Purpose
+
+[`handle_deferred_tool_calls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.handle_deferred_tool_calls)
+
+`(ctx: RunContext, *, requests: DeferredToolRequests) -> DeferredToolResults | None`
+
+Resolve some or all pending approval/external calls inline
+
+Multiple capabilities can each handle a subset: dispatch accumulates results across the chain, passing only the still-unresolved requests to the next capability. Returning `None` (or a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) with no entries) declines handling. Anything still unresolved bubbles up as a [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) output for the caller to handle.
+
+For application code that just needs to plug in a handler, use the dedicated [`HandleDeferredToolCalls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HandleDeferredToolCalls) capability -- see [Resolving deferred calls with a handler](/docs/ai/tools-toolsets/deferred-tools#resolving-deferred-calls-with-a-handler).
 
 ### Wrapping capabilities
 
@@ -42724,6 +42965,48 @@ Constructor kwarg
 
 Filters or modifies tool definitions the model sees on each step. Controls visibility, not execution.
 
+### Deferred tool call hook
+
+`hooks.on.`
+
+Constructor kwarg
+
+`AbstractCapability` method
+
+`deferred_tool_calls`
+
+`deferred_tool_calls=`
+
+`handle_deferred_tool_calls`
+
+Resolves [deferred tool calls](/docs/ai/tools-toolsets/deferred-tools) (approval-required or externally-executed) inline during a run. The hook receives a [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) and returns a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) (or `None` to decline). Multiple registered hooks accumulate: each receives the still-unresolved requests and can resolve some or all of them.
+
+hooks\_deferred\_tool\_calls.py
+
+```python
+from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults, RunContext
+from pydantic_ai.capabilities import Hooks
+
+hooks = Hooks()
+
+
+@hooks.on.deferred_tool_calls
+async def auto_approve(
+    ctx: RunContext[None], *, requests: DeferredToolRequests
+) -> DeferredToolResults:
+    return requests.build_results(approve_all=True)
+
+
+agent = Agent('test', capabilities=[hooks])
+
+
+@agent.tool_plain(requires_approval=True)
+def delete_file(path: str) -> str:
+    return f'File {path!r} deleted'
+```
+
+For pure application-level handler registration without other hooks, the dedicated [`HandleDeferredToolCalls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HandleDeferredToolCalls) capability is more concise -- see [Resolving deferred calls with a handler](/docs/ai/tools-toolsets/deferred-tools#resolving-deferred-calls-with-a-handler).
+
 ### Event stream hooks
 
 `hooks.on.`
@@ -43319,7 +43602,7 @@ print(result2.all_messages())
 
 Sometimes you may want to modify the message history before it's sent to the model. This could be for privacy reasons (filtering out sensitive information), to save costs on tokens, to give less context to the LLM, or custom processing logic.
 
-Pydantic AI provides a `history_processors` parameter on `Agent` that allows you to intercept and modify the message history before each model request. History processors can also be provided via the [`HistoryProcessor`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HistoryProcessor) capability.
+Pydantic AI provides a `history_processors` parameter on `Agent` that allows you to intercept and modify the message history before each model request. History processors can also be provided via the [`ProcessHistory`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.ProcessHistory) capability.
 
 History processors replace the message history
 
@@ -54642,8 +54925,8 @@ export OPENAI_API_KEY=<your api key>
 
 Start the Pydantic AI AG-UI example backend.
 
--   [pip](#tab-panel-20)
--   [uv](#tab-panel-21)
+-   [pip](#tab-panel-10)
+-   [uv](#tab-panel-11)
 
 Terminal
 
@@ -57471,8 +57754,8 @@ Either way you'll need to install extra dependencies to run some examples, you j
 
 If you've installed `pydantic-ai` via pip/uv, you can install the extra dependencies with:
 
--   [pip](#tab-panel-10)
--   [uv](#tab-panel-11)
+-   [pip](#tab-panel-12)
+-   [uv](#tab-panel-13)
 
 Terminal
 
@@ -57494,8 +57777,8 @@ These examples will need you to set up authentication with one or more of the LL
 
 TL;DR: in most cases you'll need to set one of the following environment variables:
 
--   [OpenAI](#tab-panel-12)
--   [Google Gemini](#tab-panel-13)
+-   [OpenAI](#tab-panel-14)
+-   [Google Gemini](#tab-panel-15)
 
 Terminal
 
@@ -57513,8 +57796,8 @@ export GEMINI_API_KEY=your-api-key
 
 To run the examples (this will work whether you installed `pydantic_ai`, or cloned the repo), run:
 
--   [pip](#tab-panel-14)
--   [uv](#tab-panel-15)
+-   [pip](#tab-panel-16)
+-   [uv](#tab-panel-17)
 
 Terminal
 
@@ -57530,8 +57813,8 @@ uv run -m pydantic_ai_examples.<example_module_name>
 
 For example, to run the very simple [`pydantic_model`](/docs/ai/examples/pydantic-model) example:
 
--   [pip](#tab-panel-16)
--   [uv](#tab-panel-17)
+-   [pip](#tab-panel-18)
+-   [uv](#tab-panel-19)
 
 Terminal
 
@@ -57559,8 +57842,8 @@ OPENAI_API_KEY='your-api-key' \
 
 You'll probably want to edit examples in addition to just running them. You can copy the examples to a new directory with:
 
--   [pip](#tab-panel-18)
--   [uv](#tab-panel-19)
+-   [pip](#tab-panel-20)
+-   [uv](#tab-panel-21)
 
 Terminal
 
@@ -62267,8 +62550,8 @@ Swapping a model changes the output dimension and the similarity distribution, s
 
 To use OpenAI embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
 
--   [pip](#tab-panel-24)
--   [uv](#tab-panel-25)
+-   [pip](#tab-panel-26)
+-   [uv](#tab-panel-27)
 
 Terminal
 
@@ -62392,8 +62675,8 @@ See [OpenAI-compatible Models](/docs/ai/models/openai#openai-compatible-models) 
 
 To use Google embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `google` optional group:
 
--   [pip](#tab-panel-26)
--   [uv](#tab-panel-27)
+-   [pip](#tab-panel-28)
+-   [uv](#tab-panel-29)
 
 Terminal
 
@@ -62514,8 +62797,8 @@ See [Google's task type documentation](https://ai.google.dev/gemini-api/docs/emb
 
 To use Cohere embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `cohere` optional group:
 
--   [pip](#tab-panel-28)
--   [uv](#tab-panel-29)
+-   [pip](#tab-panel-30)
+-   [uv](#tab-panel-31)
 
 Terminal
 
@@ -62587,8 +62870,8 @@ embedder = Embedder(
 
 To use VoyageAI embedding models, you need to install `pydantic-ai-slim` with the `voyageai` optional group:
 
--   [pip](#tab-panel-30)
--   [uv](#tab-panel-31)
+-   [pip](#tab-panel-32)
+-   [uv](#tab-panel-33)
 
 Terminal
 
@@ -62659,8 +62942,8 @@ embedder = Embedder(
 
 To use Bedrock embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `bedrock` optional group:
 
--   [pip](#tab-panel-32)
--   [uv](#tab-panel-33)
+-   [pip](#tab-panel-34)
+-   [uv](#tab-panel-35)
 
 Terminal
 
@@ -62890,8 +63173,8 @@ Bedrock embedding models do not support the `count_tokens()` method because AWS 
 
 To use Sentence Transformers embedding models, you need to install `pydantic-ai-slim` with the `sentence-transformers` optional group:
 
--   [pip](#tab-panel-34)
--   [uv](#tab-panel-35)
+-   [pip](#tab-panel-36)
+-   [uv](#tab-panel-37)
 
 Terminal
 
@@ -63976,8 +64259,8 @@ The web UI is meant for local development and debugging. In production, you can 
 
 Install the `web` extra (installs Starlette and Uvicorn):
 
--   [pip](#tab-panel-36)
--   [uv](#tab-panel-37)
+-   [pip](#tab-panel-24)
+-   [uv](#tab-panel-25)
 
 Terminal
 
@@ -64721,8 +65004,8 @@ The original agent, model, and MCP server can still be used as normal outside th
 
 Here is a simple but complete example of wrapping an agent for durable execution. All it requires is to install Pydantic AI with the DBOS [open-source library](https://github.com/dbos-inc/dbos-transact-py):
 
--   [pip](#tab-panel-174)
--   [uv](#tab-panel-175)
+-   [pip](#tab-panel-170)
+-   [uv](#tab-panel-171)
 
 Terminal
 
@@ -64738,8 +65021,8 @@ uv add pydantic-ai[dbos]
 
 Or if you're using the slim package, you can install it with the `dbos` optional group:
 
--   [pip](#tab-panel-176)
--   [uv](#tab-panel-177)
+-   [pip](#tab-panel-172)
+-   [uv](#tab-panel-173)
 
 Terminal
 
@@ -64940,8 +65223,8 @@ The original agent, model, and MCP server can still be used as normal outside th
 
 Here is a simple but complete example of wrapping an agent for durable execution. All it requires is to install Pydantic AI with Prefect:
 
--   [pip](#tab-panel-170)
--   [uv](#tab-panel-171)
+-   [pip](#tab-panel-174)
+-   [uv](#tab-panel-175)
 
 Terminal
 
@@ -64957,8 +65240,8 @@ uv add pydantic-ai[prefect]
 
 Or if you're using the slim package, you can install it with the `prefect` optional group:
 
--   [pip](#tab-panel-172)
--   [uv](#tab-panel-173)
+-   [pip](#tab-panel-176)
+-   [uv](#tab-panel-177)
 
 Terminal
 
@@ -65256,8 +65539,8 @@ Any Pydantic AI agent can be made durable by wrapping it with `RestateAgent` fro
 
 Install the Restate SDK:
 
--   [pip](#tab-panel-178)
--   [uv](#tab-panel-179)
+-   [pip](#tab-panel-182)
+-   [uv](#tab-panel-183)
 
 Terminal
 
@@ -66169,8 +66452,8 @@ The only dependencies are:
 
 You can install Pydantic AI with the `ag-ui` extra to ensure you have all the required AG-UI dependencies:
 
--   [pip](#tab-panel-180)
--   [uv](#tab-panel-181)
+-   [pip](#tab-panel-178)
+-   [uv](#tab-panel-179)
 
 Terminal
 
@@ -66188,8 +66471,8 @@ To run the examples you'll also need:
 
 -   [uvicorn](https://www.uvicorn.org/) or another ASGI compatible server
 
--   [pip](#tab-panel-182)
--   [uv](#tab-panel-183)
+-   [pip](#tab-panel-180)
+-   [uv](#tab-panel-181)
 
 Terminal
 
@@ -69418,8 +69701,8 @@ This page covers chat completions via Hugging Face Inference Providers. To run H
 
 To use `HuggingFaceModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `huggingface` optional group:
 
--   [pip](#tab-panel-78)
--   [uv](#tab-panel-79)
+-   [pip](#tab-panel-74)
+-   [uv](#tab-panel-75)
 
 Terminal
 
@@ -69522,8 +69805,8 @@ agent = Agent(model)
 
 To use `MistralModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `mistral` optional group:
 
--   [pip](#tab-panel-74)
--   [uv](#tab-panel-75)
+-   [pip](#tab-panel-76)
+-   [uv](#tab-panel-77)
 
 Terminal
 
@@ -69617,8 +69900,8 @@ agent = Agent(model)
 
 To use [`OllamaModel`](/docs/ai/api/models/ollama/#pydantic_ai.models.ollama.OllamaModel), you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
 
--   [pip](#tab-panel-76)
--   [uv](#tab-panel-77)
+-   [pip](#tab-panel-78)
+-   [uv](#tab-panel-79)
 
 Terminal
 
@@ -74744,9 +75027,85 @@ To support these use cases, Pydantic AI provides the concept of deferred tools, 
 -   tools that [require approval](#human-in-the-loop-tool-approval)
 -   tools that are [executed externally](#external-tool-execution)
 
-When the model calls a deferred tool, the agent run will end with a [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) output object containing information about the deferred tool calls. Once the approvals and/or results are ready, a new agent run can then be started with the original run's [message history](/docs/ai/core-concepts/message-history) plus a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) object holding results for each tool call in `DeferredToolRequests`, which will continue the original run where it left off.
+When the model calls a deferred tool, there are two ways to resolve it:
 
-Note that handling deferred tool calls requires `DeferredToolRequests` to be in the `Agent`'s [`output_type`](/docs/ai/core-concepts/output#structured-output) so that the possible types of the agent run output are correctly inferred. If your agent can also be used in a context where no deferred tools are available and you don't want to deal with that type everywhere you use the agent, you can instead pass the `output_type` argument when you run the agent using [`agent.run()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run), [`agent.run_sync()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_sync), [`agent.run_stream()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream), or [`agent.iter()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.iter). Note that the run-time `output_type` overrides the one specified at construction time (for type inference reasons), so you'll need to include the original output type explicitly.
+-   **Resolve it inline**, using a [`HandleDeferredToolCalls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HandleDeferredToolCalls) [capability](/docs/ai/core-concepts/capabilities) with a handler that resolves some or all of the pending calls. The agent run continues in a single call without needing to end and restart -- use this when the resolver (e.g. an approval gate, an external service client) lives in the same process as the agent. See [Resolving deferred calls with a handler](#resolving-deferred-calls-with-a-handler).
+-   **End the run** with a [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) output object containing information about the deferred tool calls; the caller gathers approvals/results and then starts a new agent run with the original run's [message history](/docs/ai/core-concepts/message-history) plus a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) object. Use this when the resolver lives outside the agent process -- e.g. a UI adapter that surfaces pending calls to a user and starts a follow-up run once it has their response.
+
+The two flows compose: a handler can resolve a subset of calls and let the rest bubble up as `DeferredToolRequests` output for an outer caller to handle.
+
+The stop-the-world flow requires `DeferredToolRequests` to be in the `Agent`'s [`output_type`](/docs/ai/core-concepts/output#structured-output) so that the possible types of the agent run output are correctly inferred. If your agent can also be used in a context where no deferred tools are available and you don't want to deal with that type everywhere you use the agent, you can instead pass the `output_type` argument when you run the agent using [`agent.run()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run), [`agent.run_sync()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_sync), [`agent.run_stream()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream), or [`agent.iter()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.iter). Note that the run-time `output_type` overrides the one specified at construction time (for type inference reasons), so you'll need to include the original output type explicitly.
+
+## Resolving deferred calls with a handler
+
+The recommended way to handle deferred tool calls is to register a [`HandleDeferredToolCalls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HandleDeferredToolCalls) [capability](/docs/ai/core-concepts/capabilities) whose handler receives the [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) and returns a [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) resolving some or all of them. The tool execution pipeline applies the results inline and the agent run continues in a single call, as if the deferred tools had returned normally.
+
+With a handler in place, `DeferredToolRequests` no longer needs to be declared as an output type -- unless you also want unresolved calls to bubble up to the caller (see below).
+
+[`DeferredToolRequests.build_results()`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests.build_results) is a convenience constructor -- it validates that every tool call ID refers to a pending request of the correct kind, and accepts `approve_all=True` to auto-approve any approval requests not otherwise specified.
+
+deferred\_tool\_handler.py
+
+```python
+from pydantic_ai import (
+  Agent,
+  ApprovalRequired,
+  CallDeferred,
+  DeferredToolRequests,
+  DeferredToolResults,
+  RunContext,
+  ToolDenied,
+)
+from pydantic_ai.capabilities import HandleDeferredToolCalls
+
+
+async def handle_deferred(
+  ctx: RunContext[None], requests: DeferredToolRequests
+) -> DeferredToolResults:
+  approvals: dict[str, bool | ToolDenied] = {}
+  for call in requests.approvals:
+      if call.tool_name == 'delete_file':
+          approvals[call.tool_call_id] = ToolDenied('Deleting files is not allowed')
+      else:
+          approvals[call.tool_call_id] = True
+
+  calls = {call.tool_call_id: f'(external result for {call.tool_name})' for call in requests.calls}
+
+  return requests.build_results(approvals=approvals, calls=calls)
+
+
+agent = Agent(
+  'openai:gpt-5.2',
+  capabilities=[HandleDeferredToolCalls(handler=handle_deferred)],
+)
+
+
+@agent.tool_plain(requires_approval=True)
+def delete_file(path: str) -> str:
+  return f'File {path!r} deleted'  # (1)
+
+
+@agent.tool
+def update_file(ctx: RunContext, path: str) -> str:
+  if path == '.env' and not ctx.tool_call_approved:
+      raise ApprovalRequired
+  return f'File {path!r} updated'
+
+
+@agent.tool_plain
+async def send_to_worker(task: str) -> str:
+  raise CallDeferred  # (2)
+```
+
+Never reached here -- the handler denies this call, so the model sees the denial message instead.
+
+The handler supplies the result for this external call, so the tool body just signals the deferral.
+
+If the handler declines to resolve some or all of the calls (by omitting them from the returned [`DeferredToolResults`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolResults) or returning `None`), the next [`HandleDeferredToolCalls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.HandleDeferredToolCalls) (or any other capability that overrides the [`handle_deferred_tool_calls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.handle_deferred_tool_calls) hook) gets a chance, and any still-unresolved calls bubble up as a [`DeferredToolRequests`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.DeferredToolRequests) output. To allow that bubble-up, include `DeferredToolRequests` in the agent's `output_type` -- so you can combine inline handling with the stop-the-world flow when it makes sense.
+
+If you're [building a custom capability](/docs/ai/core-concepts/capabilities#building-custom-capabilities) that needs to resolve approvals or external calls itself (e.g. a sandbox that exposes deferred tools), override the [`handle_deferred_tool_calls`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.handle_deferred_tool_calls) hook directly on your capability instead of registering a separate `HandleDeferredToolCalls`. The same hook is also available via the [`Hooks`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.Hooks) capability -- see [Hooks](/docs/ai/core-concepts/hooks#deferred-tool-call-hook).
+
+The sections below describe the two kinds of deferred tools the handler can resolve, as well as the alternative stop-the-world flow for each. See [Capabilities](/docs/ai/core-concepts/capabilities) for how multiple capabilities compose, including [`WrapperCapability`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.WrapperCapability) and the `capabilities=[...]` list.
 
 ## Human-in-the-Loop Tool Approval
 
