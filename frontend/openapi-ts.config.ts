@@ -7,7 +7,6 @@ export default defineConfig({
   },
   output: {
     path: "api/generated",
-    postProcess: ["biome:format"],
   },
   plugins: ["@tanstack/react-query", "@hey-api/client-axios"],
 });
