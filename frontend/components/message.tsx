@@ -1,13 +1,12 @@
 "use client";
 
 import type { UseChatHelpers } from "@ai-sdk/react";
-import { type DataUIPart, getToolName, isDataUIPart, isToolUIPart } from "ai";
+import { getToolName, isToolUIPart } from "ai";
 import equal from "fast-deep-equal";
 import Image from "next/image";
 import { memo } from "react";
-import type { ChatMessage, CustomUIDataTypes } from "@/lib/types";
+import type { ChatMessage } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
-import { useDataStream } from "./data-stream-provider";
 import { BouncingDots } from "./elements/bouncing-dots";
 import { MessageContent } from "./elements/message";
 import { Response } from "./elements/response";
@@ -45,13 +44,6 @@ function extractSessionIdsFromOutput(output: unknown): string[] | null {
   return ids.length > 0 ? ids : null;
 }
 
-function DataPartRenderer({ part }: { part: DataUIPart<CustomUIDataTypes> }) {
-  switch (part.type) {
-    default:
-      return null;
-  }
-}
-
 const AssistantAvatar = ({ isLoading }: { isLoading?: boolean }) => (
   <div
     className={cn(
@@ -80,8 +72,6 @@ const PurePreviewMessage = ({
   setMessages: UseChatHelpers<ChatMessage>["setMessages"];
   requiresScrollPadding: boolean;
 }) => {
-  useDataStream();
-
   const hasTextParts = message.parts?.some(
     (p) => p.type === "text" && p.text?.trim(),
   );
@@ -172,9 +162,6 @@ const PurePreviewMessage = ({
                   )}
                 </div>
               );
-            }
-            if (isDataUIPart(part)) {
-              return <DataPartRenderer key={key} part={part} />;
             }
             return null;
           })}

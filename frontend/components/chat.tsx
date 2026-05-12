@@ -10,28 +10,23 @@ import {
   listThreadsQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { useThreadBrainContext } from "@/api/hooks/threads";
-import { useAutoResume } from "@/hooks/use-auto-resume";
 import type { ChatMessage } from "@/lib/types";
 import { ChatActionsProvider } from "./chat-actions-provider";
 import { ChatHeader } from "./chat-header";
-import { useDataStream } from "./data-stream-provider";
 import { Messages } from "./messages";
 import { MultimodalInput } from "./multimodal-input";
 
 export function Chat({
   id,
   initialMessages,
-  autoResume = false,
 }: {
   id: string;
   initialMessages: ChatMessage[];
-  autoResume?: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [threadExists, setThreadExists] = useState(initialMessages.length > 0);
   const { data: brainContext } = useThreadBrainContext(id, threadExists);
-  const { setDataStream } = useDataStream();
 
   const transport = useMemo(
     () =>
@@ -41,15 +36,12 @@ export function Chat({
     [],
   );
 
-  const { messages, setMessages, sendMessage, status, stop, resumeStream } =
+  const { messages, setMessages, sendMessage, status, stop } =
     useChat<ChatMessage>({
       id,
       transport,
       messages: initialMessages,
       experimental_throttle: 100,
-      onData: (dataPart) => {
-        setDataStream((ds) => (ds ? [...ds, dataPart] : []));
-      },
       onFinish: () => {
         setThreadExists(true);
         queryClient.invalidateQueries({ queryKey: listThreadsQueryKey() });
@@ -63,13 +55,6 @@ export function Chat({
         console.error("Chat error:", error);
       },
     });
-
-  useAutoResume({
-    autoResume,
-    initialMessages,
-    resumeStream,
-    setMessages,
-  });
 
   // Stable ref so the provider doesn't re-render on every sendMessage identity change.
   const sendMessageRef = useRef(sendMessage);
