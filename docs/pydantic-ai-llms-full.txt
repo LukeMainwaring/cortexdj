@@ -536,8 +536,8 @@ The retry functionality is built on top of the [tenacity](https://github.com/jd/
 
 To use the retry transports, you need to install `tenacity`, which you can do via the `retries` dependency group:
 
--   [pip](#tab-panel-4)
--   [uv](#tab-panel-5)
+-   [pip](#tab-panel-0)
+-   [uv](#tab-panel-1)
 
 Terminal
 
@@ -1155,6 +1155,8 @@ Note
 
 Older models (`claude-sonnet-4-5`, `claude-opus-4-5`, etc.) do not support adaptive thinking and require `{'type': 'enabled', 'budget_tokens': N}` as shown [above](#anthropic).
 
+Thinking tokens count against Anthropic's loop-wide [task budgets](/docs/ai/models/anthropic#task-budgets-beta), so adaptive thinking naturally scales down as the budget depletes.
+
 ## Google
 
 To enable thinking, use the [`GoogleModelSettings.google_thinking_config`](/docs/ai/api/models/google/#pydantic_ai.models.google.GoogleModelSettings.google_thinking_config) [model setting](/docs/ai/core-concepts/agent#model-run-settings).
@@ -1191,10 +1193,10 @@ agent = Agent(model, model_settings=settings)
 
 Although Bedrock Converse doesn't provide a unified API to enable thinking, you can still use [`BedrockModelSettings.bedrock_additional_model_requests_fields`](/docs/ai/api/models/bedrock/#pydantic_ai.models.bedrock.BedrockModelSettings.bedrock_additional_model_requests_fields) [model setting](/docs/ai/core-concepts/agent#model-run-settings) to pass provider-specific configuration:
 
--   [Claude](#tab-panel-0)
--   [OpenAI](#tab-panel-1)
--   [Qwen](#tab-panel-2)
--   [Deepseek](#tab-panel-3)
+-   [Claude](#tab-panel-2)
+-   [OpenAI](#tab-panel-3)
+-   [Qwen](#tab-panel-4)
+-   [Deepseek](#tab-panel-5)
 
 bedrock\_claude\_thinking\_part.py
 
@@ -2969,6 +2971,16 @@ See [the Anthropic docs](https://docs.anthropic.com/en/docs/build-with-claude/ef
 
 **Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['low', 'medium', 'high', 'xhigh', 'max'\] | [`None`](https://docs.python.org/3/library/constants.html#None)
 
+##### anthropic\_task\_budget
+
+Task budget configuration for Claude Opus 4.7 beta requests.
+
+Maps to `output_config.task_budget`. This setting is currently only supported on `claude-opus-4-7`, and Pydantic AI automatically enables Anthropic's required task-budget beta when it is present.
+
+Omit `remaining` unless you are intentionally carrying a budget across compaction or other rewritten context.
+
+**Type:** `AnthropicTaskBudget`
+
 ##### anthropic\_container
 
 Container configuration for multi-turn conversations.
@@ -2978,6 +2990,14 @@ By default, if previous messages contain a container\_id (from a prior response)
 Set to `False` to force a fresh container (ignore any `container_id` from history). Set to a container id string (e.g. `'container_xxx'`) to explicitly reuse a container, or to a `BetaContainerParams` dict (e.g. `{'skills': [...]}` or `{'id': 'container_xxx', 'skills': [...]}`) when passing Skills to the Anthropic Skills beta.
 
 **Type:** `BetaContainerParams` | [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\[[`False`](https://docs.python.org/3/library/constants.html#False)\]
+
+##### anthropic\_code\_execution\_tool\_version
+
+Which Anthropic code execution tool version to send for `CodeExecutionTool`.
+
+Defaults to `'auto'`, which uses the default version from the model profile: `'20260120'` for Sonnet 4.5+ and Opus 4.5+, otherwise `'20250825'`. Set a concrete version to force that tool version; a `UserError` is raised if the selected model profile does not support that version.
+
+**Type:** `AnthropicCodeExecutionToolVersion` | [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['auto'\]
 
 ##### anthropic\_eager\_input\_streaming
 
@@ -3175,6 +3195,12 @@ Possible Anthropic model names.
 The installed Anthropic SDK exposes the current literal set and still allows arbitrary string model names. See [the Anthropic docs](https://docs.anthropic.com/en/docs/about-claude/models) for a full list.
 
 **Default:** `LatestAnthropicModelNames`
+
+### AnthropicTaskBudget
+
+Anthropic task budget payload for `output_config.task_budget`.
+
+**Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `BetaTokenTaskBudgetParam`
 
 ---
 
@@ -3513,6 +3539,12 @@ Get the timestamp of the response.
 
 **Type:** [`datetime`](https://docs.python.org/3/library/datetime.html#module-datetime)
 
+##### cancelled
+
+Whether the stream has been cancelled via `cancel()`.
+
+**Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool)
+
 #### Methods
 
 ##### \_\_aiter\_\_
@@ -3528,6 +3560,52 @@ This proxies the `_event_iterator()` and emits all events, while also checking f
 ###### Returns
 
 [`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[[`ModelResponseStreamEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelResponseStreamEvent)\]
+
+##### cancel
+
+`@async`
+
+```python
+def cancel() -> None
+```
+
+Cancel the stream, stopping token generation.
+
+Sets `self._cancelled = True` before delegating to `close_stream()` so the flag is visible to any iterator that observes the transport error raised when the underlying connection is torn down, even if `close_stream()` itself raises.
+
+###### Returns
+
+[`None`](https://docs.python.org/3/library/constants.html#None)
+
+##### get\_stream\_cancel\_errors
+
+```python
+def get_stream_cancel_errors() -> tuple[type[BaseException], ...]
+```
+
+Return transport errors caused by `cancel()` tearing down the stream.
+
+The default covers model classes whose SDKs iterate `httpx` responses directly (Anthropic, OpenAI, Groq, Mistral, Google GenAI, HuggingFace, and the custom Gemini client), since they let bare `httpx` errors propagate from chunk reads. Model classes that use other transports (for example gRPC or botocore) should override this method.
+
+###### Returns
+
+[`tuple`](https://docs.python.org/3/library/stdtypes.html#tuple)\[[`type`](https://docs.python.org/3/glossary.html#term-type)\[[`BaseException`](https://docs.python.org/3/library/exceptions.html#BaseException)\], ...\]
+
+##### close\_stream
+
+`@async`
+
+```python
+def close_stream() -> None
+```
+
+Close the underlying HTTP/gRPC connection.
+
+Model classes must override this to stop token generation (and billing) on the remote side. Integrations that cannot support cancellation should leave the default implementation so `cancel()` fails clearly rather than silently reporting successful cancellation while generation continues.
+
+###### Returns
+
+[`None`](https://docs.python.org/3/library/constants.html#None)
 
 ##### get
 
@@ -3595,7 +3673,7 @@ Known model names that can be used with the `model` parameter of [`Agent`](/docs
 
 `KnownModelName` is provided as a concise way to specify a model.
 
-**Default:** `TypeAliasType('KnownModelName', Literal['anthropic:claude-3-haiku-20240307', 'anthropic:claude-haiku-4-5-20251001', 'anthropic:claude-mythos-preview', 'anthropic:claude-haiku-4-5', 'anthropic:claude-opus-4-0', 'anthropic:claude-opus-4-1', 'anthropic:claude-opus-4-1-20250805', 'anthropic:claude-opus-4-20250514', 'anthropic:claude-opus-4-5-20251101', 'anthropic:claude-opus-4-5', 'anthropic:claude-opus-4-6', 'anthropic:claude-opus-4-7', 'anthropic:claude-sonnet-4-0', 'anthropic:claude-sonnet-4-20250514', 'anthropic:claude-sonnet-4-5-20250929', 'anthropic:claude-sonnet-4-5', 'anthropic:claude-sonnet-4-6', 'bedrock:amazon.titan-text-express-v1', 'bedrock:amazon.titan-text-lite-v1', 'bedrock:amazon.titan-tg1-large', 'bedrock:anthropic.claude-3-5-haiku-20241022-v1:0', 'bedrock:anthropic.claude-3-5-sonnet-20240620-v1:0', 'bedrock:anthropic.claude-3-5-sonnet-20241022-v2:0', 'bedrock:anthropic.claude-3-7-sonnet-20250219-v1:0', 'bedrock:anthropic.claude-3-haiku-20240307-v1:0', 'bedrock:anthropic.claude-3-opus-20240229-v1:0', 'bedrock:anthropic.claude-3-sonnet-20240229-v1:0', 'bedrock:anthropic.claude-haiku-4-5-20251001-v1:0', 'bedrock:anthropic.claude-instant-v1', 'bedrock:anthropic.claude-opus-4-20250514-v1:0', 'bedrock:anthropic.claude-sonnet-4-20250514-v1:0', 'bedrock:anthropic.claude-sonnet-4-5-20250929-v1:0', 'bedrock:anthropic.claude-sonnet-4-6', 'bedrock:anthropic.claude-v2:1', 'bedrock:anthropic.claude-v2', 'bedrock:cohere.command-light-text-v14', 'bedrock:cohere.command-r-plus-v1:0', 'bedrock:cohere.command-r-v1:0', 'bedrock:cohere.command-text-v14', 'bedrock:eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'bedrock:eu.anthropic.claude-sonnet-4-20250514-v1:0', 'bedrock:eu.anthropic.claude-sonnet-4-5-20250929-v1:0', 'bedrock:eu.anthropic.claude-sonnet-4-6', 'bedrock:global.anthropic.claude-opus-4-5-20251101-v1:0', 'bedrock:meta.llama3-1-405b-instruct-v1:0', 'bedrock:meta.llama3-1-70b-instruct-v1:0', 'bedrock:meta.llama3-1-8b-instruct-v1:0', 'bedrock:meta.llama3-70b-instruct-v1:0', 'bedrock:meta.llama3-8b-instruct-v1:0', 'bedrock:mistral.mistral-7b-instruct-v0:2', 'bedrock:mistral.mistral-large-2402-v1:0', 'bedrock:mistral.mistral-large-2407-v1:0', 'bedrock:mistral.mixtral-8x7b-instruct-v0:1', 'bedrock:us.amazon.nova-2-lite-v1:0', 'bedrock:us.amazon.nova-lite-v1:0', 'bedrock:us.amazon.nova-micro-v1:0', 'bedrock:us.amazon.nova-pro-v1:0', 'bedrock:us.anthropic.claude-3-5-haiku-20241022-v1:0', 'bedrock:us.anthropic.claude-3-5-sonnet-20240620-v1:0', 'bedrock:us.anthropic.claude-3-5-sonnet-20241022-v2:0', 'bedrock:us.anthropic.claude-3-7-sonnet-20250219-v1:0', 'bedrock:us.anthropic.claude-3-haiku-20240307-v1:0', 'bedrock:us.anthropic.claude-3-opus-20240229-v1:0', 'bedrock:us.anthropic.claude-3-sonnet-20240229-v1:0', 'bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0', 'bedrock:us.anthropic.claude-opus-4-20250514-v1:0', 'bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0', 'bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0', 'bedrock:us.anthropic.claude-sonnet-4-6', 'bedrock:us.meta.llama3-1-70b-instruct-v1:0', 'bedrock:us.meta.llama3-1-8b-instruct-v1:0', 'bedrock:us.meta.llama3-2-11b-instruct-v1:0', 'bedrock:us.meta.llama3-2-1b-instruct-v1:0', 'bedrock:us.meta.llama3-2-3b-instruct-v1:0', 'bedrock:us.meta.llama3-2-90b-instruct-v1:0', 'bedrock:us.meta.llama3-3-70b-instruct-v1:0', 'cerebras:gpt-oss-120b', 'cerebras:llama3.1-8b', 'cerebras:qwen-3-235b-a22b-instruct-2507', 'cerebras:zai-glm-4.7', 'cohere:c4ai-aya-expanse-32b', 'cohere:c4ai-aya-expanse-8b', 'cohere:command-nightly', 'cohere:command-r-08-2024', 'cohere:command-r-plus-08-2024', 'cohere:command-r7b-12-2024', 'deepseek:deepseek-chat', 'deepseek:deepseek-reasoner', 'gateway/anthropic:claude-3-haiku-20240307', 'gateway/anthropic:claude-haiku-4-5-20251001', 'gateway/anthropic:claude-mythos-preview', 'gateway/anthropic:claude-haiku-4-5', 'gateway/anthropic:claude-opus-4-0', 'gateway/anthropic:claude-opus-4-1', 'gateway/anthropic:claude-opus-4-1-20250805', 'gateway/anthropic:claude-opus-4-20250514', 'gateway/anthropic:claude-opus-4-5-20251101', 'gateway/anthropic:claude-opus-4-5', 'gateway/anthropic:claude-opus-4-6', 'gateway/anthropic:claude-opus-4-7', 'gateway/anthropic:claude-sonnet-4-0', 'gateway/anthropic:claude-sonnet-4-20250514', 'gateway/anthropic:claude-sonnet-4-5-20250929', 'gateway/anthropic:claude-sonnet-4-5', 'gateway/anthropic:claude-sonnet-4-6', 'gateway/bedrock:anthropic.claude-3-5-sonnet-20240620-v1:0', 'gateway/bedrock:anthropic.claude-3-haiku-20240307-v1:0', 'gateway/bedrock:eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'gateway/bedrock:eu.anthropic.claude-sonnet-4-20250514-v1:0', 'gateway/bedrock:eu.anthropic.claude-sonnet-4-5-20250929-v1:0', 'gateway/bedrock:eu.anthropic.claude-sonnet-4-6', 'gateway/bedrock:global.anthropic.claude-opus-4-5-20251101-v1:0', 'gateway/google-vertex:gemini-2.5-flash-image', 'gateway/google-vertex:gemini-2.5-flash-lite-preview-09-2025', 'gateway/google-vertex:gemini-2.5-flash-lite', 'gateway/google-vertex:gemini-2.5-flash', 'gateway/google-vertex:gemini-2.5-pro', 'gateway/google-vertex:gemini-3-flash-preview', 'gateway/google-vertex:gemini-3-pro-image-preview', 'gateway/google-vertex:gemini-3.1-flash-image-preview', 'gateway/google-vertex:gemini-3.1-flash-lite-preview', 'gateway/google-vertex:gemini-3.1-pro-preview', 'gateway/groq:llama-3.1-8b-instant', 'gateway/groq:llama-3.3-70b-versatile', 'gateway/groq:meta-llama/llama-4-scout-17b-16e-instruct', 'gateway/groq:moonshotai/kimi-k2-instruct-0905', 'gateway/groq:openai/gpt-oss-120b', 'gateway/groq:openai/gpt-oss-20b', 'gateway/groq:openai/gpt-oss-safeguard-20b', 'gateway/openai:gpt-3.5-turbo-0125', 'gateway/openai:gpt-3.5-turbo-1106', 'gateway/openai:gpt-3.5-turbo-16k', 'gateway/openai:gpt-3.5-turbo', 'gateway/openai:gpt-4-0613', 'gateway/openai:gpt-4-turbo-2024-04-09', 'gateway/openai:gpt-4-turbo', 'gateway/openai:gpt-4.1-2025-04-14', 'gateway/openai:gpt-4.1-mini-2025-04-14', 'gateway/openai:gpt-4.1-mini', 'gateway/openai:gpt-4.1-nano-2025-04-14', 'gateway/openai:gpt-4.1-nano', 'gateway/openai:gpt-4.1', 'gateway/openai:gpt-4', 'gateway/openai:gpt-4o-2024-05-13', 'gateway/openai:gpt-4o-2024-08-06', 'gateway/openai:gpt-4o-2024-11-20', 'gateway/openai:gpt-4o-mini-2024-07-18', 'gateway/openai:gpt-4o-mini-search-preview-2025-03-11', 'gateway/openai:gpt-4o-mini-search-preview', 'gateway/openai:gpt-4o-mini', 'gateway/openai:gpt-4o-search-preview-2025-03-11', 'gateway/openai:gpt-4o-search-preview', 'gateway/openai:gpt-4o', 'gateway/openai:gpt-5-2025-08-07', 'gateway/openai:gpt-5-chat-latest', 'gateway/openai:gpt-5-mini-2025-08-07', 'gateway/openai:gpt-5-mini', 'gateway/openai:gpt-5-nano-2025-08-07', 'gateway/openai:gpt-5-nano', 'gateway/openai:gpt-5.1-2025-11-13', 'gateway/openai:gpt-5.1-chat-latest', 'gateway/openai:gpt-5.1', 'gateway/openai:gpt-5.2-2025-12-11', 'gateway/openai:gpt-5.2-chat-latest', 'gateway/openai:gpt-5.2', 'gateway/openai:gpt-5.4-mini-2026-03-17', 'gateway/openai:gpt-5.4-mini', 'gateway/openai:gpt-5.4-nano-2026-03-17', 'gateway/openai:gpt-5.4-nano', 'gateway/openai:gpt-5.4', 'gateway/openai:gpt-5', 'gateway/openai:o1-2024-12-17', 'gateway/openai:o1', 'gateway/openai:o3-2025-04-16', 'gateway/openai:o3-mini-2025-01-31', 'gateway/openai:o3-mini', 'gateway/openai:o3', 'gateway/openai:o4-mini-2025-04-16', 'gateway/openai:o4-mini', 'google-gla:gemini-2.0-flash-lite', 'google-gla:gemini-2.0-flash', 'google-gla:gemini-2.5-flash-image', 'google-gla:gemini-2.5-flash-lite-preview-09-2025', 'google-gla:gemini-2.5-flash-lite', 'google-gla:gemini-2.5-flash-preview-09-2025', 'google-gla:gemini-2.5-flash', 'google-gla:gemini-2.5-pro', 'google-gla:gemini-3-flash-preview', 'google-gla:gemini-3-pro-image-preview', 'google-gla:gemini-3-pro-preview', 'google-gla:gemini-3.1-flash-image-preview', 'google-gla:gemini-3.1-flash-lite-preview', 'google-gla:gemini-3.1-pro-preview', 'google-gla:gemini-flash-latest', 'google-gla:gemini-flash-lite-latest', 'google-vertex:gemini-2.0-flash-lite', 'google-vertex:gemini-2.0-flash', 'google-vertex:gemini-2.5-flash-image', 'google-vertex:gemini-2.5-flash-lite-preview-09-2025', 'google-vertex:gemini-2.5-flash-lite', 'google-vertex:gemini-2.5-flash-preview-09-2025', 'google-vertex:gemini-2.5-flash', 'google-vertex:gemini-2.5-pro', 'google-vertex:gemini-3-flash-preview', 'google-vertex:gemini-3-pro-image-preview', 'google-vertex:gemini-3-pro-preview', 'google-vertex:gemini-3.1-flash-image-preview', 'google-vertex:gemini-3.1-flash-lite-preview', 'google-vertex:gemini-3.1-pro-preview', 'google-vertex:gemini-flash-latest', 'google-vertex:gemini-flash-lite-latest', 'grok:grok-2-image-1212', 'grok:grok-2-vision-1212', 'grok:grok-3-fast', 'grok:grok-3-mini-fast', 'grok:grok-3-mini', 'grok:grok-3', 'grok:grok-4-0709', 'grok:grok-4-latest', 'grok:grok-4-1-fast-non-reasoning', 'grok:grok-4-1-fast-reasoning', 'grok:grok-4-1-fast', 'grok:grok-4-fast-non-reasoning', 'grok:grok-4-fast-reasoning', 'grok:grok-4-fast', 'grok:grok-4', 'grok:grok-code-fast-1', 'xai:grok-3', 'xai:grok-3-fast', 'xai:grok-3-fast-latest', 'xai:grok-3-latest', 'xai:grok-3-mini', 'xai:grok-3-mini-fast', 'xai:grok-3-mini-fast-latest', 'xai:grok-4', 'xai:grok-4-0709', 'xai:grok-4-1-fast', 'xai:grok-4-1-fast-non-reasoning', 'xai:grok-4-1-fast-non-reasoning-latest', 'xai:grok-4-1-fast-reasoning', 'xai:grok-4-1-fast-reasoning-latest', 'xai:grok-4-fast', 'xai:grok-4-fast-non-reasoning', 'xai:grok-4-fast-non-reasoning-latest', 'xai:grok-4-fast-reasoning', 'xai:grok-4-fast-reasoning-latest', 'xai:grok-4-latest', 'xai:grok-code-fast-1', 'groq:llama-3.1-8b-instant', 'groq:llama-3.3-70b-versatile', 'groq:meta-llama/llama-guard-4-12b', 'groq:openai/gpt-oss-120b', 'groq:openai/gpt-oss-20b', 'groq:whisper-large-v3', 'groq:whisper-large-v3-turbo', 'groq:meta-llama/llama-4-maverick-17b-128e-instruct', 'groq:meta-llama/llama-4-scout-17b-16e-instruct', 'groq:meta-llama/llama-prompt-guard-2-22m', 'groq:meta-llama/llama-prompt-guard-2-86m', 'groq:moonshotai/kimi-k2-instruct-0905', 'groq:openai/gpt-oss-safeguard-20b', 'groq:playai-tts', 'groq:playai-tts-arabic', 'groq:qwen/qwen-3-32b', 'heroku:claude-3-5-haiku', 'heroku:claude-3-5-sonnet-latest', 'heroku:claude-3-7-sonnet', 'heroku:claude-3-haiku', 'heroku:claude-4-5-haiku', 'heroku:claude-4-5-sonnet', 'heroku:claude-4-6-sonnet', 'heroku:claude-4-sonnet', 'heroku:claude-opus-4-5', 'heroku:claude-opus-4-6', 'heroku:deepseek-v3-2', 'heroku:glm-4-7', 'heroku:glm-4-7-flash', 'heroku:gpt-oss-120b', 'heroku:kimi-k2-5', 'heroku:kimi-k2-thinking', 'heroku:minimax-m2', 'heroku:minimax-m2-1', 'heroku:qwen3-235b', 'heroku:qwen3-coder-480b', 'heroku:nova-2-lite', 'heroku:nova-lite', 'heroku:nova-pro', 'huggingface:deepseek-ai/DeepSeek-R1', 'huggingface:meta-llama/Llama-3.3-70B-Instruct', 'huggingface:meta-llama/Llama-4-Maverick-17B-128E-Instruct', 'huggingface:meta-llama/Llama-4-Scout-17B-16E-Instruct', 'huggingface:Qwen/Qwen2.5-72B-Instruct', 'huggingface:Qwen/Qwen3-235B-A22B', 'huggingface:Qwen/Qwen3-32B', 'huggingface:Qwen/QwQ-32B', 'mistral:codestral-latest', 'mistral:mistral-large-latest', 'mistral:mistral-moderation-latest', 'mistral:mistral-small-latest', 'moonshotai:kimi-k2-0711-preview', 'moonshotai:kimi-latest', 'moonshotai:kimi-thinking-preview', 'moonshotai:moonshot-v1-128k-vision-preview', 'moonshotai:moonshot-v1-128k', 'moonshotai:moonshot-v1-32k-vision-preview', 'moonshotai:moonshot-v1-32k', 'moonshotai:moonshot-v1-8k-vision-preview', 'moonshotai:moonshot-v1-8k', 'openai:computer-use-preview-2025-03-11', 'openai:computer-use-preview', 'openai:gpt-3.5-turbo-0125', 'openai:gpt-3.5-turbo-0301', 'openai:gpt-3.5-turbo-0613', 'openai:gpt-3.5-turbo-1106', 'openai:gpt-3.5-turbo-16k-0613', 'openai:gpt-3.5-turbo-16k', 'openai:gpt-3.5-turbo', 'openai:gpt-4-0314', 'openai:gpt-4-0613', 'openai:gpt-4-turbo-2024-04-09', 'openai:gpt-4-turbo', 'openai:gpt-4.1-2025-04-14', 'openai:gpt-4.1-mini-2025-04-14', 'openai:gpt-4.1-mini', 'openai:gpt-4.1-nano-2025-04-14', 'openai:gpt-4.1-nano', 'openai:gpt-4.1', 'openai:gpt-4', 'openai:gpt-4o-2024-05-13', 'openai:gpt-4o-2024-08-06', 'openai:gpt-4o-2024-11-20', 'openai:gpt-4o-audio-preview-2024-12-17', 'openai:gpt-4o-audio-preview-2025-06-03', 'openai:gpt-4o-audio-preview', 'openai:gpt-4o-mini-2024-07-18', 'openai:gpt-4o-mini-audio-preview-2024-12-17', 'openai:gpt-4o-mini-audio-preview', 'openai:gpt-4o-mini-search-preview-2025-03-11', 'openai:gpt-4o-mini-search-preview', 'openai:gpt-4o-mini', 'openai:gpt-4o-search-preview-2025-03-11', 'openai:gpt-4o-search-preview', 'openai:gpt-4o', 'openai:gpt-5-2025-08-07', 'openai:gpt-5-chat-latest', 'openai:gpt-5-codex', 'openai:gpt-5-mini-2025-08-07', 'openai:gpt-5-mini', 'openai:gpt-5-nano-2025-08-07', 'openai:gpt-5-nano', 'openai:gpt-5-pro-2025-10-06', 'openai:gpt-5-pro', 'openai:gpt-5.1-2025-11-13', 'openai:gpt-5.1-chat-latest', 'openai:gpt-5.1-codex-max', 'openai:gpt-5.1-codex', 'openai:gpt-5.1', 'openai:gpt-5.2-2025-12-11', 'openai:gpt-5.2-chat-latest', 'openai:gpt-5.2-pro-2025-12-11', 'openai:gpt-5.2-pro', 'openai:gpt-5.2', 'openai:gpt-5.3-chat-latest', 'openai:gpt-5.4-mini-2026-03-17', 'openai:gpt-5.4-mini', 'openai:gpt-5.4-nano-2026-03-17', 'openai:gpt-5.4-nano', 'openai:gpt-5.4', 'openai:gpt-5', 'openai:o1-2024-12-17', 'openai:o1-pro-2025-03-19', 'openai:o1-pro', 'openai:o1', 'openai:o3-2025-04-16', 'openai:o3-deep-research-2025-06-26', 'openai:o3-deep-research', 'openai:o3-mini-2025-01-31', 'openai:o3-mini', 'openai:o3-pro-2025-06-10', 'openai:o3-pro', 'openai:o3', 'openai:o4-mini-2025-04-16', 'openai:o4-mini-deep-research-2025-06-26', 'openai:o4-mini-deep-research', 'openai:o4-mini', 'test'])`
+**Default:** `TypeAliasType('KnownModelName', Literal['anthropic:claude-3-haiku-20240307', 'anthropic:claude-haiku-4-5-20251001', 'anthropic:claude-mythos-preview', 'anthropic:claude-haiku-4-5', 'anthropic:claude-opus-4-0', 'anthropic:claude-opus-4-1', 'anthropic:claude-opus-4-1-20250805', 'anthropic:claude-opus-4-20250514', 'anthropic:claude-opus-4-5-20251101', 'anthropic:claude-opus-4-5', 'anthropic:claude-opus-4-6', 'anthropic:claude-opus-4-7', 'anthropic:claude-sonnet-4-0', 'anthropic:claude-sonnet-4-20250514', 'anthropic:claude-sonnet-4-5-20250929', 'anthropic:claude-sonnet-4-5', 'anthropic:claude-sonnet-4-6', 'bedrock:amazon.titan-text-express-v1', 'bedrock:amazon.titan-text-lite-v1', 'bedrock:amazon.titan-tg1-large', 'bedrock:anthropic.claude-3-5-haiku-20241022-v1:0', 'bedrock:anthropic.claude-3-5-sonnet-20240620-v1:0', 'bedrock:anthropic.claude-3-5-sonnet-20241022-v2:0', 'bedrock:anthropic.claude-3-7-sonnet-20250219-v1:0', 'bedrock:anthropic.claude-3-haiku-20240307-v1:0', 'bedrock:anthropic.claude-3-opus-20240229-v1:0', 'bedrock:anthropic.claude-3-sonnet-20240229-v1:0', 'bedrock:anthropic.claude-haiku-4-5-20251001-v1:0', 'bedrock:anthropic.claude-instant-v1', 'bedrock:anthropic.claude-opus-4-20250514-v1:0', 'bedrock:anthropic.claude-sonnet-4-20250514-v1:0', 'bedrock:anthropic.claude-sonnet-4-5-20250929-v1:0', 'bedrock:anthropic.claude-sonnet-4-6', 'bedrock:anthropic.claude-v2:1', 'bedrock:anthropic.claude-v2', 'bedrock:cohere.command-light-text-v14', 'bedrock:cohere.command-r-plus-v1:0', 'bedrock:cohere.command-r-v1:0', 'bedrock:cohere.command-text-v14', 'bedrock:eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'bedrock:eu.anthropic.claude-sonnet-4-20250514-v1:0', 'bedrock:eu.anthropic.claude-sonnet-4-5-20250929-v1:0', 'bedrock:eu.anthropic.claude-sonnet-4-6', 'bedrock:global.anthropic.claude-opus-4-5-20251101-v1:0', 'bedrock:meta.llama3-1-405b-instruct-v1:0', 'bedrock:meta.llama3-1-70b-instruct-v1:0', 'bedrock:meta.llama3-1-8b-instruct-v1:0', 'bedrock:meta.llama3-70b-instruct-v1:0', 'bedrock:meta.llama3-8b-instruct-v1:0', 'bedrock:mistral.mistral-7b-instruct-v0:2', 'bedrock:mistral.mistral-large-2402-v1:0', 'bedrock:mistral.mistral-large-2407-v1:0', 'bedrock:mistral.mixtral-8x7b-instruct-v0:1', 'bedrock:us.amazon.nova-2-lite-v1:0', 'bedrock:us.amazon.nova-lite-v1:0', 'bedrock:us.amazon.nova-micro-v1:0', 'bedrock:us.amazon.nova-pro-v1:0', 'bedrock:us.anthropic.claude-3-5-haiku-20241022-v1:0', 'bedrock:us.anthropic.claude-3-5-sonnet-20240620-v1:0', 'bedrock:us.anthropic.claude-3-5-sonnet-20241022-v2:0', 'bedrock:us.anthropic.claude-3-7-sonnet-20250219-v1:0', 'bedrock:us.anthropic.claude-3-haiku-20240307-v1:0', 'bedrock:us.anthropic.claude-3-opus-20240229-v1:0', 'bedrock:us.anthropic.claude-3-sonnet-20240229-v1:0', 'bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0', 'bedrock:us.anthropic.claude-opus-4-20250514-v1:0', 'bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0', 'bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0', 'bedrock:us.anthropic.claude-sonnet-4-6', 'bedrock:us.meta.llama3-1-70b-instruct-v1:0', 'bedrock:us.meta.llama3-1-8b-instruct-v1:0', 'bedrock:us.meta.llama3-2-11b-instruct-v1:0', 'bedrock:us.meta.llama3-2-1b-instruct-v1:0', 'bedrock:us.meta.llama3-2-3b-instruct-v1:0', 'bedrock:us.meta.llama3-2-90b-instruct-v1:0', 'bedrock:us.meta.llama3-3-70b-instruct-v1:0', 'cerebras:gpt-oss-120b', 'cerebras:llama3.1-8b', 'cerebras:qwen-3-235b-a22b-instruct-2507', 'cerebras:zai-glm-4.7', 'cohere:c4ai-aya-expanse-32b', 'cohere:c4ai-aya-expanse-8b', 'cohere:command-nightly', 'cohere:command-r-08-2024', 'cohere:command-r-plus-08-2024', 'cohere:command-r7b-12-2024', 'deepseek:deepseek-chat', 'deepseek:deepseek-reasoner', 'deepseek:deepseek-v4-flash', 'deepseek:deepseek-v4-pro', 'gateway/anthropic:claude-3-haiku-20240307', 'gateway/anthropic:claude-haiku-4-5-20251001', 'gateway/anthropic:claude-mythos-preview', 'gateway/anthropic:claude-haiku-4-5', 'gateway/anthropic:claude-opus-4-0', 'gateway/anthropic:claude-opus-4-1', 'gateway/anthropic:claude-opus-4-1-20250805', 'gateway/anthropic:claude-opus-4-20250514', 'gateway/anthropic:claude-opus-4-5-20251101', 'gateway/anthropic:claude-opus-4-5', 'gateway/anthropic:claude-opus-4-6', 'gateway/anthropic:claude-opus-4-7', 'gateway/anthropic:claude-sonnet-4-0', 'gateway/anthropic:claude-sonnet-4-20250514', 'gateway/anthropic:claude-sonnet-4-5-20250929', 'gateway/anthropic:claude-sonnet-4-5', 'gateway/anthropic:claude-sonnet-4-6', 'gateway/bedrock:anthropic.claude-3-5-sonnet-20240620-v1:0', 'gateway/bedrock:anthropic.claude-3-haiku-20240307-v1:0', 'gateway/bedrock:eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'gateway/bedrock:eu.anthropic.claude-sonnet-4-20250514-v1:0', 'gateway/bedrock:eu.anthropic.claude-sonnet-4-5-20250929-v1:0', 'gateway/bedrock:eu.anthropic.claude-sonnet-4-6', 'gateway/bedrock:global.anthropic.claude-opus-4-5-20251101-v1:0', 'gateway/google-vertex:gemini-2.5-flash-image', 'gateway/google-vertex:gemini-2.5-flash-lite-preview-09-2025', 'gateway/google-vertex:gemini-2.5-flash-lite', 'gateway/google-vertex:gemini-2.5-flash', 'gateway/google-vertex:gemini-2.5-pro', 'gateway/google-vertex:gemini-3-flash-preview', 'gateway/google-vertex:gemini-3-pro-image-preview', 'gateway/google-vertex:gemini-3.1-flash-image-preview', 'gateway/google-vertex:gemini-3.1-flash-lite-preview', 'gateway/google-vertex:gemini-3.1-pro-preview', 'gateway/groq:llama-3.1-8b-instant', 'gateway/groq:llama-3.3-70b-versatile', 'gateway/groq:meta-llama/llama-4-scout-17b-16e-instruct', 'gateway/groq:moonshotai/kimi-k2-instruct-0905', 'gateway/groq:openai/gpt-oss-120b', 'gateway/groq:openai/gpt-oss-20b', 'gateway/groq:openai/gpt-oss-safeguard-20b', 'gateway/openai:gpt-3.5-turbo-0125', 'gateway/openai:gpt-3.5-turbo-1106', 'gateway/openai:gpt-3.5-turbo-16k', 'gateway/openai:gpt-3.5-turbo', 'gateway/openai:gpt-4-0613', 'gateway/openai:gpt-4-turbo-2024-04-09', 'gateway/openai:gpt-4-turbo', 'gateway/openai:gpt-4.1-2025-04-14', 'gateway/openai:gpt-4.1-mini-2025-04-14', 'gateway/openai:gpt-4.1-mini', 'gateway/openai:gpt-4.1-nano-2025-04-14', 'gateway/openai:gpt-4.1-nano', 'gateway/openai:gpt-4.1', 'gateway/openai:gpt-4', 'gateway/openai:gpt-4o-2024-05-13', 'gateway/openai:gpt-4o-2024-08-06', 'gateway/openai:gpt-4o-2024-11-20', 'gateway/openai:gpt-4o-mini-2024-07-18', 'gateway/openai:gpt-4o-mini-search-preview-2025-03-11', 'gateway/openai:gpt-4o-mini-search-preview', 'gateway/openai:gpt-4o-mini', 'gateway/openai:gpt-4o-search-preview-2025-03-11', 'gateway/openai:gpt-4o-search-preview', 'gateway/openai:gpt-4o', 'gateway/openai:gpt-5-2025-08-07', 'gateway/openai:gpt-5-chat-latest', 'gateway/openai:gpt-5-mini-2025-08-07', 'gateway/openai:gpt-5-mini', 'gateway/openai:gpt-5-nano-2025-08-07', 'gateway/openai:gpt-5-nano', 'gateway/openai:gpt-5.1-2025-11-13', 'gateway/openai:gpt-5.1-chat-latest', 'gateway/openai:gpt-5.1', 'gateway/openai:gpt-5.2-2025-12-11', 'gateway/openai:gpt-5.2-chat-latest', 'gateway/openai:gpt-5.2', 'gateway/openai:gpt-5.4-mini-2026-03-17', 'gateway/openai:gpt-5.4-mini', 'gateway/openai:gpt-5.4-nano-2026-03-17', 'gateway/openai:gpt-5.4-nano', 'gateway/openai:gpt-5.4', 'gateway/openai:gpt-5', 'gateway/openai:o1-2024-12-17', 'gateway/openai:o1', 'gateway/openai:o3-2025-04-16', 'gateway/openai:o3-mini-2025-01-31', 'gateway/openai:o3-mini', 'gateway/openai:o3', 'gateway/openai:o4-mini-2025-04-16', 'gateway/openai:o4-mini', 'google-gla:gemini-2.0-flash-lite', 'google-gla:gemini-2.0-flash', 'google-gla:gemini-2.5-flash-image', 'google-gla:gemini-2.5-flash-lite-preview-09-2025', 'google-gla:gemini-2.5-flash-lite', 'google-gla:gemini-2.5-flash-preview-09-2025', 'google-gla:gemini-2.5-flash', 'google-gla:gemini-2.5-pro', 'google-gla:gemini-3-flash-preview', 'google-gla:gemini-3-pro-image-preview', 'google-gla:gemini-3-pro-preview', 'google-gla:gemini-3.1-flash-image-preview', 'google-gla:gemini-3.1-flash-lite-preview', 'google-gla:gemini-3.1-pro-preview', 'google-gla:gemini-flash-latest', 'google-gla:gemini-flash-lite-latest', 'google-vertex:gemini-2.0-flash-lite', 'google-vertex:gemini-2.0-flash', 'google-vertex:gemini-2.5-flash-image', 'google-vertex:gemini-2.5-flash-lite-preview-09-2025', 'google-vertex:gemini-2.5-flash-lite', 'google-vertex:gemini-2.5-flash-preview-09-2025', 'google-vertex:gemini-2.5-flash', 'google-vertex:gemini-2.5-pro', 'google-vertex:gemini-3-flash-preview', 'google-vertex:gemini-3-pro-image-preview', 'google-vertex:gemini-3-pro-preview', 'google-vertex:gemini-3.1-flash-image-preview', 'google-vertex:gemini-3.1-flash-lite-preview', 'google-vertex:gemini-3.1-pro-preview', 'google-vertex:gemini-flash-latest', 'google-vertex:gemini-flash-lite-latest', 'grok:grok-2-image-1212', 'grok:grok-2-vision-1212', 'grok:grok-3-fast', 'grok:grok-3-mini-fast', 'grok:grok-3-mini', 'grok:grok-3', 'grok:grok-4-0709', 'grok:grok-4-latest', 'grok:grok-4-1-fast-non-reasoning', 'grok:grok-4-1-fast-reasoning', 'grok:grok-4-1-fast', 'grok:grok-4-fast-non-reasoning', 'grok:grok-4-fast-reasoning', 'grok:grok-4-fast', 'grok:grok-4', 'grok:grok-code-fast-1', 'xai:grok-3', 'xai:grok-3-fast', 'xai:grok-3-fast-latest', 'xai:grok-3-latest', 'xai:grok-3-mini', 'xai:grok-3-mini-fast', 'xai:grok-3-mini-fast-latest', 'xai:grok-4', 'xai:grok-4-0709', 'xai:grok-4-1-fast', 'xai:grok-4-1-fast-non-reasoning', 'xai:grok-4-1-fast-non-reasoning-latest', 'xai:grok-4-1-fast-reasoning', 'xai:grok-4-1-fast-reasoning-latest', 'xai:grok-4-fast', 'xai:grok-4-fast-non-reasoning', 'xai:grok-4-fast-non-reasoning-latest', 'xai:grok-4-fast-reasoning', 'xai:grok-4-fast-reasoning-latest', 'xai:grok-4-latest', 'xai:grok-code-fast-1', 'groq:llama-3.1-8b-instant', 'groq:llama-3.3-70b-versatile', 'groq:meta-llama/llama-guard-4-12b', 'groq:openai/gpt-oss-120b', 'groq:openai/gpt-oss-20b', 'groq:whisper-large-v3', 'groq:whisper-large-v3-turbo', 'groq:meta-llama/llama-4-maverick-17b-128e-instruct', 'groq:meta-llama/llama-4-scout-17b-16e-instruct', 'groq:meta-llama/llama-prompt-guard-2-22m', 'groq:meta-llama/llama-prompt-guard-2-86m', 'groq:moonshotai/kimi-k2-instruct-0905', 'groq:openai/gpt-oss-safeguard-20b', 'groq:playai-tts', 'groq:playai-tts-arabic', 'groq:qwen/qwen-3-32b', 'heroku:claude-3-5-haiku', 'heroku:claude-3-5-sonnet-latest', 'heroku:claude-3-7-sonnet', 'heroku:claude-3-haiku', 'heroku:claude-4-5-haiku', 'heroku:claude-4-5-sonnet', 'heroku:claude-4-6-sonnet', 'heroku:claude-4-sonnet', 'heroku:claude-opus-4-5', 'heroku:claude-opus-4-6', 'heroku:deepseek-v3-2', 'heroku:glm-4-7', 'heroku:glm-4-7-flash', 'heroku:gpt-oss-120b', 'heroku:kimi-k2-5', 'heroku:kimi-k2-thinking', 'heroku:minimax-m2', 'heroku:minimax-m2-1', 'heroku:qwen3-235b', 'heroku:qwen3-coder-480b', 'heroku:nova-2-lite', 'heroku:nova-lite', 'heroku:nova-pro', 'huggingface:deepseek-ai/DeepSeek-R1', 'huggingface:meta-llama/Llama-3.3-70B-Instruct', 'huggingface:meta-llama/Llama-4-Maverick-17B-128E-Instruct', 'huggingface:meta-llama/Llama-4-Scout-17B-16E-Instruct', 'huggingface:Qwen/Qwen2.5-72B-Instruct', 'huggingface:Qwen/Qwen3-235B-A22B', 'huggingface:Qwen/Qwen3-32B', 'huggingface:Qwen/QwQ-32B', 'mistral:codestral-latest', 'mistral:mistral-large-latest', 'mistral:mistral-moderation-latest', 'mistral:mistral-small-latest', 'moonshotai:kimi-k2-0711-preview', 'moonshotai:kimi-latest', 'moonshotai:kimi-thinking-preview', 'moonshotai:moonshot-v1-128k-vision-preview', 'moonshotai:moonshot-v1-128k', 'moonshotai:moonshot-v1-32k-vision-preview', 'moonshotai:moonshot-v1-32k', 'moonshotai:moonshot-v1-8k-vision-preview', 'moonshotai:moonshot-v1-8k', 'openai:computer-use-preview-2025-03-11', 'openai:computer-use-preview', 'openai:gpt-3.5-turbo-0125', 'openai:gpt-3.5-turbo-0301', 'openai:gpt-3.5-turbo-0613', 'openai:gpt-3.5-turbo-1106', 'openai:gpt-3.5-turbo-16k-0613', 'openai:gpt-3.5-turbo-16k', 'openai:gpt-3.5-turbo', 'openai:gpt-4-0314', 'openai:gpt-4-0613', 'openai:gpt-4-turbo-2024-04-09', 'openai:gpt-4-turbo', 'openai:gpt-4.1-2025-04-14', 'openai:gpt-4.1-mini-2025-04-14', 'openai:gpt-4.1-mini', 'openai:gpt-4.1-nano-2025-04-14', 'openai:gpt-4.1-nano', 'openai:gpt-4.1', 'openai:gpt-4', 'openai:gpt-4o-2024-05-13', 'openai:gpt-4o-2024-08-06', 'openai:gpt-4o-2024-11-20', 'openai:gpt-4o-audio-preview-2024-12-17', 'openai:gpt-4o-audio-preview-2025-06-03', 'openai:gpt-4o-audio-preview', 'openai:gpt-4o-mini-2024-07-18', 'openai:gpt-4o-mini-audio-preview-2024-12-17', 'openai:gpt-4o-mini-audio-preview', 'openai:gpt-4o-mini-search-preview-2025-03-11', 'openai:gpt-4o-mini-search-preview', 'openai:gpt-4o-mini', 'openai:gpt-4o-search-preview-2025-03-11', 'openai:gpt-4o-search-preview', 'openai:gpt-4o', 'openai:gpt-5-2025-08-07', 'openai:gpt-5-chat-latest', 'openai:gpt-5-codex', 'openai:gpt-5-mini-2025-08-07', 'openai:gpt-5-mini', 'openai:gpt-5-nano-2025-08-07', 'openai:gpt-5-nano', 'openai:gpt-5-pro-2025-10-06', 'openai:gpt-5-pro', 'openai:gpt-5.1-2025-11-13', 'openai:gpt-5.1-chat-latest', 'openai:gpt-5.1-codex-max', 'openai:gpt-5.1-codex', 'openai:gpt-5.1', 'openai:gpt-5.2-2025-12-11', 'openai:gpt-5.2-chat-latest', 'openai:gpt-5.2-pro-2025-12-11', 'openai:gpt-5.2-pro', 'openai:gpt-5.2', 'openai:gpt-5.3-chat-latest', 'openai:gpt-5.4-mini-2026-03-17', 'openai:gpt-5.4-mini', 'openai:gpt-5.4-nano-2026-03-17', 'openai:gpt-5.4-nano', 'openai:gpt-5.4', 'openai:gpt-5', 'openai:o1-2024-12-17', 'openai:o1-pro-2025-03-19', 'openai:o1-pro', 'openai:o1', 'openai:o3-2025-04-16', 'openai:o3-deep-research-2025-06-26', 'openai:o3-deep-research', 'openai:o3-mini-2025-01-31', 'openai:o3-mini', 'openai:o3-pro-2025-06-10', 'openai:o3-pro', 'openai:o3', 'openai:o4-mini-2025-04-16', 'openai:o4-mini-deep-research-2025-06-26', 'openai:o4-mini-deep-research', 'openai:o4-mini', 'test'])`
 
 ### ALLOW\_MODEL\_REQUESTS
 
@@ -5605,6 +5683,21 @@ See the [OpenAI Responses API documentation](https://platform.openai.com/docs/gu
 
 **Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['auto'\] | [`str`](https://docs.python.org/3/library/stdtypes.html#str)
 
+##### openai\_conversation\_id
+
+Reference an OpenAI conversation to continue durable conversation state server-side.
+
+-   `'auto'`: use the most recent OpenAI conversation ID from `ModelResponse.provider_details['conversation_id']` in the message history with the same Pydantic AI `conversation_id`, when available. If the history contains no such response, no `conversation` is sent.
+-   A concrete conversation ID string: use it as the OpenAI Responses API `conversation` parameter.
+
+When a matching conversation ID is found in message history, messages that precede that response are omitted from the input, since OpenAI reconstructs them from the server-side conversation.
+
+Not compatible with [`openai_previous_response_id`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIResponsesModelSettings.openai_previous_response_id).
+
+See the [OpenAI conversation state documentation](https://platform.openai.com/docs/guides/conversation-state) for more information.
+
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['auto'\] | [`str`](https://docs.python.org/3/library/stdtypes.html#str)
+
 ##### openai\_include\_code\_execution\_outputs
 
 Whether to include the code execution results in the response.
@@ -7596,7 +7689,8 @@ def __init__(
     name: str | None = None,
     description: TemplateStr[AgentDepsT] | str | None = None,
     model_settings: AgentModelSettings[AgentDepsT] | None = None,
-    retries: int = 1,
+    retries: int | None = None,
+    tool_retries: int | None = None,
     validation_context: Any | Callable[[RunContext[AgentDepsT]], Any] = None,
     output_retries: int | None = None,
     tools: Sequence[Tool[AgentDepsT] | ToolFuncEither[AgentDepsT, ...]] = (),
@@ -7623,7 +7717,8 @@ def __init__(
     name: str | None = None,
     description: TemplateStr[AgentDepsT] | str | None = None,
     model_settings: AgentModelSettings[AgentDepsT] | None = None,
-    retries: int = 1,
+    retries: int | None = None,
+    tool_retries: int | None = None,
     validation_context: Any | Callable[[RunContext[AgentDepsT]], Any] = None,
     output_retries: int | None = None,
     tools: Sequence[Tool[AgentDepsT] | ToolFuncEither[AgentDepsT, ...]] = (),
@@ -7679,9 +7774,13 @@ A human-readable description of the agent, attached to the agent run span as `ge
 
 Optional model request settings to use for this agent's runs, by default. Can be a static `ModelSettings` dict or a callable that takes a [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) and returns `ModelSettings`. Callables are called before each model request, allowing dynamic per-step settings.
 
-**`retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) _Default:_ `1`
+**`retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
-The default number of retries to allow for tool calls and output validation, before raising an error. For model request retries, see the [HTTP Request Retries](/docs/ai/advanced-features/retries) documentation.
+Deprecated alias for `tool_retries`. In 1.x this also still cascades to `output_retries` (when `output_retries` is unset) for backward compatibility, with a `DeprecationWarning`. In v2 it will be removed and the cascade will go away -- pass `output_retries` explicitly if you depend on the cascade. For model request retries, see the [HTTP Request Retries](/docs/ai/advanced-features/retries) documentation.
+
+**`tool_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+The default number of retries to allow for tool calls before raising an error. Defaults to 1.
 
 **`validation_context`** : [`Any`](https://docs.python.org/3/library/typing.html#typing.Any) | [`Callable`](https://docs.python.org/3/library/typing.html#typing.Callable)\[\[[`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext)\[`AgentDepsT`\]\], [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] _Default:_ `None`
 
@@ -7689,7 +7788,7 @@ Pydantic [validation context](https://docs.pydantic.dev/latest/concepts/validato
 
 **`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
-The maximum number of retries to allow for output validation, defaults to `retries`.
+Maximum number of retries for output validation. Defaults to 1. On the text path this is a global budget shared across all output-validation retries in a run; on the tool path this is the default per-tool `max_retries` for each output tool, overridable via [`ToolOutput(max_retries=...)`](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput.max_retries). Can also be overridden per run via `agent.run(output_retries=...)` (and friends).
 
 **`tools`** : [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)\[[`Tool`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.Tool)\[`AgentDepsT`\] | `ToolFuncEither`\[`AgentDepsT`, ...\]\] _Default:_ `()`
 
@@ -8043,6 +8142,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -8062,6 +8162,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -8184,6 +8285,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -8217,6 +8322,7 @@ def override(
     instructions: AgentInstructions[AgentDepsT] | _utils.Unset = _utils.UNSET,
     metadata: AgentMetadata[AgentDepsT] | _utils.Unset = _utils.UNSET,
     model_settings: AgentModelSettings[AgentDepsT] | _utils.Unset = _utils.UNSET,
+    output_retries: int | _utils.Unset = _utils.UNSET,
     spec: dict[str, Any] | AgentSpec | None = None,
 ) -> Iterator[None]
 ```
@@ -8266,6 +8372,10 @@ The metadata to use instead of the metadata passed to the agent constructor. Whe
 **`model_settings`** : `AgentModelSettings`\[`AgentDepsT`\] | `_utils.Unset` _Default:_ `_utils.UNSET`
 
 The model settings to use instead of the model settings passed to the agent constructor. When set, any per-run `model_settings` argument is ignored.
+
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | `_utils.Unset` _Default:_ `_utils.UNSET`
+
+The output-retry budget to use instead of the agent-level `output_retries`. When set, any per-run `output_retries` argument is ignored.
 
 **`spec`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | `AgentSpec` | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -8997,6 +9107,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9017,6 +9128,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9097,6 +9209,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -9137,6 +9253,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9157,6 +9274,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9236,6 +9354,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -9278,6 +9400,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9298,6 +9421,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9380,6 +9504,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -9419,6 +9547,7 @@ def run_stream_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9438,6 +9567,7 @@ def run_stream_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AbstractBuiltinTool] | None = None,
@@ -9518,6 +9648,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -9558,12 +9692,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[OutputDataT]]
+) -> AgentEventStream[OutputDataT]
 def run_stream_events(
     user_prompt: str | Sequence[_messages.UserContent] | None = None,
     output_type: OutputSpec[RunOutputDataT],
@@ -9577,12 +9712,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[RunOutputDataT]]
+) -> AgentEventStream[RunOutputDataT]
 ```
 
 Run the agent with a user prompt in async mode and stream events from the run.
@@ -9598,8 +9734,9 @@ agent = Agent('openai:gpt-5.2')
 
 async def main():
     events: list[AgentStreamEvent | AgentRunResultEvent] = []
-    async for event in agent.run_stream_events('What is the capital of France?'):
-        events.append(event)
+    async with agent.run_stream_events('What is the capital of France?') as stream:
+        async for event in stream:
+            events.append(event)
     print(events)
     '''
     [
@@ -9620,7 +9757,7 @@ Arguments are the same as for [`self.run`](/docs/ai/api/pydantic-ai/agent/#pydan
 
 ###### Returns
 
-[`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- An async iterable of stream events `AgentStreamEvent` and finally a `AgentRunResultEvent` with the final [`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- run result.
+`AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- An `AgentEventStream` async context manager yielding stream events `AgentStreamEvent` and finally a `AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- `AgentRunResultEvent` with the final run result.
 
 ###### Parameters
 
@@ -9672,6 +9809,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -9712,6 +9853,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9731,6 +9873,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -9853,6 +9996,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -9887,6 +10034,7 @@ def override(
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | _utils.Unset = _utils.UNSET,
     instructions: _instructions.AgentInstructions[AgentDepsT] | _utils.Unset = _utils.UNSET,
     model_settings: AgentModelSettings[AgentDepsT] | _utils.Unset = _utils.UNSET,
+    output_retries: int | _utils.Unset = _utils.UNSET,
     spec: dict[str, Any] | AgentSpec | None = None,
 ) -> Iterator[None]
 ```
@@ -9932,6 +10080,10 @@ The instructions to use instead of the instructions registered with the agent.
 **`model_settings`** : `AgentModelSettings`\[`AgentDepsT`\] | `_utils.Unset` _Default:_ `_utils.UNSET`
 
 The model settings to use instead of the model settings passed to the agent constructor. When set, any per-run `model_settings` argument is ignored.
+
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | `_utils.Unset` _Default:_ `_utils.UNSET`
+
+The output-retry budget to use instead of the agent-level `output_retries`. When set, any per-run `output_retries` argument is ignored.
 
 **`spec`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | `AgentSpec` | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -10397,6 +10549,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -10416,6 +10569,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -10538,6 +10692,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -10570,6 +10728,7 @@ def override(
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | _utils.Unset = _utils.UNSET,
     instructions: _instructions.AgentInstructions[AgentDepsT] | _utils.Unset = _utils.UNSET,
     model_settings: AgentModelSettings[AgentDepsT] | _utils.Unset = _utils.UNSET,
+    output_retries: int | _utils.Unset = _utils.UNSET,
     spec: dict[str, Any] | AgentSpec | None = None,
 ) -> Iterator[None]
 ```
@@ -10615,6 +10774,10 @@ The instructions to use instead of the instructions registered with the agent.
 **`model_settings`** : `AgentModelSettings`\[`AgentDepsT`\] | `_utils.Unset` _Default:_ `_utils.UNSET`
 
 The model settings to use instead of the model settings passed to the agent constructor. When set, any per-run `model_settings` argument is ignored.
+
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | `_utils.Unset` _Default:_ `_utils.UNSET`
+
+The output-retry budget to use instead of the agent-level `output_retries`. When set, any per-run `output_retries` argument is ignored.
 
 **`spec`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | `AgentSpec` | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -11577,6 +11740,16 @@ Supported by:
 
 #### Attributes
 
+##### action
+
+Whether to generate a new image or edit an existing image.
+
+Supported by:
+
+-   OpenAI Responses. Default: 'auto'.
+
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['generate', 'edit', 'auto'\] **Default:** `'auto'`
+
 ##### background
 
 Background type for the generated image.
@@ -11606,6 +11779,18 @@ Supported by:
 -   OpenAI Responses
 
 **Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['auto', 'low'\] **Default:** `'auto'`
+
+##### model
+
+The image generation model to use.
+
+Supported by:
+
+-   OpenAI Responses. Defaults to the provider's image generation model selection. Known image generation models include `gpt-image-2`, `gpt-image-1.5`, `gpt-image-1`, and `gpt-image-1-mini`.
+
+This selects the underlying image generation model used by the tool; it does not change the agent's conversational model.
+
+**Type:** `ImageGenerationModelName` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
 ##### output\_compression
 
@@ -11812,6 +11997,12 @@ This dict is populated automatically via `__init_subclass__` when tool classes a
 Supported aspect ratios for image generation tools.
 
 **Default:** `Literal['21:9', '16:9', '4:3', '3:2', '1:1', '9:16', '3:4', '2:3', '5:4', '4:5']`
+
+### ImageGenerationModelName
+
+Known OpenAI image generation model names, or another OpenAI image model ID.
+
+**Default:** `Literal['gpt-image-2', 'gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini'] | str`
 
 ### DEPRECATED\_BUILTIN\_TOOLS
 
@@ -12231,6 +12422,14 @@ Can be a model name string, `Model` instance, or a callable taking `RunContext` 
 
 **Type:** `ImageGenerationFallbackModel` **Default:** `fallback_model`
 
+##### action
+
+Whether to generate a new image or edit an existing image.
+
+Supported by: OpenAI Responses. Default: `'auto'`.
+
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['generate', 'edit', 'auto'\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `action`
+
 ##### background
 
 Background type for the generated image.
@@ -12254,6 +12453,14 @@ Moderation level for the generated image.
 Supported by: OpenAI Responses.
 
 **Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['auto', 'low'\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `moderation`
+
+##### image\_model
+
+The image generation model to use.
+
+Supported by: OpenAI Responses.
+
+**Type:** `ImageGenerationModelName` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `image_model`
 
 ##### output\_compression
 
@@ -12404,7 +12611,7 @@ Analogous to [`WrapperToolset`](/docs/ai/api/pydantic-ai/toolsets/#pydantic_ai.t
 
 Capability that filters or modifies output tool definitions using a callable.
 
-Mirrors [`PrepareTools`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.PrepareTools) for [output tools](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput). `ctx.retry`/`ctx.max_retries` reflect the **output** retry budget (`max_result_retries`), matching the output hook lifecycle.
+Mirrors [`PrepareTools`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.PrepareTools) for [output tools](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput). `ctx.retry`/`ctx.max_retries` reflect the **output** retry budget (`max_output_retries`), matching the output hook lifecycle.
 
 ```python
 from pydantic_ai import Agent, RunContext
@@ -12696,7 +12903,7 @@ def prepare_output_tools(
 
 Filter or modify output tool definitions for this step.
 
-Receives only [output tools](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput). `ctx.retry` and `ctx.max_retries` reflect the **output** retry budget (agent-level `max_result_retries`), matching the output hook lifecycle.
+Receives only [output tools](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput). `ctx.retry` and `ctx.max_retries` reflect the **output** retry budget (agent-level `max_output_retries`), matching the output hook lifecycle.
 
 Return a filtered or modified list. The result flows into both the model's request parameters and `ToolManager.tools`, so filtering also blocks tool execution.
 
@@ -12916,7 +13123,7 @@ def after_model_request(
 
 Called after each model response. Can modify the response before further processing.
 
-Raise [`ModelRetry`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.ModelRetry) to reject the response and ask the model to try again. The original response is still appended to message history so the model can see what it said. Retries count against `max_result_retries`.
+Raise [`ModelRetry`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.ModelRetry) to reject the response and ask the model to try again. The original response is still appended to message history so the model can see what it said. Retries count against `output_retries`.
 
 ###### Returns
 
@@ -15185,6 +15392,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -15205,6 +15413,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -15285,6 +15494,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -15325,6 +15538,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -15345,6 +15559,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -15424,6 +15639,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -15466,6 +15685,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -15486,6 +15706,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -15564,6 +15785,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -15604,12 +15829,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[OutputDataT]]
+) -> AgentEventStream[OutputDataT]
 def run_stream_events(
     user_prompt: str | Sequence[_messages.UserContent] | None = None,
     output_type: OutputSpec[RunOutputDataT],
@@ -15623,12 +15849,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[RunOutputDataT]]
+) -> AgentEventStream[RunOutputDataT]
 ```
 
 Run the agent with a user prompt in async mode and stream events from the run.
@@ -15644,8 +15871,9 @@ agent = Agent('openai:gpt-5.2')
 
 async def main():
     events: list[AgentStreamEvent | AgentRunResultEvent] = []
-    async for event in agent.run_stream_events('What is the capital of France?'):
-        events.append(event)
+    async with agent.run_stream_events('What is the capital of France?') as stream:
+        async for event in stream:
+            events.append(event)
     print(events)
     '''
     [
@@ -15666,7 +15894,7 @@ Arguments are the same as for [`self.run`](/docs/ai/api/pydantic-ai/agent/#pydan
 
 ###### Returns
 
-[`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- An async iterable of stream events `AgentStreamEvent` and finally a `AgentRunResultEvent` with the final [`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- run result.
+`AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- An async iterable of stream events `AgentStreamEvent` and finally a `AgentRunResultEvent` with the final `AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- run result.
 
 ###### Parameters
 
@@ -15718,6 +15946,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -15756,6 +15988,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
@@ -15776,6 +16009,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -15899,6 +16133,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -15931,6 +16169,7 @@ def override(
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | _utils.Unset = _utils.UNSET,
     instructions: _instructions.AgentInstructions[AgentDepsT] | _utils.Unset = _utils.UNSET,
     model_settings: AgentModelSettings[AgentDepsT] | _utils.Unset = _utils.UNSET,
+    output_retries: int | _utils.Unset = _utils.UNSET,
     spec: dict[str, Any] | AgentSpec | None = None,
 ) -> Iterator[None]
 ```
@@ -15976,6 +16215,10 @@ The instructions to use instead of the instructions registered with the agent.
 **`model_settings`** : `AgentModelSettings`\[`AgentDepsT`\] | `_utils.Unset` _Default:_ `_utils.UNSET`
 
 The model settings to use instead of the model settings passed to the agent constructor. When set, any per-run `model_settings` argument is ignored.
+
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | `_utils.Unset` _Default:_ `_utils.UNSET`
+
+The output-retry budget to use instead of the agent-level `output_retries`. When set, any per-run `output_retries` argument is ignored.
 
 **`spec`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | `AgentSpec` | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -16087,6 +16330,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16107,6 +16351,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16187,6 +16432,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -16227,6 +16476,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16247,6 +16497,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16326,6 +16577,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -16368,6 +16623,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16388,6 +16644,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16466,6 +16723,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -16506,12 +16767,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[OutputDataT]]
+) -> AgentEventStream[OutputDataT]
 def run_stream_events(
     user_prompt: str | Sequence[_messages.UserContent] | None = None,
     output_type: OutputSpec[RunOutputDataT],
@@ -16525,12 +16787,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[RunOutputDataT]]
+) -> AgentEventStream[RunOutputDataT]
 ```
 
 Run the agent with a user prompt in async mode and stream events from the run.
@@ -16546,8 +16809,9 @@ agent = Agent('openai:gpt-5.2')
 
 async def main():
     events: list[AgentStreamEvent | AgentRunResultEvent] = []
-    async for event in agent.run_stream_events('What is the capital of France?'):
-        events.append(event)
+    async with agent.run_stream_events('What is the capital of France?') as stream:
+        async for event in stream:
+            events.append(event)
     print(events)
     '''
     [
@@ -16568,7 +16832,7 @@ Arguments are the same as for [`self.run`](/docs/ai/api/pydantic-ai/agent/#pydan
 
 ###### Returns
 
-[`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- An async iterable of stream events `AgentStreamEvent` and finally a `AgentRunResultEvent` with the final [`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- run result.
+`AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- An async iterable of stream events `AgentStreamEvent` and finally a `AgentRunResultEvent` with the final `AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- run result.
 
 ###### Parameters
 
@@ -16620,6 +16884,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -16658,6 +16926,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16678,6 +16947,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -16801,6 +17071,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -16833,6 +17107,7 @@ def override(
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | _utils.Unset = _utils.UNSET,
     instructions: _instructions.AgentInstructions[AgentDepsT] | _utils.Unset = _utils.UNSET,
     model_settings: AgentModelSettings[AgentDepsT] | _utils.Unset = _utils.UNSET,
+    output_retries: int | _utils.Unset = _utils.UNSET,
     spec: dict[str, Any] | AgentSpec | None = None,
 ) -> Iterator[None]
 ```
@@ -16878,6 +17153,10 @@ The instructions to use instead of the instructions registered with the agent.
 **`model_settings`** : `AgentModelSettings`\[`AgentDepsT`\] | `_utils.Unset` _Default:_ `_utils.UNSET`
 
 The model settings to use instead of the model settings passed to the agent constructor. When set, any per-run `model_settings` argument is ignored.
+
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | `_utils.Unset` _Default:_ `_utils.UNSET`
+
+The output-retry budget to use instead of the agent-level `output_retries`. When set, any per-run `output_retries` argument is ignored.
 
 **`spec`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | `AgentSpec` | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -17124,6 +17403,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17144,6 +17424,7 @@ def run(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17224,6 +17505,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -17264,6 +17549,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17284,6 +17570,7 @@ def run_sync(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17363,6 +17650,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -17405,6 +17696,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17425,6 +17717,7 @@ def run_stream(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17503,6 +17796,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -17543,12 +17840,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[OutputDataT]]
+) -> AgentEventStream[OutputDataT]
 def run_stream_events(
     user_prompt: str | Sequence[_messages.UserContent] | None = None,
     output_type: OutputSpec[RunOutputDataT],
@@ -17562,12 +17860,13 @@ def run_stream_events(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
     capabilities: Sequence[AgentCapability[AgentDepsT]] | None = None,
     spec: dict[str, Any] | AgentSpec | None = None,
-) -> AsyncIterator[_messages.AgentStreamEvent | AgentRunResultEvent[RunOutputDataT]]
+) -> AgentEventStream[RunOutputDataT]
 ```
 
 Run the agent with a user prompt in async mode and stream events from the run.
@@ -17583,8 +17882,9 @@ agent = Agent('openai:gpt-5.2')
 
 async def main():
     events: list[AgentStreamEvent | AgentRunResultEvent] = []
-    async for event in agent.run_stream_events('What is the capital of France?'):
-        events.append(event)
+    async with agent.run_stream_events('What is the capital of France?') as stream:
+        async for event in stream:
+            events.append(event)
     print(events)
     '''
     [
@@ -17605,7 +17905,7 @@ Arguments are the same as for [`self.run`](/docs/ai/api/pydantic-ai/agent/#pydan
 
 ###### Returns
 
-[`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- An async iterable of stream events `AgentStreamEvent` and finally a `AgentRunResultEvent` with the final [`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`_messages.AgentStreamEvent` | [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\]\] -- run result.
+`AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- An async iterable of stream events `AgentStreamEvent` and finally a `AgentRunResultEvent` with the final `AgentEventStream`\[[`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] -- run result.
 
 ###### Parameters
 
@@ -17657,6 +17957,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -17695,6 +17999,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17714,6 +18019,7 @@ def iter(
     usage_limits: _usage.UsageLimits | None = None,
     usage: _usage.RunUsage | None = None,
     metadata: AgentMetadata[AgentDepsT] | None = None,
+    output_retries: int | None = None,
     infer_name: bool = True,
     toolsets: Sequence[AbstractToolset[AgentDepsT]] | None = None,
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | None = None,
@@ -17836,6 +18142,10 @@ Optional usage to start with, useful for resuming a conversation or agents used 
 
 Optional metadata to attach to this run. Accepts a dictionary or a callable taking [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext); merged with the agent's configured metadata.
 
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
+
+Override the agent-level `output_retries` for this run. See [`Agent.__init__`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__) for semantics of the two enforcement paths.
+
 **`infer_name`** : [`bool`](https://docs.python.org/3/library/functions.html#bool) _Default:_ `True`
 
 Whether to try to infer the agent name from the call frame if it's not set.
@@ -17868,6 +18178,7 @@ def override(
     builtin_tools: Sequence[AgentBuiltinTool[AgentDepsT]] | _utils.Unset = _utils.UNSET,
     instructions: _instructions.AgentInstructions[AgentDepsT] | _utils.Unset = _utils.UNSET,
     model_settings: AgentModelSettings[AgentDepsT] | _utils.Unset = _utils.UNSET,
+    output_retries: int | _utils.Unset = _utils.UNSET,
     spec: dict[str, Any] | AgentSpec | None = None,
 ) -> Iterator[None]
 ```
@@ -17913,6 +18224,10 @@ The instructions to use instead of the instructions registered with the agent.
 **`model_settings`** : `AgentModelSettings`\[`AgentDepsT`\] | `_utils.Unset` _Default:_ `_utils.UNSET`
 
 The model settings to use instead of the model settings passed to the agent constructor. When set, any per-run `model_settings` argument is ignored.
+
+**`output_retries`** : [`int`](https://docs.python.org/3/library/functions.html#int) | `_utils.Unset` _Default:_ `_utils.UNSET`
+
+The output-retry budget to use instead of the agent-level `output_retries`. When set, any per-run `output_retries` argument is ignored.
 
 **`spec`** : [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | `AgentSpec` | [`None`](https://docs.python.org/3/library/constants.html#None) _Default:_ `None`
 
@@ -21413,9 +21728,9 @@ def __aenter__() -> Self
 
 Enter the MCP server context.
 
-This will initialize the connection to the server. If this server is an [`MCPServerStdio`](/docs/ai/api/pydantic-ai/mcp/#pydantic_ai.mcp.MCPServerStdio), the server will first be started as a subprocess.
+The first call starts the connection (spawning a subprocess for stdio servers, opening an HTTP connection for HTTP servers). Subsequent calls -- from any task -- share the same connection via reference counting. The connection is torn down when the last `async with` scope exits.
 
-This is a no-op if the MCP server has already been entered.
+Because the session runs in a dedicated background task, entering and exiting from different tasks (e.g. `asyncio.gather` children, fasta2a workers, or graph node tasks) is safe: the underlying transport's cancel scopes never cross task boundaries.
 
 ###### Returns
 
@@ -23123,6 +23438,12 @@ Additional data that can be accessed programmatically by the application but is 
 
 **Type:** [`dict`](https://docs.python.org/3/reference/expressions.html#dict)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str), [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
+##### state
+
+Lifecycle state of the response.
+
+**Type:** [`ModelResponseState`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelResponseState) **Default:** `'complete'`
+
 ##### text
 
 Get the text in the response.
@@ -23538,15 +23859,17 @@ Event type identifier, used as a discriminator.
 
 **Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['final\_result'\] **Default:** `'final_result'`
 
-### FunctionToolCallEvent
+### ToolCallEvent
 
-An event indicating the start to a call to a function tool.
+Base class for events emitted when a tool call is about to be invoked.
+
+Match against this in a `case` to handle [`FunctionToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FunctionToolCallEvent) and [`OutputToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolCallEvent) together.
 
 #### Attributes
 
 ##### part
 
-The (function) tool call to make.
+The tool call to make.
 
 **Type:** [`ToolCallPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolCallPart)
 
@@ -23560,17 +23883,25 @@ Whether the tool arguments passed validation. See the [custom validation docs](h
 
 **Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
-##### event\_kind
-
-Event type identifier, used as a discriminator.
-
-**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['function\_tool\_call'\] **Default:** `'function_tool_call'`
-
 ##### tool\_call\_id
 
 An ID used for matching details about the call to its result.
 
 **Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str)
+
+### FunctionToolCallEvent
+
+**Bases:** [`ToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolCallEvent)
+
+An event indicating the start to a call to a function tool.
+
+#### Attributes
+
+##### event\_kind
+
+Event type identifier, used as a discriminator.
+
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['function\_tool\_call'\] **Default:** `'function_tool_call'`
 
 ##### call\_id
 
@@ -23578,23 +23909,47 @@ An ID used for matching details about the call to its result.
 
 **Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str)
 
+### OutputToolCallEvent
+
+**Bases:** [`ToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolCallEvent)
+
+An event indicating the start of a call to an output tool (the model's "submit final answer" call).
+
+#### Attributes
+
+##### event\_kind
+
+Event type identifier, used as a discriminator.
+
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['output\_tool\_call'\] **Default:** `'output_tool_call'`
+
+### ToolResultEvent
+
+Base class for events emitted when a tool call has been completed.
+
+Match against this in a `case` to handle [`FunctionToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FunctionToolResultEvent) and [`OutputToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolResultEvent) together.
+
+#### Attributes
+
+##### part
+
+The tool result part that will be sent back to the model.
+
+**Type:** [`ToolReturnPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolReturnPart) | [`RetryPromptPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.RetryPromptPart)
+
+##### tool\_call\_id
+
+An ID used to match the result to its original call.
+
+**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str)
+
 ### FunctionToolResultEvent
+
+**Bases:** [`ToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolResultEvent)
 
 An event indicating the result of a function tool call.
 
 #### Attributes
-
-##### result
-
-The result of the call to the function tool.
-
-**Type:** [`ToolReturnPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolReturnPart) | [`RetryPromptPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.RetryPromptPart)
-
-##### content
-
-The content that will be sent to the model as a UserPromptPart following the result.
-
-**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)\[`UserContent`\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
 ##### event\_kind
 
@@ -23602,11 +23957,31 @@ Event type identifier, used as a discriminator.
 
 **Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['function\_tool\_result'\] **Default:** `'function_tool_result'`
 
-##### tool\_call\_id
+##### content
 
-An ID used to match the result to its original call.
+The content that will be sent to the model as a UserPromptPart following the result.
 
-**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str)
+**Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str) | [`Sequence`](https://docs.python.org/3/library/typing.html#typing.Sequence)\[`UserContent`\] | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `content`
+
+##### result
+
+The tool result part that will be sent back to the model.
+
+**Type:** [`ToolReturnPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolReturnPart) | [`RetryPromptPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.RetryPromptPart)
+
+### OutputToolResultEvent
+
+**Bases:** [`ToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolResultEvent)
+
+An event indicating the result of an output tool call.
+
+#### Attributes
+
+##### event\_kind
+
+Event type identifier, used as a discriminator.
+
+**Type:** [`Literal`](https://docs.python.org/3/library/typing.html#typing.Literal)\['output\_tool\_result'\] **Default:** `'output_tool_result'`
 
 ### BuiltinToolCallEvent
 
@@ -23661,6 +24036,12 @@ Check if obj is a MultiModalContent type, enabling type narrowing.
 Reason the model finished generating the response, normalized to OpenTelemetry values.
 
 **Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `Literal['stop', 'length', 'content_filter', 'tool_call', 'error']`
+
+### ModelResponseState
+
+Lifecycle state of a model response.
+
+**Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `Literal['complete', 'interrupted']`
 
 ### ForceDownloadMode
 
@@ -23736,7 +24117,7 @@ An event in the model response stream, starting a new part, applying a delta to 
 
 An event yielded when handling a model response, indicating tool calls and results.
 
-**Default:** `Annotated[FunctionToolCallEvent | FunctionToolResultEvent | BuiltinToolCallEvent | BuiltinToolResultEvent, pydantic.Discriminator('event_kind')]`
+**Default:** `Annotated[FunctionToolCallEvent | FunctionToolResultEvent | OutputToolCallEvent | OutputToolResultEvent | BuiltinToolCallEvent | BuiltinToolResultEvent, pydantic.Discriminator('event_kind')]`
 
 ### AgentStreamEvent
 
@@ -23810,9 +24191,9 @@ The description of the tool that will be passed to the model. If not specified, 
 
 ##### max\_retries
 
-The maximum number of retries for this specific output tool.
+Per-tool retry limit for this output tool.
 
-Overrides the agent-level `retries`/`output_retries` for this tool. If not set, the agent-level value is used as the default.
+Overrides the agent-level `output_retries` default (which itself acts as the per-tool default for output tools that do not specify their own limit). If not set, the agent-level value is used.
 
 **Type:** [`int`](https://docs.python.org/3/library/functions.html#int) | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `max_retries`
 
@@ -24338,6 +24719,14 @@ The role to use for the system prompt message. If not provided, defaults to `'sy
 
 **Type:** `OpenAISystemPromptRole` | [`None`](https://docs.python.org/3/library/constants.html#None) **Default:** `None`
 
+##### openai\_chat\_supports\_multiple\_system\_messages
+
+Whether the Chat Completions API accepts more than one system-role message at the start of the conversation.
+
+OpenAI itself and most compatible providers accept multiple system messages, so this defaults to `True`. Set to `False` for strict OpenAI-compatible backends (e.g. some LiteLLM/vLLM deployments) that require exactly one initial system message; consecutive system messages at the start will be merged into one (joined with two newlines) before being sent.
+
+**Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool) **Default:** `True`
+
 ##### openai\_chat\_supports\_web\_search
 
 Whether the model supports web search in Chat Completions API.
@@ -24504,6 +24893,26 @@ Claude Opus 4.7+ requires these settings to be omitted from request payloads.
 
 **Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool) **Default:** `False`
 
+##### anthropic\_default\_code\_execution\_tool\_version
+
+The Anthropic code execution tool version used when `anthropic_code_execution_tool_version='auto'`.
+
+**Type:** `AnthropicCodeExecutionToolVersion` **Default:** `'20250825'`
+
+##### anthropic\_supported\_code\_execution\_tool\_versions
+
+The Anthropic code execution tool versions supported by the model.
+
+**Type:** [`tuple`](https://docs.python.org/3/library/stdtypes.html#tuple)\[`AnthropicCodeExecutionToolVersion`, ...\] **Default:** `('20250825',)`
+
+##### anthropic\_supports\_task\_budgets
+
+Whether the model supports `output_config.task_budget`.
+
+Anthropic currently documents task budgets as a Claude Opus 4.7 beta feature.
+
+**Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool) **Default:** `False`
+
 ### anthropic\_model\_profile
 
 ```python
@@ -24515,6 +24924,12 @@ Get the model profile for an Anthropic model.
 #### Returns
 
 [`ModelProfile`](/docs/ai/api/pydantic-ai/profiles/#pydantic_ai.profiles.ModelProfile) | [`None`](https://docs.python.org/3/library/constants.html#None)
+
+### AnthropicCodeExecutionToolVersion
+
+Concrete Anthropic code execution tool version to send for `CodeExecutionTool`.
+
+**Type:** [`TypeAlias`](https://docs.python.org/3/library/typing.html#typing.TypeAlias) **Default:** `Literal['20250825', '20260120']`
 
 ### ANTHROPIC\_THINKING\_BUDGET\_MAP
 
@@ -25822,6 +26237,12 @@ The unique identifier for the conversation this run belongs to.
 
 **Type:** [`str`](https://docs.python.org/3/library/stdtypes.html#str)
 
+##### cancelled
+
+Whether the stream has been cancelled via `cancel()`.
+
+**Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool)
+
 #### Methods
 
 ##### all\_messages
@@ -26082,6 +26503,22 @@ Validate a structured result message.
 ###### Returns
 
 `OutputDataT`
+
+##### cancel
+
+`@async`
+
+```python
+def cancel() -> None
+```
+
+Cancel the stream, stopping token generation and closing the underlying connection.
+
+The interrupted response state is recorded in the message history so that `all_messages()` includes it.
+
+###### Returns
+
+[`None`](https://docs.python.org/3/library/constants.html#None)
 
 ### StreamedRunResultSync
 
@@ -27029,7 +27466,9 @@ Event type identifier, used as a discriminator.
 
 Settings to configure an LLM.
 
-Here we include only settings which apply to multiple models / model providers, though not all of these settings are supported by all models.
+Includes only settings which apply to multiple models / model providers, though not all of these settings are supported by all models.
+
+All types must be serializable using Pydantic.
 
 #### Attributes
 
@@ -27123,6 +27562,34 @@ Supported by:
 -   xAI
 
 **Type:** [`bool`](https://docs.python.org/3/library/functions.html#bool)
+
+##### tool\_choice
+
+Control which function tools the model can use.
+
+See the [Tool Choice guide](/docs/ai/tools-toolsets/tools-advanced#tool-choice) for detailed documentation and examples.
+
+-   `None` (default): Defaults to `'auto'` behavior
+-   `'auto'`: All tools available, model decides whether to use them
+-   `'none'`: Disables function tools; model responds with text only (output tools remain for structured output)
+-   `'required'`: Forces tool use; excludes output tools so the agent cannot produce a final response when set statically
+-   `list[str]`: Only specified tools; excludes output tools so the agent cannot produce a final response when set statically
+-   [`ToolOrOutput`](/docs/ai/api/pydantic-ai/settings/#pydantic_ai.settings.ToolOrOutput): Specified function tools plus output tools/text/image
+
+Note: setting `'required'` or `list[str]` _statically_ (via the `model_settings` argument of `Agent.run` or the agent's own `model_settings`) raises a `UserError`, because it would force a tool call on every step and prevent the agent from producing a final response. To vary `tool_choice` per step (e.g. force a tool on the first step only), return a callable from a capability's [`get_model_settings`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.get_model_settings) -- those values are trusted to adapt across steps. For single API calls without an agent loop, use [`pydantic_ai.direct.model_request`](/docs/ai/api/pydantic-ai/direct/#pydantic_ai.direct.model_request).
+
+Supported by:
+
+-   OpenAI
+-   Anthropic (`'required'` and specific tools not supported with thinking enabled)
+-   Google
+-   Groq
+-   Mistral
+-   HuggingFace
+-   Bedrock
+-   xAI
+
+**Type:** `ToolChoice`
 
 ##### seed
 
@@ -27266,6 +27733,22 @@ Supported by:
 -   Outlines (all providers)
 
 **Type:** [`object`](https://docs.python.org/3/glossary.html#term-object)
+
+### ToolOrOutput
+
+Restricts function tools while keeping output tools and direct text/image output available.
+
+Use this when you want to control which function tools the model can use in an agent run while still allowing the agent to complete with structured output, text, or images.
+
+See the [Tool Choice guide](/docs/ai/tools-toolsets/tools-advanced#tool-choice) for examples.
+
+#### Attributes
+
+##### function\_tools
+
+The names of function tools available to the model.
+
+**Type:** [`list`](https://docs.python.org/3/glossary.html#term-list)\[[`str`](https://docs.python.org/3/library/stdtypes.html#str)\]
 
 ---
 
@@ -31105,7 +31588,7 @@ The evaluation flow for each case is:
 2.  Task runs
 3.  `prepare_context()` -- called after task, before evaluators; can enrich metrics/attributes
 4.  Evaluators run
-5.  `teardown()` -- called after evaluators complete; receives the full result
+5.  `teardown()` -- called after evaluators complete; receives the full result (or `None` when interrupted)
 
 Exceptions raised by `setup()` or `prepare_context()` are caught and recorded as a `ReportCaseFailure`; `teardown()` is still called afterward so you can clean up. Exceptions raised by `teardown()` propagate to the caller and may abort the evaluation. If your teardown may raise and you don't want it to crash the evaluation run, handle exceptions within your `teardown()` implementation itself.
 
@@ -31171,7 +31654,7 @@ The evaluator context produced by the task run.
 
 ```python
 def teardown(
-    result: ReportCase[InputsT, OutputT, MetadataT] | ReportCaseFailure[InputsT, OutputT, MetadataT],
+    result: ReportCase[InputsT, OutputT, MetadataT] | ReportCaseFailure[InputsT, OutputT, MetadataT] | None,
 ) -> None
 ```
 
@@ -31185,9 +31668,9 @@ Override to perform per-case resource cleanup. The result is provided so that te
 
 ###### Parameters
 
-**`result`** : `ReportCase`\[`InputsT`, `OutputT`, `MetadataT`\] | `ReportCaseFailure`\[`InputsT`, `OutputT`, `MetadataT`\]
+**`result`** : `ReportCase`\[`InputsT`, `OutputT`, `MetadataT`\] | `ReportCaseFailure`\[`InputsT`, `OutputT`, `MetadataT`\] | [`None`](https://docs.python.org/3/library/constants.html#None)
 
-The evaluation result -- either a `ReportCase` (success) or `ReportCaseFailure`.
+The evaluation result -- a `ReportCase` (success), `ReportCaseFailure`, or `None` if the run ended without a report object (e.g. cancellation).
 
 ---
 
@@ -37719,6 +38202,20 @@ Add a new part, creating a new request or response message if necessary.
 
 [`None`](https://docs.python.org/3/library/constants.html#None)
 
+### StateHandler
+
+**Bases:** [`Protocol`](https://docs.python.org/3/library/typing.html#typing.Protocol)
+
+Protocol for state handlers in agent runs. Requires the class to be a dataclass with a `state` field.
+
+#### Attributes
+
+##### state
+
+Get the current state of the agent run.
+
+**Type:** [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)
+
 ### UIEventStream
 
 **Bases:** `ABC`, `Generic[RunInputT, EventT, AgentDepsT, OutputDataT]`
@@ -37865,6 +38362,8 @@ This method dispatches to specific `handle_*` methods based on event type:
 -   [`FinalResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FinalResultEvent) -> `handle_final_result`
 -   [`FunctionToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FunctionToolCallEvent) -> `handle_function_tool_call`
 -   [`FunctionToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FunctionToolResultEvent) -> `handle_function_tool_result`
+-   [`OutputToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolCallEvent) -> `handle_output_tool_call`
+-   [`OutputToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolResultEvent) -> `handle_output_tool_result`
 -   [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent) -> `handle_run_result`
 
 Subclasses are encouraged to override the individual `handle_*` methods rather than this one. If you need specific behavior for all events, make sure you call the super method.
@@ -38446,6 +38945,46 @@ Handle a `FunctionToolResultEvent`.
 
 The function tool result event.
 
+##### handle\_output\_tool\_call
+
+`@async`
+
+```python
+def handle_output_tool_call(event: OutputToolCallEvent) -> AsyncIterator[EventT]
+```
+
+Handle an `OutputToolCallEvent` (the model's "submit final answer" call).
+
+###### Returns
+
+[`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`EventT`\]
+
+###### Parameters
+
+**`event`** : [`OutputToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolCallEvent)
+
+The output tool call event.
+
+##### handle\_output\_tool\_result
+
+`@async`
+
+```python
+def handle_output_tool_result(event: OutputToolResultEvent) -> AsyncIterator[EventT]
+```
+
+Handle an `OutputToolResultEvent` (the result of an output tool call).
+
+###### Returns
+
+[`AsyncIterator`](https://docs.python.org/3/library/typing.html#typing.AsyncIterator)\[`EventT`\]
+
+###### Parameters
+
+**`event`** : [`OutputToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolResultEvent)
+
+The output tool result event.
+
 ##### handle\_run\_result
 
 `@async`
@@ -38465,20 +39004,6 @@ Handle an `AgentRunResultEvent`.
 **`event`** : [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent)
 
 The agent run result event.
-
-### StateHandler
-
-**Bases:** [`Protocol`](https://docs.python.org/3/library/typing.html#typing.Protocol)
-
-Protocol for state handlers in agent runs. Requires the class to be a dataclass with a `state` field.
-
-#### Attributes
-
-##### state
-
-Get the current state of the agent run.
-
-**Type:** [`Any`](https://docs.python.org/3/library/typing.html#typing.Any)
 
 ### StateDeps
 
@@ -39894,7 +40419,7 @@ There are five ways to run an agent:
 1.  [`agent.run()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run) -- an async function which returns a [`RunResult`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResult) containing a completed response.
 2.  [`agent.run_sync()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_sync) -- a plain, synchronous function which returns a [`RunResult`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResult) containing a completed response (internally, this just calls `loop.run_until_complete(self.run())`).
 3.  [`agent.run_stream()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream) -- an async context manager which returns a [`StreamedRunResult`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult), which contains methods to stream text and structured output as an async iterable. [`agent.run_stream_sync()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream_sync) is a synchronous variation that returns a [`StreamedRunResultSync`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResultSync) with synchronous versions of the same methods.
-4.  [`agent.run_stream_events()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream_events) -- a function which returns an async iterable of [`AgentStreamEvent`s](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.AgentStreamEvent) and a [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent) containing the final run result.
+4.  [`agent.run_stream_events()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream_events) -- a function which returns an `AgentEventStream` async context manager that yields [`AgentStreamEvent`s](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.AgentStreamEvent) and a [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent) containing the final run result.
 5.  [`agent.iter()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.iter) -- a context manager which returns an [`AgentRun`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRun), an async iterable over the nodes of the agent's underlying [`Graph`](/docs/ai/api/pydantic_graph/graph/#pydantic_graph.graph.Graph).
 
 Here's a simple example demonstrating the first four:
@@ -39924,8 +40449,9 @@ async def main():
             #> The capital of the UK is London.
 
     events: list[AgentStreamEvent | AgentRunResultEvent] = []
-    async for event in agent.run_stream_events('What is the capital of Mexico?'):
-        events.append(event)
+    async with agent.run_stream_events('What is the capital of Mexico?') as stream:
+        async for event in stream:
+            events.append(event)
     print(events)
     """
     [
@@ -40014,7 +40540,7 @@ async def handle_event(event: AgentStreamEvent):
             f'[Tools] The LLM calls tool={event.part.tool_name!r} with args={event.part.args} (tool_call_id={event.part.tool_call_id!r})'
         )
     elif isinstance(event, FunctionToolResultEvent):
-        output_messages.append(f'[Tools] Tool call {event.tool_call_id!r} returned => {event.result.content}')
+        output_messages.append(f'[Tools] Tool call {event.tool_call_id!r} returned => {event.part.content}')
     elif isinstance(event, FinalResultEvent):
         output_messages.append(f'[Result] The model starting producing a final result (tool_name={event.tool_name})')
 
@@ -40063,7 +40589,7 @@ _(This example is complete, it can be run "as is")_
 
 Like `agent.run_stream()`, [`agent.run()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream) takes an optional `event_stream_handler` argument that lets you stream all events from the model's streaming response and the agent's execution of tools. Unlike `run_stream()`, it always runs the agent graph to completion even if text was received ahead of tool calls that looked like it could've been the final result.
 
-For convenience, a [`agent.run_stream_events()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream_events) method is also available as a wrapper around `run(event_stream_handler=...)`, which returns an async iterable of [`AgentStreamEvent`s](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.AgentStreamEvent) and a [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent) containing the final run result.
+For convenience, a [`agent.run_stream_events()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream_events) method is also available as a wrapper around `run(event_stream_handler=...)`, which returns an `AgentEventStream` async context manager that yields [`AgentStreamEvent`s](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.AgentStreamEvent) and a [`AgentRunResultEvent`](/docs/ai/api/pydantic-ai/run/#pydantic_ai.run.AgentRunResultEvent) containing the final run result.
 
 Note
 
@@ -40084,11 +40610,12 @@ from run_stream_event_stream_handler import handle_event, output_messages, weath
 async def main():
     user_prompt = 'What will the weather be like in Paris on Tuesday?'
 
-    async for event in weather_agent.run_stream_events(user_prompt):
-        if isinstance(event, AgentRunResultEvent):
-            output_messages.append(f'[Final Output] {event.result.output}')
-        else:
-            await handle_event(event)
+    async with weather_agent.run_stream_events(user_prompt) as stream:
+        async for event in stream:
+            if isinstance(event, AgentRunResultEvent):
+                output_messages.append(f'[Final Output] {event.result.output}')
+            else:
+                await handle_event(event)
 
 if __name__ == '__main__':
     asyncio.run(main())
@@ -40375,7 +40902,7 @@ async def main():
                             )
                         elif isinstance(event, FunctionToolResultEvent):
                             output_messages.append(
-                                f'[Tools] Tool call {event.tool_call_id!r} returned => {event.result.content}'
+                                f'[Tools] Tool call {event.tool_call_id!r} returned => {event.part.content}'
                             )
             elif Agent.is_end_node(node):
                 # Once an End node is reached, the agent run is complete
@@ -40467,7 +40994,7 @@ class NeverOutputType(TypedDict):
 
 agent = Agent(
   'anthropic:claude-sonnet-4-6',
-  retries=3,
+  tool_retries=3,
   output_type=NeverOutputType,
   system_prompt='Any time you get a response, call the `infinite_retry_tool` to produce another response.',
 )
@@ -40922,8 +41449,19 @@ Validation errors from both function tool parameter validation and [structured o
 
 You can also raise [`ModelRetry`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.ModelRetry) from within a [tool](/docs/ai/tools-toolsets/tools) or [output function](/docs/ai/core-concepts/output#output-functions) to tell the model it should retry generating a response.
 
--   The default retry count is **1** but can be altered for the [entire agent](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__), a [specific tool](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.tool), or [outputs](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__).
+-   The default retry count is **1** but can be altered for the [entire agent](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__), a [specific tool](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.tool), or [outputs](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__). The agent-level `output_retries` can also be overridden per run via `agent.run(output_retries=...)` and friends.
 -   You can access the current retry count from within a tool, output validator, or output function via [`ctx.retry`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext.retry).
+
+### How output retries are enforced
+
+Pydantic AI enforces `output_retries` differently depending on how the model returns its final output:
+
+-   **Text output path** (`output_type=str`, text-only outputs, empty or unusable model responses): a single global budget of size `output_retries` is shared across the whole run. Each invalid response consumes one unit of the budget; when it's exhausted, the run raises [`UnexpectedModelBehavior`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.UnexpectedModelBehavior) with message `'Exceeded maximum output retries (N)'`.
+-   **Tool output path** ([`output_type=ToolOutput(...)`](/docs/ai/core-concepts/output#tool-output), structured outputs): `output_retries` is the _default per-tool limit_. See [Tool Output](/docs/ai/core-concepts/output#tool-output) for per-tool overrides via [`ToolOutput(max_retries=N)`](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput.max_retries).
+
+For how the budget appears inside [output validators](/docs/ai/core-concepts/output#output-validator-functions) -- including what `ctx.max_retries` and `ctx.retry` reflect on each path -- see the [Output validators](/docs/ai/core-concepts/output#output-validator-functions) section.
+
+Tool retries are tracked per tool -- see [Tool Execution and Retries](/docs/ai/tools-toolsets/tools-advanced#tool-retries) for the per-tool counter model and the three configuration levels.
 
 Here's an example:
 
@@ -41222,7 +41760,7 @@ agent = Agent.from_spec(
 
 Keyword arguments interact with spec fields as follows:
 
--   **Scalar fields** (`model`, `name`, `retries`, `end_strategy`, etc.) -- the keyword argument overrides the spec value when provided.
+-   **Scalar fields** (`model`, `name`, `output_retries`, `end_strategy`, etc.) -- the keyword argument overrides the spec value when provided.
 -   **`instructions`** -- merged: spec instructions come first, then keyword argument instructions.
 -   **`capabilities`** -- merged: spec capabilities come first, then keyword argument capabilities.
 -   **`model_settings`** -- merged additively: keyword argument settings override matching spec settings.
@@ -41338,17 +41876,17 @@ JSON Schema for [template string](#template-strings) validation (see below)
 
 JSON Schema for [structured output](/docs/ai/core-concepts/output) (see below)
 
-`retries`
+`tool_retries`
 
-`int`
+`int | None`
 
-Default [tool retries](/docs/ai/advanced-features/retries) (default: `1`)
+Default [tool retries](/docs/ai/tools-toolsets/tools-advanced#tool-retries) (default: `None`, treated as `1`)
 
 `output_retries`
 
 `int | None`
 
-[Output](/docs/ai/core-concepts/output) validation retries
+[Output validation retries](/docs/ai/core-concepts/output#output-validator-functions)
 
 `end_strategy`
 
@@ -42078,7 +42616,7 @@ Instructions can also use [template strings](/docs/ai/core-concepts/agent-spec#t
 
 [`get_model_settings`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.get_model_settings) returns [model settings](/docs/ai/core-concepts/agent#model-run-settings) as a dict or a callable for per-step settings.
 
-When model settings need to vary per step -- for example, enabling thinking only on retry -- return a callable:
+When model settings need to vary per step -- for example, enabling thinking only on retry, or forcing a specific [`tool_choice`](/docs/ai/tools-toolsets/tools-advanced#dynamic-tool-choice-via-capabilities) until a tool has been called -- return a callable:
 
 dynamic\_settings.py
 
@@ -42496,7 +43034,7 @@ Output validate and process hooks can raise [`ModelRetry`](/docs/ai/api/pydantic
 Capabilities can filter or modify which tool definitions the model sees on each step via two hooks:
 
 -   [`prepare_tools`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.prepare_tools) -- receives **function** tools only. Use this for filtering or modifications to tools the model can call directly.
--   [`prepare_output_tools`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.prepare_output_tools) -- receives [output tools](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput) only, with `ctx.retry`/`ctx.max_retries` reflecting the **output** retry budget (`max_result_retries`), matching the [output hook](#output-hooks) lifecycle.
+-   [`prepare_output_tools`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.prepare_output_tools) -- receives [output tools](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput) only, with `ctx.retry`/`ctx.max_retries` reflecting the **output** retry budget (`output_retries`), matching the [output hook](#output-hooks) lifecycle.
 
 Both hooks operate at the toolset level -- the result flows into both the model's request parameters and `ToolManager.tools`, so filtering also blocks tool execution.
 
@@ -42569,10 +43107,10 @@ from typing import Any
 from pydantic_ai import AgentStreamEvent, RunContext
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
-    FunctionToolCallEvent,
-    FunctionToolResultEvent,
     PartStartEvent,
     TextPart,
+    ToolCallEvent,
+    ToolResultEvent,
 )
 
 
@@ -42587,14 +43125,20 @@ class StreamAuditor(AbstractCapability[Any]):
         stream: AsyncIterable[AgentStreamEvent],
     ) -> AsyncIterable[AgentStreamEvent]:
         async for event in stream:
-            if isinstance(event, FunctionToolCallEvent):
+            if isinstance(event, ToolCallEvent):
                 print(f'Tool called: {event.part.tool_name}')
-            elif isinstance(event, FunctionToolResultEvent):
-                print(f'Tool result: {event.tool_return.content!r}')
+            elif isinstance(event, ToolResultEvent):
+                print(f'Tool result: {event.part.content!r}')
             elif isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
                 print(f'Text: {event.part.content!r}')
             yield event
 ```
+
+Matching against [`ToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolCallEvent) and [`ToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ToolResultEvent) handles both function tool calls ([`FunctionToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FunctionToolCallEvent) / [`FunctionToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.FunctionToolResultEvent)) and output tool calls ([`OutputToolCallEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolCallEvent) / [`OutputToolResultEvent`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.OutputToolResultEvent)). Match against the specific subclass when you need to treat them differently.
+
+Migration from `FunctionToolCallEvent` / `FunctionToolResultEvent`
+
+For output tool calls, match `OutputToolCallEvent` / `OutputToolResultEvent` (or the shared `ToolCallEvent` / `ToolResultEvent` bases). `FunctionToolCallEvent` / `FunctionToolResultEvent` will stop firing for output tool calls in v2.
 
 For building web UIs that transform streamed events into protocol-specific formats (like SSE), see the [UI event streams](/docs/ai/integrations/ui/overview) documentation and the [`UIEventStream`](/docs/ai/api/ui/base/#pydantic_ai.ui.UIEventStream) base class.
 
@@ -44231,7 +44775,7 @@ Hooks can raise [`ModelRetry`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.
 
 -   Converted to retry prompts, same as when an output function raises `ModelRetry`
 -   For tool output, retries count against the tool's `max_retries` limit
--   For text output, retries count against the agent's `max_result_retries` limit
+-   For text output, retries count against the agent's `output_retries` limit
 
 `ModelRetry` from `wrap_model_request`, `wrap_tool_execute`, and `wrap_output_process` is treated as control flow -- it bypasses the corresponding `on_*_error` hook.
 
@@ -45260,6 +45804,8 @@ In the default Tool Output mode, the output JSON schema of each output type (or 
 
 If you'd like to change the name of the output tool, pass a custom description to aid the model, or turn on or off strict mode, you can wrap the type(s) in the [`ToolOutput`](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput) marker class and provide the appropriate arguments. Note that by default, the description is taken from the docstring specified on a Pydantic model or output function, so specifying it using the marker class is typically not necessary.
 
+When using output tools, each tool gets its own retry counter -- the agent-level `output_retries` (set on `Agent(output_retries=N)` or per-run via `agent.run(output_retries=N)`) is the _default per-tool limit_. To override the limit for an individual output tool, pass [`max_retries`](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.ToolOutput.max_retries) on `ToolOutput`: `ToolOutput(Fruit, max_retries=2)`. See [How output retries are enforced](/docs/ai/core-concepts/agent#how-output-retries-are-enforced) for the relationship to the text-output path's global budget.
+
 To dynamically modify or filter the available output tools during an agent run, you can define an agent-wide `prepare_output_tools` function that will be called ahead of each step of a run. This function should be of type [`ToolsPrepareFunc`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.ToolsPrepareFunc), which takes the [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) and a list of [`ToolDefinition`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.ToolDefinition), and returns a new list of tool definitions (or `None` to disable all tools for that step). This is analogous to the [`prepare_tools` function](/docs/ai/tools-toolsets/tools-advanced#prepare-tools) for non-output tools.
 
 tool\_output.py
@@ -45512,6 +46058,8 @@ _(This example is complete, it can be run "as is")_
 ### Output validators
 
 Some validation is inconvenient or impossible to do in Pydantic validators, in particular when the validation requires IO and is asynchronous. Pydantic AI provides a way to add validation functions via the [`agent.output_validator`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.output_validator) decorator.
+
+Each [`ModelRetry`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.ModelRetry) raised here consumes one unit of the run's output retry budget. The budget defaults to `1` and can be set on the agent via `Agent(output_retries=N)`, on a single run via `agent.run(output_retries=N)`, or per output tool via [`ToolOutput(max_retries=N)`](#tool-output). Inside the validator, [`ctx.max_retries`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext.max_retries) reflects the limit that will actually stop you (the global budget on the text path, or the per-tool limit on the tool path) and [`ctx.retry`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext.retry) is the global retry counter, so it stays consistent across output-tool switches within a single run. See [How output retries are enforced](/docs/ai/core-concepts/agent#how-output-retries-are-enforced) for the full enforcement model.
 
 If you want to implement separate validation logic for different output types, it's recommended to use [output functions](#output-functions) instead, to save you from having to do `isinstance` checks inside the output validator. If you want the model to output plain text, do your own processing or validation, and then have the agent's final output be the result of your function, it's recommended to use an [output function](#output-functions) with the [`TextOutput` marker class](#text-output).
 
@@ -45860,6 +46408,150 @@ async def main():
 [`validate_response_output`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.validate_response_output) validates the data, `allow_partial=True` enables pydantic's [`experimental_allow_partial` flag on `TypeAdapter`](https://docs.pydantic.dev/latest/api/pydantic/type_adapter/#pydantic.type_adapter.TypeAdapter.validate_json).
 
 _(This example is complete, it can be run "as is" -- you'll need to add `asyncio.run(main())` to run `main`)_
+
+### Cancelling Streams
+
+Sometimes you need to stop a streaming response before it completes: a user clicks "stop generating" in a chat UI, you've received enough data to make a decision, or you want to avoid receiving more tokens. [`run_stream()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream) and [`iter()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.iter) support explicit cancellation by closing the underlying model stream. [`run_stream_events()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream_events) should be used as an async context manager so cleanup runs deterministically when you stop consuming events.
+
+Model support
+
+[`OutlinesModel`](/docs/ai/api/models/outlines/#pydantic_ai.models.outlines.OutlinesModel) and the deprecated `GeminiModel` do not currently support stream cancellation. The Google, xAI, and Hugging Face SDKs expose streaming only as async iterators, which limits when [`cancel()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.cancel) can interrupt an in-flight chunk read. See the [Google](/docs/ai/models/google#streaming-cancellation), [xAI](/docs/ai/models/xai#streaming-cancellation), and [Hugging Face](/docs/ai/models/huggingface#streaming-cancellation) provider docs for the recommended pattern.
+
+#### Cleaning up `run_stream_events`
+
+[`run_stream_events()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream_events) returns an `AgentEventStream` that should be used as an async context manager:
+
+stream\_cancel\_run\_stream\_events.py
+
+```python
+from pydantic_ai import Agent, FinalResultEvent, PartStartEvent
+
+agent = Agent('openai:gpt-5.2')
+
+
+async def main():
+  async with agent.run_stream_events('Write a long essay about Python') as stream:  # (1)
+      async for event in stream:
+          if isinstance(event, PartStartEvent):
+              print(f'Started: {event.part!r}')
+              #> Started: TextPart(content='Python is a ')
+          elif isinstance(event, FinalResultEvent):
+              break  # (2)
+```
+
+Use `async with` to ensure proper cleanup of the background task and HTTP connection. Iterating `run_stream_events()` directly without `async with` is deprecated.
+
+Breaking out of the loop leaves the `async with` block, which closes the event stream and runs cleanup.
+
+_(This example is complete, it can be run "as is" -- you'll need to add `asyncio.run(main())` to run `main`)_
+
+`run_stream_events()` does not expose a `cancel()` method. If you need an explicit model-response cancellation handle, use [`run_stream()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.AbstractAgent.run_stream) or [`agent.iter()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.iter).
+
+#### Cancelling `run_stream`
+
+Call `cancel()` on the [`StreamedRunResult`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult) to cancel the stream:
+
+stream\_cancel\_run\_stream.py
+
+```python
+from pydantic_ai import Agent
+
+agent = Agent('openai:gpt-5.2')
+
+
+async def main():
+  async with agent.run_stream('Write a long essay about Python') as result:
+      text = ''
+      async for chunk in result.stream_text(delta=True):
+          text += chunk
+          if len(text) > 100:  # (1)
+              await result.cancel()  # (2)
+              break
+      print(result.cancelled)  # (3)
+      #> True
+      print(result.response.state == 'interrupted')  # (4)
+      #> True
+```
+
+Check a condition during streaming, for example whether enough text has been received.
+
+`cancel()` tells the model provider to stop generating tokens and closes the HTTP connection when the model integration supports it.
+
+The `cancelled` property reflects the cancellation state.
+
+The final [`ModelResponse`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelResponse) is marked with `state='interrupted'` so that downstream code can identify incomplete responses.
+
+_(This example is complete, it can be run "as is" -- you'll need to add `asyncio.run(main())` to run `main`)_
+
+If you `break` out of `stream_text()` and then leave the surrounding `async with` block, the stream is cleaned up as the context exits. Use `cancel()` when you want to stop generation immediately instead of only stopping local consumption.
+
+Interrupted tool calls
+
+Cancelling or breaking out of a model response stream can leave the final [`ModelResponse`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelResponse) with incomplete tool-call arguments. Pydantic AI records the response with `state='interrupted'`, but it does not filter incomplete tool calls, synthesize tool returns, or otherwise define run-resumption behavior for those partial responses. If you are controlling the graph with [`agent.iter()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.iter), stop the outer run loop as well, or check `response.state == 'interrupted'` before allowing the run to continue into tool execution.
+
+#### Cancelling with `iter`
+
+When using [`agent.iter()`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.iter) for fine-grained control over the agent graph, you can cancel the `AgentStream` inside a `ModelRequestNode.stream()` context:
+
+stream\_cancel\_iter.py
+
+```python
+from pydantic_ai import Agent, FinalResultEvent
+
+agent = Agent('openai:gpt-5.2')
+
+
+async def main():
+  async with agent.iter('Write a long essay about Python') as run:
+      async for node in run:
+          if Agent.is_model_request_node(node):
+              async with node.stream(run.ctx) as stream:
+                  async for event in stream:
+                      if isinstance(event, FinalResultEvent):
+                          await stream.cancel()  # (1)
+                          break
+```
+
+`AgentStream.cancel()` cancels the stream at the model request level.
+
+_(This example is complete, it can be run "as is" -- you'll need to add `asyncio.run(main())` to run `main`)_
+
+#### Message History After Cancellation
+
+When a stream is cancelled, the response is recorded with `state='interrupted'` in the message history. The history includes any partial content that was received before cancellation:
+
+stream\_cancel\_history.py
+
+```python
+from pydantic_ai import Agent
+
+agent = Agent('openai:gpt-5.2')
+
+
+async def main():
+  async with agent.run_stream('Tell me about Python') as result:
+      async for text in result.stream_text(delta=True):
+          break
+      await result.cancel()
+
+  messages = result.all_messages()  # (1)
+  print(messages[-1].state)  # (2)
+  #> interrupted
+```
+
+The message history includes the interrupted response with any partial content that was received before cancellation.
+
+The interrupted response state lets your application decide whether to keep, inspect, or discard the partial response before reusing the history.
+
+_(This example is complete, it can be run "as is" -- you'll need to add `asyncio.run(main())` to run `main`)_
+
+Reusing interrupted history
+
+Pydantic AI does not clean up incomplete tool calls in interrupted responses. Passing interrupted history directly into another run can therefore fail or lead to retries if the model was in the middle of emitting a tool call when cancellation happened. For now, applications that reuse interrupted history should inspect `state='interrupted'` responses and apply their own policy.
+
+Usage tracking for cancelled streams
+
+Token usage reported by `usage()` after cancellation is partial and provider-dependent. Pydantic AI stops pulling from the stream immediately, so final usage events may never arrive; some provider SDKs may also continue generation server-side after the local stream is closed. Do not rely on cancelled-stream usage for cost-critical accounting. For OpenAI chat completions, [`openai_continuous_usage_stats`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIChatModelSettings) can improve in-stream usage reporting by requesting cumulative usage data with each chunk, but cancelled-stream usage is still best-effort.
 
 ## Examples
 
@@ -53042,7 +53734,7 @@ Each case follows this flow:
 2.  **Task runs**
 3.  **`prepare_context()`** -- called after task, before evaluators
 4.  **Evaluators run**
-5.  **`teardown()`** -- called after evaluators complete
+5.  **`teardown()`** -- called after evaluators complete, or during cleanup if the case is interrupted
 
 ## Per-Case Setup and Teardown
 
@@ -53068,7 +53760,7 @@ class SetupFromMetadata(CaseLifecycle[str, str, dict]):
 
     async def teardown(
         self,
-        result: ReportCase[str, str, dict] | ReportCaseFailure[str, str, dict],
+        result: ReportCase[str, str, dict] | ReportCaseFailure[str, str, dict] | None,
     ) -> None:
         pass  # Clean up resources here
 
@@ -53094,7 +53786,7 @@ The case metadata drives per-case behavior without needing custom [`Case`](/docs
 
 ### Conditional Teardown
 
-The `teardown()` hook receives the full result, so you can vary cleanup logic based on success or failure -- for example, keeping test environments up for manual inspection when a case fails:
+The `teardown()` hook receives the full result, so you can vary cleanup logic based on success or failure -- for example, keeping test environments up for manual inspection when a case fails. The `result` can be `None` if evaluation is interrupted before the case produces a report result, so handle that branch when your cleanup depends on the case outcome:
 
 ```python
 from pydantic_evals import Case, Dataset
@@ -53110,12 +53802,17 @@ class ConditionalCleanup(CaseLifecycle[str, str, dict]):
 
     async def teardown(
         self,
-        result: ReportCase[str, str, dict] | ReportCaseFailure[str, str, dict],
+        result: ReportCase[str, str, dict] | ReportCaseFailure[str, str, dict] | None,
     ) -> None:
         keep_on_failure = (self.case.metadata or {}).get('keep_on_failure', False)
-        if isinstance(result, ReportCaseFailure) and keep_on_failure:
+        if result is None:
+            # abnormal exit
+            cleaned_up.append(self.resource_id)
+        elif isinstance(result, ReportCaseFailure) and keep_on_failure:
+            # case failed
             pass  # Keep resource for inspection
         else:
+            # case succeeded
             cleaned_up.append(self.resource_id)
 
 
@@ -56653,8 +57350,8 @@ graph TD
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-146)
--   [uv](#tab-panel-147)
+-   [pip](#tab-panel-142)
+-   [uv](#tab-panel-143)
 
 Terminal
 
@@ -56721,7 +57418,8 @@ class Deps:
 search_agent = Agent[Deps, FlightDetails | NoFlightFound](
     'openai:gpt-5.2',
     output_type=FlightDetails | NoFlightFound,  # type: ignore
-    retries=4,
+    tool_retries=4,
+    output_retries=4,
     system_prompt=(
         'Your job is to find the cheapest flight for the user on the given date. '
     ),
@@ -57154,8 +57852,8 @@ Demonstrates:
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-148)
--   [uv](#tab-panel-149)
+-   [pip](#tab-panel-152)
+-   [uv](#tab-panel-153)
 
 Terminal
 
@@ -57294,8 +57992,8 @@ Most of the complex logic here is between `chat_app.py` which streams the respon
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-142)
--   [uv](#tab-panel-143)
+-   [pip](#tab-panel-146)
+-   [uv](#tab-panel-147)
 
 Terminal
 
@@ -58255,8 +58953,8 @@ _(we run postgres on port `54320` to avoid conflicts with any other postgres ins
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-150)
--   [uv](#tab-panel-151)
+-   [pip](#tab-panel-148)
+-   [uv](#tab-panel-149)
 
 Terminal
 
@@ -58272,8 +58970,8 @@ uv run -m pydantic_ai_examples.sql_gen
 
 or to use a custom prompt:
 
--   [pip](#tab-panel-152)
--   [uv](#tab-panel-153)
+-   [pip](#tab-panel-150)
+-   [uv](#tab-panel-151)
 
 Terminal
 
@@ -58620,7 +59318,8 @@ weather_agent = Agent(
     # the below tools appropriately, but others like anthropic and gemini require a bit more direction.
     instructions='Be concise, reply with one sentence.',
     deps_type=Deps,
-    retries=2,
+    tool_retries=2,
+    output_retries=2,
 )
 
 
@@ -59005,7 +59704,7 @@ You need to have a Slack workspace and the necessary permissions to create apps.
     -   `#new-slack-leads`
     -   `#daily-slack-leads-summary`
 
-    These names are hard-coded in the example. If you want to use different channels, you can clone the repo and change them in `examples/pydantic_examples/slack_lead_qualifier/functions.py`.
+    These names are hard-coded in the example. If you want to use different channels, you can clone the repo and change them in `examples/pydantic_ai_examples/slack_lead_qualifier/functions.py`.
 
 
 ### Logfire Write Token
@@ -59663,8 +60362,8 @@ Demonstrates:
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-168)
--   [uv](#tab-panel-169)
+-   [pip](#tab-panel-166)
+-   [uv](#tab-panel-167)
 
 Terminal
 
@@ -59773,8 +60472,8 @@ This script streams structured responses about whales, validates the data and di
 
 With [dependencies installed and environment variables set](/docs/ai/examples/setup#usage), run:
 
--   [pip](#tab-panel-166)
--   [uv](#tab-panel-167)
+-   [pip](#tab-panel-168)
+-   [uv](#tab-panel-169)
 
 Terminal
 
@@ -63649,8 +64348,8 @@ Swapping a model changes the output dimension and the similarity distribution, s
 
 To use OpenAI embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
 
--   [pip](#tab-panel-26)
--   [uv](#tab-panel-27)
+-   [pip](#tab-panel-38)
+-   [uv](#tab-panel-39)
 
 Terminal
 
@@ -63774,8 +64473,8 @@ See [OpenAI-compatible Models](/docs/ai/models/openai#openai-compatible-models) 
 
 To use Google embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `google` optional group:
 
--   [pip](#tab-panel-28)
--   [uv](#tab-panel-29)
+-   [pip](#tab-panel-40)
+-   [uv](#tab-panel-41)
 
 Terminal
 
@@ -63896,8 +64595,8 @@ See [Google's task type documentation](https://ai.google.dev/gemini-api/docs/emb
 
 To use Cohere embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `cohere` optional group:
 
--   [pip](#tab-panel-30)
--   [uv](#tab-panel-31)
+-   [pip](#tab-panel-42)
+-   [uv](#tab-panel-43)
 
 Terminal
 
@@ -63969,8 +64668,8 @@ embedder = Embedder(
 
 To use VoyageAI embedding models, you need to install `pydantic-ai-slim` with the `voyageai` optional group:
 
--   [pip](#tab-panel-32)
--   [uv](#tab-panel-33)
+-   [pip](#tab-panel-44)
+-   [uv](#tab-panel-45)
 
 Terminal
 
@@ -64041,8 +64740,8 @@ embedder = Embedder(
 
 To use Bedrock embedding models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `bedrock` optional group:
 
--   [pip](#tab-panel-34)
--   [uv](#tab-panel-35)
+-   [pip](#tab-panel-46)
+-   [uv](#tab-panel-47)
 
 Terminal
 
@@ -64272,8 +64971,8 @@ Bedrock embedding models do not support the `count_tokens()` method because AWS 
 
 To use Sentence Transformers embedding models, you need to install `pydantic-ai-slim` with the `sentence-transformers` optional group:
 
--   [pip](#tab-panel-36)
--   [uv](#tab-panel-37)
+-   [pip](#tab-panel-48)
+-   [uv](#tab-panel-49)
 
 Terminal
 
@@ -65481,7 +66180,7 @@ For offline usage, download the html file once while you have internet access:
 from pydantic_ai.ui import DEFAULT_HTML_URL
 
 print(DEFAULT_HTML_URL)  # Use this URL to download the UI HTML file
-#> https://cdn.jsdelivr.net/npm/@pydantic/ai-chat-ui@1.0.0/dist/index.html
+#> https://cdn.jsdelivr.net/npm/@pydantic/ai-chat-ui@1.2.0/dist/index.html
 ```
 
 You can then download the file using the URL printed above:
@@ -65705,8 +66404,8 @@ For example, a Pydantic AI agent might store its complete internal message forma
 
 FastA2A is available on PyPI as [`fasta2a`](https://pypi.org/project/fasta2a/) so installation is as simple as:
 
--   [pip](#tab-panel-46)
--   [uv](#tab-panel-47)
+-   [pip](#tab-panel-34)
+-   [uv](#tab-panel-35)
 
 Terminal
 
@@ -65728,8 +66427,8 @@ The only dependencies are:
 
 You can install Pydantic AI with the `a2a` extra to include **FastA2A**:
 
--   [pip](#tab-panel-48)
--   [uv](#tab-panel-49)
+-   [pip](#tab-panel-36)
+-   [uv](#tab-panel-37)
 
 Terminal
 
@@ -66652,13 +67351,13 @@ Install the Restate SDK:
 Terminal
 
 ```bash
-pip install pydantic-ai restate_sdk[serde]
+pip install pydantic-ai "restate_sdk[serde]"
 ```
 
 Terminal
 
 ```bash
-uv add pydantic-ai restate_sdk[serde]
+uv add pydantic-ai "restate_sdk[serde]"
 ```
 
 Here is a complete example of a durable Pydantic AI agent with Restate:
@@ -67104,8 +67803,8 @@ A trace is generated for the agent run, and spans are emitted for each model req
 
 To use Logfire, you'll need a Logfire [account](https://logfire.pydantic.dev). The Logfire Python SDK is included with `pydantic-ai`:
 
--   [pip](#tab-panel-38)
--   [uv](#tab-panel-39)
+-   [pip](#tab-panel-26)
+-   [uv](#tab-panel-27)
 
 Terminal
 
@@ -67121,8 +67820,8 @@ uv add pydantic-ai
 
 Or if you're using the slim package, you can install it with the `logfire` optional group:
 
--   [pip](#tab-panel-40)
--   [uv](#tab-panel-41)
+-   [pip](#tab-panel-28)
+-   [uv](#tab-panel-29)
 
 Terminal
 
@@ -67138,8 +67837,8 @@ uv add "pydantic-ai-slim[logfire]"
 
 Then authenticate your local environment with Logfire:
 
--   [pip](#tab-panel-42)
--   [uv](#tab-panel-43)
+-   [pip](#tab-panel-30)
+-   [uv](#tab-panel-31)
 
 Terminal
 
@@ -67155,8 +67854,8 @@ uv run logfire auth
 
 And configure a project to send data to:
 
--   [pip](#tab-panel-44)
--   [uv](#tab-panel-45)
+-   [pip](#tab-panel-32)
+-   [uv](#tab-panel-33)
 
 Terminal
 
@@ -69307,8 +70006,8 @@ _(This example is complete, it can be run "as is")_
 
 To use `AnthropicModel` models, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `anthropic` optional group:
 
--   [pip](#tab-panel-60)
--   [uv](#tab-panel-61)
+-   [pip](#tab-panel-58)
+-   [uv](#tab-panel-59)
 
 Terminal
 
@@ -69497,6 +70196,42 @@ agent = Agent(model)
 ```
 
 See [Anthropic's Microsoft Foundry documentation](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry) for setup instructions including Entra ID authentication.
+
+## Task Budgets (Beta)
+
+Anthropic's [task budgets](https://platform.claude.com/docs/en/build-with-claude/task-budgets) let you give Claude an advisory token budget for a full agentic loop -- including thinking, tool calls, tool results, and output -- so the model can pace itself and finish gracefully as the budget is consumed. Configure them with [`AnthropicModelSettings.anthropic_task_budget`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicModelSettings.anthropic_task_budget), which takes an [`AnthropicTaskBudget`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicTaskBudget) payload and maps to `output_config.task_budget`.
+
+Pydantic AI automatically enables Anthropic's required `task-budgets-2026-03-13` beta when this setting is present. Support is currently limited to native Anthropic `claude-opus-4-7` requests, not Bedrock, Vertex, or Microsoft Foundry Anthropic model IDs.
+
+anthropic\_task\_budget.py
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+
+model = AnthropicModel('claude-opus-4-7')
+settings = AnthropicModelSettings(
+    anthropic_task_budget={'type': 'tokens', 'total': 20_000},
+)
+agent = Agent(model, model_settings=settings)
+...
+```
+
+Task budgets compose with [`anthropic_effort`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicModelSettings.anthropic_effort): effort tunes per-step reasoning depth, while task budgets cap total work across the loop. Both fields end up under the same `output_config` object.
+
+Note
+
+Task budgets are advisory, not a hard cap; pair them with [`max_tokens`](/docs/ai/api/pydantic-ai/settings/#pydantic_ai.settings.ModelSettings.max_tokens) for an enforced ceiling.
+
+### Carrying budgets across compaction
+
+If you use [`AnthropicCompaction`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicCompaction) for server-side compaction, you can skip this section: the server tracks the countdown itself, so leave `remaining` unset and let `total` self-regulate.
+
+The `remaining` field on `task_budget` is for _client-side_ compaction patterns where you summarize earlier turns yourself between requests, so the server has no memory of how much budget was spent before the rewrite. Pydantic AI does not track `remaining` for you -- accumulate token usage across requests yourself (e.g. from [`RunUsage`](/docs/ai/api/pydantic-ai/usage/#pydantic_ai.usage.RunUsage) on each run) and pass the updated value on the next request so the countdown continues from where you left off rather than resetting to `total`. Setting `remaining` also invalidates any prompt-cache prefix that contains the budget, so if you want to preserve caching, set `total` once and let the server self-regulate against the running countdown.
+
+Caution
+
+`task_budget.remaining` is mutually exclusive with [`AnthropicCompaction`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicCompaction): Anthropic rejects requests that combine the two because server-side compaction tracks the budget itself. Pydantic AI raises a [`UserError`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.UserError) before sending the request when this combination is configured. Choose one: `remaining` for client-side budget tracking, or [`AnthropicCompaction`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicCompaction) for server-side compaction.
 
 ## Prompt Caching
 
@@ -69848,6 +70583,25 @@ result = agent.run_sync(
 Note
 
 Compaction blocks returned by Anthropic contain readable text summaries. They are automatically round-tripped in subsequent requests when included in the message history.
+
+## Code Execution Tool Version
+
+By default, Pydantic AI chooses a compatible Anthropic code execution tool version for the selected model. You can override this with [`AnthropicModelSettings.anthropic_code_execution_tool_version`](/docs/ai/api/models/anthropic/#pydantic_ai.models.anthropic.AnthropicModelSettings.anthropic_code_execution_tool_version) when you need a specific supported Anthropic tool version:
+
+anthropic\_code\_execution\_tool\_version.py
+
+```python
+from pydantic_ai import Agent, CodeExecutionTool
+from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+agent = Agent(
+    'anthropic:claude-sonnet-4-6',
+    builtin_tools=[CodeExecutionTool()],
+    model_settings=AnthropicModelSettings(anthropic_code_execution_tool_version='20260120'),
+)
+```
+
+Pydantic AI raises a [`UserError`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.UserError) if you explicitly select a tool version that the model does not support.
 
 ---
 
@@ -70426,12 +71180,67 @@ agent = Agent(model)
 
 The `GoogleModel` is a model that uses the [`google-genai`](https://pypi.org/project/google-genai/) package under the hood to access Google's Gemini models via both the Generative Language API and Vertex AI.
 
+## Streaming cancellation
+
+Cancellation limitations
+
+The `google-genai` SDK exposes streaming responses only as an async iterator, with no separate handle for closing the underlying HTTP transport. Because of a [Python language rule on async generators](https://peps.python.org/pep-0525/), [`cancel()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.cancel) cannot interrupt an in-flight chunk read while another coroutine is iterating the stream. Pydantic AI marks the response with `state='interrupted'`, but upstream generation may continue until the surrounding `async with agent.run_stream(...)` block exits.
+
+For reliable cancellation, either pass `debounce_by=None` to [`stream_text()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_text), [`stream_output()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_output), or [`stream_responses()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_responses) and call `cancel()` from the same task that's iterating:
+
+cancel\_google.py
+
+```python
+from pydantic_ai import Agent
+
+agent = Agent('google-gla:gemini-3-pro-preview')
+
+
+def should_stop(chunk: str) -> bool:
+    return len(chunk) > 100
+
+
+async def main():
+    async with agent.run_stream('Write a long essay about Python') as result:
+        async for chunk in result.stream_text(debounce_by=None):
+            if should_stop(chunk):
+                await result.cancel()
+                break
+```
+
+Or, if you need to keep debouncing, wrap the stream with [`contextlib.aclosing`](https://docs.python.org/3/library/contextlib.html#contextlib.aclosing) so the iterator is closed before `cancel()` runs:
+
+cancel\_google\_aclosing.py
+
+```python
+from contextlib import aclosing
+
+from pydantic_ai import Agent
+
+agent = Agent('google-gla:gemini-3-pro-preview')
+
+
+def should_stop(chunk: str) -> bool:
+    return len(chunk) > 100
+
+
+async def main():
+    async with agent.run_stream('Write a long essay about Python') as result:
+        async with aclosing(result.stream_text()) as stream:
+            async for chunk in stream:
+                if should_stop(chunk):
+                    break
+        await result.cancel()
+```
+
+Calling `cancel()` from a different task while iteration is in progress is not currently reliable on this provider.
+
 ## Install
 
 To use `GoogleModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `google` optional group:
 
--   [pip](#tab-panel-62)
--   [uv](#tab-panel-63)
+-   [pip](#tab-panel-60)
+-   [uv](#tab-panel-61)
 
 Terminal
 
@@ -70993,8 +71802,8 @@ This page covers chat completions via Hugging Face Inference Providers. To run H
 
 To use `HuggingFaceModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `huggingface` optional group:
 
--   [pip](#tab-panel-74)
--   [uv](#tab-panel-75)
+-   [pip](#tab-panel-78)
+-   [uv](#tab-panel-79)
 
 Terminal
 
@@ -71007,6 +71816,61 @@ Terminal
 ```bash
 uv add "pydantic-ai-slim[huggingface]"
 ```
+
+## Streaming cancellation
+
+Cancellation limitations
+
+The `huggingface_hub.AsyncInferenceClient` exposes streaming responses only as an async iterator, with no separate handle for closing the underlying HTTP transport. Because of a [Python language rule on async generators](https://peps.python.org/pep-0525/), [`cancel()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.cancel) cannot interrupt an in-flight chunk read while another coroutine is iterating the stream. Pydantic AI marks the response with `state='interrupted'`, but upstream generation may continue until the surrounding `async with agent.run_stream(...)` block exits.
+
+For reliable cancellation, either pass `debounce_by=None` to [`stream_text()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_text), [`stream_output()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_output), or [`stream_responses()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_responses) and call `cancel()` from the same task that's iterating:
+
+cancel\_huggingface.py
+
+```python
+from pydantic_ai import Agent
+
+agent = Agent('huggingface:Qwen/Qwen3-235B-A22B')
+
+
+def should_stop(chunk: str) -> bool:
+    return len(chunk) > 100
+
+
+async def main():
+    async with agent.run_stream('Write a long essay about Python') as result:
+        async for chunk in result.stream_text(debounce_by=None):
+            if should_stop(chunk):
+                await result.cancel()
+                break
+```
+
+Or, if you need to keep debouncing, wrap the stream with [`contextlib.aclosing`](https://docs.python.org/3/library/contextlib.html#contextlib.aclosing) so the iterator is closed before `cancel()` runs:
+
+cancel\_huggingface\_aclosing.py
+
+```python
+from contextlib import aclosing
+
+from pydantic_ai import Agent
+
+agent = Agent('huggingface:Qwen/Qwen3-235B-A22B')
+
+
+def should_stop(chunk: str) -> bool:
+    return len(chunk) > 100
+
+
+async def main():
+    async with agent.run_stream('Write a long essay about Python') as result:
+        async with aclosing(result.stream_text()) as stream:
+            async for chunk in stream:
+                if should_stop(chunk):
+                    break
+        await result.cancel()
+```
+
+Calling `cancel()` from a different task while iteration is in progress is not currently reliable on this provider.
 
 ## Configuration
 
@@ -71097,8 +71961,8 @@ agent = Agent(model)
 
 To use `MistralModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `mistral` optional group:
 
--   [pip](#tab-panel-76)
--   [uv](#tab-panel-77)
+-   [pip](#tab-panel-74)
+-   [uv](#tab-panel-75)
 
 Terminal
 
@@ -71192,8 +72056,8 @@ agent = Agent(model)
 
 To use [`OllamaModel`](/docs/ai/api/models/ollama/#pydantic_ai.models.ollama.OllamaModel), you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
 
--   [pip](#tab-panel-78)
--   [uv](#tab-panel-79)
+-   [pip](#tab-panel-92)
+-   [uv](#tab-panel-93)
 
 Terminal
 
@@ -71308,8 +72172,8 @@ If you use [`NativeOutput`](/docs/ai/api/pydantic-ai/output/#pydantic_ai.output.
 
 To use OpenAI models or OpenAI-compatible APIs, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openai` optional group:
 
--   [pip](#tab-panel-58)
--   [uv](#tab-panel-59)
+-   [pip](#tab-panel-62)
+-   [uv](#tab-panel-63)
 
 Terminal
 
@@ -71545,6 +72409,47 @@ Note
 
 Referencing a stored response requires the response to have actually been stored. OpenAI stores responses by default; if you've disabled storage via `openai_store=False` or your organization has Zero Data Retention enabled, chaining is unavailable and the full message history must be sent on every request.
 
+#### Using durable conversations
+
+OpenAI's [Conversations API](https://platform.openai.com/docs/guides/conversation-state?api-mode=responses#using-the-conversations-api) works with the Responses API to persist conversation state in a durable conversation object. If you already have an OpenAI conversation ID, pass it with [`openai_conversation_id`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIResponsesModelSettings.openai_conversation_id):
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
+
+model = OpenAIResponsesModel('gpt-5.2')
+agent = Agent(model=model)
+
+model_settings = OpenAIResponsesModelSettings(openai_conversation_id='conv_...')
+result = agent.run_sync('What did we discuss last time?', model_settings=model_settings)
+print(result.output)
+```
+
+When a response belongs to a conversation, Pydantic AI stores the returned ID in `ModelResponse.provider_details['conversation_id']`. Setting `openai_conversation_id='auto'` uses the most recent same-provider conversation ID from the message history and sends only the new input items after that response.
+
+When message-level [`conversation_id`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.ModelResponse.conversation_id) values are available, `auto` only reuses an OpenAI conversation from the current Pydantic AI conversation; pass a concrete OpenAI conversation ID to reuse one explicitly:
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
+
+model = OpenAIResponsesModel('gpt-5.2')
+agent = Agent(model=model)
+
+model_settings = OpenAIResponsesModelSettings(openai_conversation_id='conv_...')
+result = agent.run_sync('What did we discuss last time?', model_settings=model_settings)
+
+follow_up_settings = OpenAIResponsesModelSettings(openai_conversation_id='auto')
+result2 = agent.run_sync(
+    'Summarize the next step.',
+    message_history=result.new_messages(),
+    model_settings=follow_up_settings,
+)
+print(result2.output)
+```
+
+Pydantic AI does not create OpenAI conversations for you. Use the OpenAI client to create the conversation, then pass its ID to `openai_conversation_id`. The `conversation` and `previous_response_id` parameters are mutually exclusive in the OpenAI API, so `openai_conversation_id` cannot be combined with [`openai_previous_response_id`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIResponsesModelSettings.openai_previous_response_id).
+
 #### Message Compaction
 
 The Responses API supports [compacting message history](https://developers.openai.com/api/docs/guides/compaction) to reduce token usage in long conversations. Compaction produces an encrypted summary that replaces older messages while preserving context.
@@ -71563,7 +72468,7 @@ agent = Agent(
 )
 ```
 
-By default, `OpenAICompaction` runs in **stateful mode**: it configures OpenAI's server-side auto-compaction via the `context_management` field on the regular `/responses` request, and OpenAI triggers compaction whenever the input token count crosses a threshold it manages for you. This mode is compatible with [`openai_previous_response_id='auto'`](#referencing-earlier-responses) and server-side conversation state.
+By default, `OpenAICompaction` runs in **stateful mode**: it configures OpenAI's server-side auto-compaction via the `context_management` field on the regular `/responses` request, and OpenAI triggers compaction whenever the input token count crosses a threshold it manages for you. This mode is compatible with [`openai_previous_response_id='auto'`](#referencing-earlier-responses) and [`openai_conversation_id`](#using-durable-conversations).
 
 To override the threshold, pass [`token_threshold`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAICompaction):
 
@@ -71597,7 +72502,7 @@ The mode is inferred from which parameters you pass: supplying `message_count_th
 
 Tip
 
-Stateful compaction pairs especially well with [`openai_previous_response_id='auto'`](#referencing-earlier-responses). Both rely on OpenAI's server-side conversation state, so OpenAI can use a previously compacted context as the starting point for the next turn without you having to resend it.
+Stateful compaction pairs especially well with [`openai_previous_response_id='auto'`](#referencing-earlier-responses) or [`openai_conversation_id`](#using-durable-conversations). Both rely on OpenAI's server-side conversation state, so OpenAI can use a previously compacted context as the starting point for the next turn without you having to resend it.
 
 For lower-level use cases, you can call [`compact_messages`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIResponsesModel.compact_messages) directly on the model.
 
@@ -71642,8 +72547,9 @@ model = OpenAIChatModel(
         base_url='https://<openai-compatible-api-endpoint>.com', api_key='your-api-key'
     ),
     profile=OpenAIModelProfile(
-        json_schema_transformer=InlineDefsJsonSchemaTransformer,  # Supported by any model class on a plain ModelProfile
-        openai_supports_strict_tool_definition=False  # Supported by OpenAIModel only, requires OpenAIModelProfile
+        json_schema_transformer=InlineDefsJsonSchemaTransformer,  # Supported by any model class via the base ModelProfile
+        openai_supports_strict_tool_definition=False,  # Supported by OpenAIChatModel and OpenAIResponsesModel
+        openai_chat_supports_multiple_system_messages=False,  # Supported by OpenAIChatModel only -- for strict providers (e.g. some vLLM/LiteLLM setups) that require exactly one initial system message
     )
 )
 agent = Agent(model)
@@ -72174,8 +73080,8 @@ agent = Agent(model)
 
 To use `OpenRouterModel`, you need to either install `pydantic-ai`, or install `pydantic-ai-slim` with the `openrouter` optional group:
 
--   [pip](#tab-panel-80)
--   [uv](#tab-panel-81)
+-   [pip](#tab-panel-76)
+-   [uv](#tab-panel-77)
 
 Terminal
 
@@ -72287,8 +73193,8 @@ result = agent.run_sync('What is the latest news in AI?')
 
 As Outlines is a library allowing you to run models from various different providers, it does not include the necessary dependencies for any provider by default. As a result, to use the [`OutlinesModel`](/docs/ai/api/models/outlines/#pydantic_ai.models.outlines.OutlinesModel), you must install `pydantic-ai-slim` with an optional group composed of outlines, a dash, and the name of the specific model provider you would use through Outlines. For instance:
 
--   [pip](#tab-panel-82)
--   [uv](#tab-panel-83)
+-   [pip](#tab-panel-80)
+-   [uv](#tab-panel-81)
 
 Terminal
 
@@ -72304,8 +73210,8 @@ uv add "pydantic-ai-slim[outlines-transformers]"
 
 Or
 
--   [pip](#tab-panel-84)
--   [uv](#tab-panel-85)
+-   [pip](#tab-panel-82)
+-   [uv](#tab-panel-83)
 
 Terminal
 
@@ -73121,6 +74027,61 @@ Terminal
 uv add "pydantic-ai-slim[xai]"
 ```
 
+## Streaming cancellation
+
+Cancellation limitations
+
+The `xai-sdk` SDK exposes streaming responses only as an async iterator, with no separate handle for cancelling the underlying gRPC call. Because of a [Python language rule on async generators](https://peps.python.org/pep-0525/), [`cancel()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.cancel) cannot interrupt an in-flight chunk read while another coroutine is iterating the stream. Pydantic AI marks the response with `state='interrupted'`, but upstream generation may continue until the surrounding `async with agent.run_stream(...)` block exits.
+
+For reliable cancellation, either pass `debounce_by=None` to [`stream_text()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_text), [`stream_output()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_output), or [`stream_responses()`](/docs/ai/api/pydantic-ai/result/#pydantic_ai.result.StreamedRunResult.stream_responses) and call `cancel()` from the same task that's iterating:
+
+cancel\_xai.py
+
+```python
+from pydantic_ai import Agent
+
+agent = Agent('xai:grok-4-1-fast-non-reasoning')
+
+
+def should_stop(chunk: str) -> bool:
+    return len(chunk) > 100
+
+
+async def main():
+    async with agent.run_stream('Write a long essay about Python') as result:
+        async for chunk in result.stream_text(debounce_by=None):
+            if should_stop(chunk):
+                await result.cancel()
+                break
+```
+
+Or, if you need to keep debouncing, wrap the stream with [`contextlib.aclosing`](https://docs.python.org/3/library/contextlib.html#contextlib.aclosing) so the iterator is closed before `cancel()` runs:
+
+cancel\_xai\_aclosing.py
+
+```python
+from contextlib import aclosing
+
+from pydantic_ai import Agent
+
+agent = Agent('xai:grok-4-1-fast-non-reasoning')
+
+
+def should_stop(chunk: str) -> bool:
+    return len(chunk) > 100
+
+
+async def main():
+    async with agent.run_stream('Write a long essay about Python') as result:
+        async with aclosing(result.stream_text()) as stream:
+            async for chunk in stream:
+                if should_stop(chunk):
+                    break
+        await result.cancel()
+```
+
+Calling `cancel()` from a different task while iteration is in progress is not currently reliable on this provider.
+
 ## Configuration
 
 To use xAI models from [xAI](https://x.ai/api) through their API, go to [console.x.ai](https://console.x.ai/team/default/api-keys) to create an API key.
@@ -73251,7 +74212,15 @@ If you want to build agent skills for your Pydantic AI agent, see the [Agent Ski
 
 ### Claude Code
 
-Add the Pydantic marketplace and install the plugin:
+Install the [official Pydantic AI plugin](https://claude.com/plugins/pydantic-ai) from the Anthropic marketplace, which is available by default:
+
+Terminal
+
+```bash
+claude plugin install pydantic-ai@claude-plugins-official
+```
+
+As an alternative, you can install from the [`pydantic/skills`](https://github.com/pydantic/skills) marketplace, which bundles the Pydantic AI skill alongside other Pydantic-maintained skills:
 
 Terminal
 
@@ -73272,10 +74241,25 @@ npx skills add pydantic/skills
 
 This works with 30+ agents via the [agentskills.io](https://agentskills.io) standard, including Claude Code, Codex, Cursor, and Gemini CLI.
 
+### Library Skills
+
+Pydantic AI also ships its skill bundled with the package, so you can install it directly from your project's dependencies via [library-skills.io](https://library-skills.io):
+
+Terminal
+
+```bash
+uvx library-skills --all
+```
+
+The `--all` flag is required because the skill is bundled in `pydantic-ai-slim`, which is a transitive dependency of the `pydantic-ai` meta-package. Without it, `library-skills` only scans direct dependencies and won't discover the skill.
+
+Add `--claude` to also install into `.claude/skills/` alongside the default `.agents/skills/` directory, since Claude Code doesn't read from `.agents/`.
+
 ## See Also
 
 -   [`pydantic/skills`](https://github.com/pydantic/skills): source repository
 -   [agentskills.io](https://agentskills.io): the open standard for agent skills
+-   [library-skills.io](https://library-skills.io): install agent skills bundled with your project's dependencies
 
 ---
 
@@ -74056,8 +75040,8 @@ Join [Slack](https://logfire.pydantic.dev/docs/join-slack/) or file an issue on 
 
 Pydantic AI is available on PyPI as [`pydantic-ai`](https://pypi.org/project/pydantic-ai/) so installation is as simple as:
 
--   [pip](#tab-panel-86)
--   [uv](#tab-panel-87)
+-   [pip](#tab-panel-84)
+-   [uv](#tab-panel-85)
 
 Terminal
 
@@ -74087,8 +75071,8 @@ We distribute the [`pydantic_ai_examples`](https://github.com/pydantic/pydantic-
 
 To install examples, use the `examples` optional group:
 
--   [pip](#tab-panel-88)
--   [uv](#tab-panel-89)
+-   [pip](#tab-panel-86)
+-   [uv](#tab-panel-87)
 
 Terminal
 
@@ -74108,8 +75092,8 @@ To run the examples, follow instructions in the [examples docs](/docs/ai/example
 
 If you know which model you're going to use and want to avoid installing superfluous packages, you can use the [`pydantic-ai-slim`](https://pypi.org/project/pydantic-ai-slim/) package. For example, if you're using just [`OpenAIChatModel`](/docs/ai/api/models/openai/#pydantic_ai.models.openai.OpenAIChatModel), you would run:
 
--   [pip](#tab-panel-90)
--   [uv](#tab-panel-91)
+-   [pip](#tab-panel-88)
+-   [uv](#tab-panel-89)
 
 Terminal
 
@@ -74158,8 +75142,8 @@ uv add "pydantic-ai-slim[openai]"
 
 You can also install dependencies for multiple models and use cases, for example:
 
--   [pip](#tab-panel-92)
--   [uv](#tab-panel-93)
+-   [pip](#tab-panel-90)
+-   [uv](#tab-panel-91)
 
 Terminal
 
@@ -74928,6 +75912,8 @@ Anthropic
 
 ✅
 
+Available on compatible Anthropic models. Pydantic AI selects a compatible code execution tool version automatically; see [Anthropic code execution tool version](/docs/ai/models/anthropic#code-execution-tool-version) to override it.
+
 xAI
 
 ✅
@@ -74978,11 +75964,10 @@ print(result.response.builtin_tool_calls)
     (
         BuiltinToolCallPart(
             tool_name='code_execution',
-            args={
-                'code': 'import math\n\n# Calculate factorial of 15\nresult = math.factorial(15)\nprint(f"15! = {result}")\n\n# Let\'s also show it in a more readable format with commas\nprint(f"15! = {result:,}")'
-            },
+            args={'command': 'python3 -c "import math; print(math.factorial(15))"'},
             tool_call_id='srvtoolu_017qRH1J3XrhnpjP2XtzPCmJ',
             provider_name='anthropic',
+            provider_details={'anthropic_tool_name': 'bash_code_execution'},
         ),
         BuiltinToolReturnPart(
             tool_name='code_execution',
@@ -74990,12 +75975,13 @@ print(result.response.builtin_tool_calls)
                 'content': [],
                 'return_code': 0,
                 'stderr': '',
-                'stdout': '15! = 1307674368000\n15! = 1,307,674,368,000',
-                'type': 'code_execution_result',
+                'stdout': '1307674368000\n',
+                'type': 'bash_code_execution_result',
             },
             tool_call_id='srvtoolu_017qRH1J3XrhnpjP2XtzPCmJ',
             timestamp=datetime.datetime(...),
             provider_name='anthropic',
+            provider_details={'anthropic_tool_name': 'bash_code_execution'},
         ),
     )
 ]
@@ -75151,8 +76137,10 @@ agent = Agent(
     'openai-responses:gpt-5.2',
     builtin_tools=[
         ImageGenerationTool(
+            action='generate',
             background='transparent',
             input_fidelity='high',
+            model='gpt-image-2',
             moderation='low',
             output_compression=100,
             output_format='png',
@@ -75171,6 +76159,8 @@ assert isinstance(result.output, BinaryImage)
 _(This example is complete, it can be run "as is")_
 
 OpenAI Responses models also respect the `aspect_ratio` parameter. Because the OpenAI API only exposes discrete image sizes, Pydantic AI maps `'1:1'` -> `1024x1024`, `'2:3'` -> `1024x1536`, and `'3:2'` -> `1536x1024`. Providing any other aspect ratio results in an error, and if you also set `size` it must match the computed value.
+
+The OpenAI Responses image generation tool defaults to `action='auto'`, where the model decides whether to generate a new image or edit one already in context. Use `action='generate'` or `action='edit'` to force either behavior. You can also set `model` to select the underlying image generation model used by the tool, for example `model='gpt-image-2'`; this does not change the agent's conversational model.
 
 To control the aspect ratio when using Gemini image models, include the `ImageGenerationTool` explicitly:
 
@@ -75220,6 +76210,12 @@ OpenAI
 
 Google
 
+`action`
+
+✅ (auto (default), generate, edit)
+
+❌
+
 `background`
 
 ✅
@@ -75235,6 +76231,12 @@ Google
 `moderation`
 
 ✅
+
+❌
+
+`model`
+
+✅ (gpt-image-2, gpt-image-1.5, gpt-image-1, gpt-image-1-mini, or another OpenAI image model ID)
 
 ❌
 
@@ -77696,6 +78698,225 @@ You can use `prepare_tools` to:
 
 If both per-tool `prepare` and agent-wide `prepare_tools` are used, the per-tool `prepare` is applied first to each tool, and then `prepare_tools` is called with the resulting list of tool definitions.
 
+## Tool Choice
+
+The `tool_choice` setting in [`ModelSettings`](/docs/ai/api/pydantic-ai/settings/#pydantic_ai.settings.ModelSettings) controls which tools the model can use during a request. This is useful for disabling tools, forcing tool use, or restricting which tools are available.
+
+Pydantic AI distinguishes between **[function tools](/docs/ai/tools-toolsets/tools)** (tools you register via `@agent.tool`, [toolsets](/docs/ai/tools-toolsets/toolsets), or [MCP](/docs/ai/mcp/client)), and **output tools** (internal tools used for [structured output](/docs/ai/core-concepts/output#tool-output)).
+
+### Options
+
+Value
+
+Description
+
+`'auto'` (default)
+
+Model decides whether to use tools. All tools available.
+
+`'none'`
+
+Disable function tools. Model can respond with text or use output tools.
+
+`'required'`
+
+Force the model to use a function tool. Excludes output tools, so set dynamically via a [capability](#dynamic-tool-choice-via-capabilities) or use [direct model requests](/docs/ai/core-concepts/direct); raises an error when set statically in `agent.run()`.
+
+`['tool_a', ...]`
+
+Restrict to specific tools by name. Excludes output tools -- same dynamic/direct requirement as `'required'`.
+
+[`ToolOrOutput`](/docs/ai/api/pydantic-ai/settings/#pydantic_ai.settings.ToolOrOutput)`(function_tools=['...'])`
+
+Restrict function tools while auto-including all output tools.
+
+### Example
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.settings import ToolOrOutput
+
+agent = Agent(TestModel())
+
+
+@agent.tool_plain
+def get_weather(city: str) -> str:
+    return f'Sunny in {city}'
+
+
+@agent.tool_plain
+def get_time(city: str) -> str:
+    return f'12:00 in {city}'
+
+
+# Pass tool_choice via model_settings
+result = agent.run_sync('Hello', model_settings={'tool_choice': 'none'})
+
+# Use ToolOrOutput to restrict to specific function tools while allowing output
+result = agent.run_sync(
+    'Hello', model_settings={'tool_choice': ToolOrOutput(function_tools=['get_weather'])}
+)
+```
+
+### Dynamic tool choice via capabilities
+
+`tool_choice='required'` and `['tool_a', ...]` exclude output tools, so setting either one _statically_ would force a tool call on every step and leave the agent unable to produce a final response. `agent.run()` raises a `UserError` when it detects these values on the static baseline (the `model_settings` argument of `Agent.run`, the agent's own `model_settings`, or the underlying model's defaults).
+
+To vary `tool_choice` _per step_ -- for example, to force a specific tool on the first step and then let the model decide -- return a callable from a capability's [`get_model_settings`](/docs/ai/api/pydantic-ai/capabilities/#pydantic_ai.capabilities.AbstractCapability.get_model_settings). The callable receives a [`RunContext`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext) with full access to `ctx.messages` and `ctx.run_step`, so it can inspect what has already happened in the run and adapt.
+
+force\_first\_call.py
+
+```python
+from pydantic_ai import Agent, ModelSettings, RunContext
+from pydantic_ai.capabilities import AbstractCapability
+from pydantic_ai.messages import ModelRequest, ToolReturnPart
+
+
+class RequireFirstCall(AbstractCapability[None]):
+    """Force `tool_name` to be called successfully before anything else."""
+
+    def __init__(self, tool_name: str) -> None:
+        self.tool_name = tool_name
+
+    def get_model_settings(self):
+        def settings(ctx: RunContext[None]) -> ModelSettings:
+            called = any(
+                isinstance(part, ToolReturnPart) and part.tool_name == self.tool_name
+                for message in ctx.messages
+                if isinstance(message, ModelRequest)
+                for part in message.parts
+            )
+            if called:
+                return ModelSettings()
+            return ModelSettings(tool_choice=[self.tool_name])
+
+        return settings
+
+
+agent = Agent('openai:gpt-5.2', capabilities=[RequireFirstCall('get_weather')])
+
+
+@agent.tool_plain
+def get_weather(city: str) -> str:
+    return f'Sunny in {city}'
+```
+
+Because capability-supplied settings are resolved per step, the callable's returned `tool_choice` is trusted to change across steps and is not rejected by the baseline validator. For a single model request without an agent loop, use [`pydantic_ai.direct.model_request`](/docs/ai/api/pydantic-ai/direct/#pydantic_ai.direct.model_request) instead.
+
+### Provider Support
+
+All providers support `'auto'` and `'none'`. Key differences for other options:
+
+Provider
+
+`'required'`
+
+Specific tools
+
+Notes
+
+OpenAI
+
+✓
+
+✓
+
+Full support
+
+Anthropic
+
+⚠️
+
+⚠️
+
+Not supported with thinking enabled
+
+Google
+
+✓
+
+✓
+
+Bedrock
+
+✓
+
+Single only
+
+Multiple tools fall back to 'any' mode
+
+Groq/HuggingFace
+
+✓
+
+Single only
+
+Multiple tools fall back to 'required' mode
+
+Mistral
+
+✓
+
+✓
+
+Maps `'required'` to `'any'` mode
+
+xAI
+
+✓
+
+✓
+
+Some models may not support forcing; falls back to 'auto'
+
+### Prompt caching implications
+
+Restricting the available tool set via `tool_choice` can invalidate provider prompt caches because most provider APIs cache on the full tools array. Pydantic AI restricts the tool set in two ways:
+
+-   **API-level filtering** (cache-preserving): the full tools array is sent and the provider is told to only allow a subset. Used by OpenAI Responses (`allowed_tools`), Google (`allowed_function_names`), and Bedrock when forcing a single tool.
+-   **Client-side filtering** (breaks cache): the tools array is trimmed before the request. Used when the provider API has no native filter for the given case.
+
+The table below covers the cases where Pydantic AI must filter client-side and therefore breaks cache:
+
+Provider
+
+Cache-breaking case
+
+Anthropic
+
+`tool_choice` is a list of multiple tools, OR a single tool with thinking enabled
+
+OpenAI Chat
+
+`tool_choice` is a list of multiple tools, OR a single tool on a model that doesn't support forcing
+
+Bedrock
+
+`tool_choice` is a list of multiple tools
+
+Groq / HuggingFace
+
+`tool_choice` is a list of multiple tools
+
+Mistral
+
+`tool_choice` is a list (any size) -- the API doesn't accept specific tool names
+
+xAI
+
+`tool_choice` is a list of multiple tools, OR a single tool on a model that doesn't support forcing
+
+OpenAI Responses
+
+Never -- `allowed_tools` handles all cases natively
+
+Google
+
+Never -- `allowed_function_names` handles all cases natively
+
+If preserving cache hits matters, prefer providers/cases marked "Never", or use `ToolOrOutput` (which keeps the full set) instead of a restrictive list.
+
 ## Tool Execution and Retries
 
 When a tool is executed, its arguments (provided by the LLM) are first validated against the function's signature using Pydantic (with optional [validation context](/docs/ai/core-concepts/output#validation-context)). If validation fails (e.g., due to incorrect types or missing required arguments), a `ValidationError` is raised, and the framework automatically generates a [`RetryPromptPart`](/docs/ai/api/pydantic-ai/messages/#pydantic_ai.messages.RetryPromptPart) containing the validation details. This prompt is sent back to the LLM, informing it of the error and allowing it to correct the parameters and retry the tool call.
@@ -77714,7 +78935,9 @@ def my_flaky_tool(query: str) -> str:
     return 'Success!'
 ```
 
-Raising `ModelRetry` also generates a `RetryPromptPart` containing the exception message, which is sent back to the LLM to guide its next attempt. Both `ValidationError` and `ModelRetry` respect the `retries` setting configured on the `Tool` or `Agent`.
+Raising `ModelRetry` also generates a `RetryPromptPart` containing the exception message, which is sent back to the LLM to guide its next attempt. Both `ValidationError` and `ModelRetry` respect the configured retry limit -- set per-tool via [`Tool(max_retries=N)`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.Tool) (or `@agent.tool(retries=N)`), per-toolset via [`FunctionToolset(max_retries=N)`](/docs/ai/api/pydantic-ai/toolsets/#pydantic_ai.toolsets.FunctionToolset), or agent-wide via [`Agent(tool_retries=N)`](/docs/ai/api/pydantic-ai/agent/#pydantic_ai.agent.Agent.__init__), applied in that order of precedence.
+
+Tool retries are tracked **per tool**: every function tool has its own counter, with no global 'tool call' budget shared across the run. When a tool raises `ModelRetry` or its arguments fail validation, only that tool's counter advances. Inside a tool function, [`ctx.max_retries`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext.max_retries) reflects that tool's enforcement limit and [`ctx.retry`](/docs/ai/api/pydantic-ai/tools/#pydantic_ai.tools.RunContext.retry) is that tool's own counter. When a tool exhausts its counter, the run raises [`UnexpectedModelBehavior`](/docs/ai/api/pydantic-ai/exceptions/#pydantic_ai.exceptions.UnexpectedModelBehavior) with message `'Tool {name!r} exceeded max retries count of {N}'`. User-provided toolsets inherit `Agent(tool_retries=...)` as their default when no per-toolset value is set.
 
 ### Tool Timeout
 
