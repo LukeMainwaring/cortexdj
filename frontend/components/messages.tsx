@@ -4,7 +4,6 @@ import { ArrowDown } from "lucide-react";
 import { memo } from "react";
 import { useMessages } from "@/hooks/use-messages";
 import type { ChatMessage } from "@/lib/types";
-import { useDataStream } from "./data-stream-provider";
 import { Greeting } from "./greeting";
 import { PreviewMessage, RiffingMessage } from "./message";
 
@@ -24,8 +23,6 @@ function PureMessages({ status, messages, setMessages }: MessagesProps) {
   } = useMessages({
     status,
   });
-
-  useDataStream();
 
   return (
     <div className="relative flex-1">
