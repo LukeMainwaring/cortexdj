@@ -1,7 +1,7 @@
 # CortexDJ Roadmap
 
 > Forward-looking plan. Shipped features are documented in [README.md](../README.md).
-> Pretrained model details: [pretrained-models-analysis.md](pretrained-models-analysis.md)
+> Pretrained model details: [pretrained-models-analysis.md](pretrained-models-analysis.md). Dataset catalog: [datasets-analysis.md](datasets-analysis.md).
 
 ## Phase 1: Near-term polish
 
@@ -13,7 +13,8 @@
 
 - SEED dataset support (15 participants, film clips) — adds discrete emotion labels (positive/neutral/negative) alongside DEAP's continuous valence/arousal
 - AMIGOS dataset support (40 participants, short + long video clips)
-- Dataset-agnostic data loader with format autodetection (.dat, .mat, .edf)
+- DREAMER + MAHNOB-HCI + FACED via [EEGain](https://github.com/EmotionLab/EEGain) — leave-one-dataset-out generalization eval; FACED specifically enables direct REVE-comparison (see [datasets-analysis.md](datasets-analysis.md) Tier A / Path A)
+- Adopt EEGain as the unified dataset layer (DEAP/SEED/SEED-IV/DREAMER/MAHNOB-HCI/AMIGOS preprocessing standardized to 128 Hz / 4-s windows); plug CBraMod heads on top — supersedes the earlier "dataset-agnostic loader" line item
 - MNE-Python raw data preprocessing — ICA artifact removal, re-referencing
 
 ## Phase 3: Live BCI Device Integration
@@ -38,6 +39,7 @@
 - Attention visualization — transformer attention weights as channel/timepoint importance maps
 - Model ensemble — combine EEGNet (DE features) and CBraMod (raw EEG) predictions
 - Discrete emotion classification — add a positive/neutral/negative head once SEED support lands (Phase 2); DEAP itself ships only continuous valence/arousal/dominance/liking
+- (Stretch) HBN-EEG intermediate-pretraining stage — masked-prediction or relative-positioning on 3,000-subject movie-watching data, between public CBraMod backbone and DEAP fine-tuning. Gated on Phase 2 / EEG↔CLAP work identifying a representation-quality bottleneck. See [datasets-analysis.md](datasets-analysis.md) Tier C / Path C.
 
 ## Phase 5: Spotify Deep Integration
 
@@ -56,6 +58,7 @@ Directions that would make this tractable:
 - Per-user calibration + continual learning from explicit (thumbs) and implicit (skip/replay) in-app feedback
 - Longer-integration EEG windows (30s+) or multimodal fusion (skin conductance, fNIRS) to raise per-inference SNR
 - Retrieve against emotion-quadrant centroids rather than specific track identities, aligning the target with what EEG actually encodes
+- Re-train on music-listening datasets (MUSIN-G, NMED-T, NMED-H, OpenMIIR) where EEG was recorded during music perception and full-song audio is provided alongside — replaces DEAP's video-clip-with-30s-iTunes-preview chain at every weak link. See [datasets-analysis.md](datasets-analysis.md) Tier B / Path B.
 
 ## Phase 6: Platform
 
