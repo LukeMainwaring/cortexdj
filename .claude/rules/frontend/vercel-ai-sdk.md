@@ -15,8 +15,8 @@ The Vercel AI SDK's documentation lives in two places with **different content**
 
 1. **`docs/vercel-ai-sdk-ui.txt`** — local pinned reference, **UI surface only**
    (`useChat`, message parts, chat transports, the SSE stream protocol,
-   tool-call rendering). Refresh via the `updating-deps` skill (Phase 4 is the
-   source of truth for the fetch).
+   tool-call rendering). Refresh via the `updating-deps` skill — its docs-fetch
+   step is the source of truth for which upstream pages we mirror.
 
 2. **`https://ai-sdk.dev/`** — everything else. AI SDK Core (`generateText`,
    server-side `streamText`, model providers), guides, framework examples,

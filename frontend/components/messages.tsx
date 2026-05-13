@@ -61,7 +61,7 @@ function PureMessages({ status, messages, setMessages }: MessagesProps) {
       <Button
         aria-label="Scroll to bottom"
         className={cn(
-          "-translate-x-1/2 absolute bottom-4 left-1/2 z-10 rounded-full shadow-lg transition-all",
+          "-translate-x-1/2 absolute bottom-4 left-1/2 z-10 rounded-full shadow-lg transition-all hover:bg-muted hover:text-foreground",
           isAtBottom
             ? "pointer-events-none scale-0 opacity-0"
             : "pointer-events-auto scale-100 opacity-100",

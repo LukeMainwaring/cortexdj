@@ -40,6 +40,11 @@ TypeScript/Next.js conventions for the cortexdj frontend.
   - `<AlertDialog>` for confirmation dialogs, `<DropdownMenu>` for context
     menus, `<Collapsible>` for expandable sections, `<Sheet>` for slide-out
     panels, `<Tabs>` for tabbed groupings.
+  - `<Card>` is available in `components/ui/`, but the project predominantly
+    uses raw `border-border bg-card` divs for card-shaped surfaces when the
+    finer color/layout control matters (see `session-list-panel.tsx`,
+    `retrieved-tracks-panel.tsx`). Either pattern is fine; reach for `<Card>`
+    when a section truly is a card-and-nothing-else.
 - When a shadcn component's default variant matches your needs, don't rewrite
   the styles — just use the variant. Override with `className` only for
   styles the variant doesn't cover.
@@ -51,6 +56,9 @@ TypeScript/Next.js conventions for the cortexdj frontend.
 - Use kebab-case for filenames (e.g., `session-visualization.tsx`,
   `multimodal-input.tsx`).
 - Colocate types with their component unless shared across multiple files.
-- Prefer `useCallback` and `memo` for expensive renders and callbacks passed
-  as props.
+- Use `useCallback` and `memo` where the current codebase already does
+  (`messages.tsx`, `session-list-panel.tsx`, etc. wrap their components in
+  `memo` with a custom equality fn). Don't add new memoization speculatively
+  — Next.js 16 ships with React 19, and once the React Compiler is enabled
+  most manual `useCallback`/`useMemo` becomes redundant or counterproductive.
 - Use `cn()` from `@/lib/utils` for conditional class merging.

@@ -63,7 +63,7 @@ const PureChatItem = ({
         {isRenaming ? (
           <div className="flex h-8 items-center px-2">
             <Input
-              className="h-6 rounded border-0 bg-transparent px-1 py-0 text-sm ring-1 ring-ring ring-offset-0 focus-visible:ring-1 focus-visible:ring-offset-0"
+              className="h-6 rounded border-0 bg-transparent px-1 py-0 text-sm outline-none ring-1 ring-ring ring-offset-0 focus-visible:ring-offset-0"
               onBlur={handleSubmit}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {

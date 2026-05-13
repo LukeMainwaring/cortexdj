@@ -67,13 +67,10 @@ function SessionCard({
   const label = `Session ${session.display_index.toString().padStart(2, "0")}`;
   const isClickable = onAnalyze != null;
 
-  // Card-shaped clickable surface: raw <button> on purpose. <Button>'s defaults
-  // (`inline-flex items-center justify-center text-sm font-medium
-  // whitespace-nowrap h-10 px-4 py-2`) fight every aspect of this layout, and
-  // the disabled-state semantics differ (Button fades to opacity-50; here we
-  // want a non-clickable card to look identical to a clickable one). Per
-  // `.claude/rules/frontend/code-conventions.md`: when the shadcn variant
-  // doesn't match, don't rewrite. Focus/disabled/cursor handled manually.
+  // Raw <button> on purpose: Button's `h-10 px-4 py-2` and `opacity-50`
+  // disabled fade fight the card layout (we want disabled to look identical,
+  // not faded). Per the rule's escape clause in
+  // `.claude/rules/frontend/code-conventions.md`.
   const card = (
     <button
       className={cn(
