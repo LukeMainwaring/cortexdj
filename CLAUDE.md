@@ -99,3 +99,7 @@ Next.js 16 with App Router.
 - After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`.
 - Do not manually edit files in `frontend/api/generated/`.
 - Working with Modal? See `.claude/rules/backend/modal.md` first — Modal's API has changed substantially in the 1.x series and your training data may be stale.
+- Editing the Pydantic AI agent or evals? See `.claude/rules/backend/pydantic-ai.md` first — docs are split between the local snapshot and `ai.pydantic.dev`; tool error-handling convention.
+- Editing the frontend chat UI? See `.claude/rules/frontend/vercel-ai-sdk.md` first — pinned UI docs cover the UI surface only; everything else on `ai-sdk.dev`. No AI SDK Core server-side — backend SSE is the source of truth.
+- Editing frontend code in general? See `.claude/rules/frontend/code-conventions.md` first — import-alias scope, shadcn/ui usage, kebab-case filenames, `cn()` from `@/lib/utils`.
+- Editing backend Python? See `.claude/rules/backend/code-conventions.md` first — filename, typing, and naming conventions.

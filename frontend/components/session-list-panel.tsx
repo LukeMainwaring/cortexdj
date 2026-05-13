@@ -67,6 +67,10 @@ function SessionCard({
   const label = `Session ${session.display_index.toString().padStart(2, "0")}`;
   const isClickable = onAnalyze != null;
 
+  // Raw <button> on purpose: Button's `h-10 px-4 py-2` and `opacity-50`
+  // disabled fade fight the card layout (we want disabled to look identical,
+  // not faded). Per the rule's escape clause in
+  // `.claude/rules/frontend/code-conventions.md`.
   const card = (
     <button
       className={cn(
