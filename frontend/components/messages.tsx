@@ -4,8 +4,10 @@ import { ArrowDown } from "lucide-react";
 import { memo } from "react";
 import { useMessages } from "@/hooks/use-messages";
 import type { ChatMessage } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Greeting } from "./greeting";
 import { PreviewMessage, RiffingMessage } from "./message";
+import { Button } from "./ui/button";
 
 type MessagesProps = {
   status: UseChatHelpers<ChatMessage>["status"];
@@ -56,18 +58,21 @@ function PureMessages({ status, messages, setMessages }: MessagesProps) {
         </div>
       </div>
 
-      <button
+      <Button
         aria-label="Scroll to bottom"
-        className={`-translate-x-1/2 absolute bottom-4 left-1/2 z-10 rounded-full border bg-background p-2 shadow-lg transition-all hover:bg-muted ${
+        className={cn(
+          "-translate-x-1/2 absolute bottom-4 left-1/2 z-10 rounded-full shadow-lg transition-all",
           isAtBottom
             ? "pointer-events-none scale-0 opacity-0"
-            : "pointer-events-auto scale-100 opacity-100"
-        }`}
+            : "pointer-events-auto scale-100 opacity-100",
+        )}
         onClick={() => scrollToBottom("smooth")}
+        size="icon"
         type="button"
+        variant="outline"
       >
-        <ArrowDown className="size-4" />
-      </button>
+        <ArrowDown />
+      </Button>
     </div>
   );
 }

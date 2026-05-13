@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { Input } from "./ui/input";
 import {
   SidebarMenuAction,
   SidebarMenuButton,
@@ -61,8 +62,8 @@ const PureChatItem = ({
       <SidebarMenuButton asChild isActive={isActive}>
         {isRenaming ? (
           <div className="flex h-8 items-center px-2">
-            <input
-              className="h-6 w-full rounded bg-transparent px-1 text-sm outline-none ring-1 ring-ring"
+            <Input
+              className="h-6 rounded border-0 bg-transparent px-1 py-0 text-sm ring-1 ring-ring ring-offset-0 focus-visible:ring-1 focus-visible:ring-offset-0"
               onBlur={handleSubmit}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
