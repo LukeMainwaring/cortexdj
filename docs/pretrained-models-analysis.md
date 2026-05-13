@@ -83,7 +83,7 @@ model = CBraMod.from_pretrained("username/cortexdj-emotion-cbramod")
 
 1. **Sampling rate mismatch** — DEAP preprocessed data is 128 Hz; most pretrained models expect 200–256 Hz. Resampling is straightforward but may affect pretrained representations. Needs benchmark with and without resampling.
 
-2. **Channel mapping** — DEAP uses 32 channels in a specific montage. Flexible-channel models (CBraMod, REVE, LUNA) handle this via positional encoding, but accuracy impact needs measurement.
+2. **Channel mapping** — DEAP uses 32 channels in a specific montage. Flexible-channel models (CBraMod, REVE, LUNA) handle this via positional encoding, but accuracy impact needs measurement. Concrete API: braindecode's [`plot_channel_interpolation`](https://braindecode.org/stable/auto_examples/model_building/plot_channel_interpolation.html) example. Practical extremes to ablate against: DREAMER (14 ch, Emotiv) and MUSIN-G (128 ch, HGSN) — see [datasets-analysis.md](datasets-analysis.md).
 
 3. **32ch→4ch transfer degradation** — CBraMod, REVE, and LUNA support arbitrary channel counts but none publish a 4-channel ablation. Needs direct measurement on DEAP with channels masked down to the Muse 2 montage (TP9/AF7/AF8/TP10).
 
