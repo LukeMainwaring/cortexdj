@@ -59,7 +59,7 @@ FastAPI Python backend using async patterns throughout.
 
 - **`src/cortexdj/app.py`**: FastAPI entry point with lifespan handler (EEG model loading)
 - **`src/cortexdj/routers/`**: API routes by domain (agent, sessions, threads, health, retrieval)
-- **`src/cortexdj/agents/`**: Pydantic AI agent — `brain_agent.py` is the assistant. Capabilities in `capabilities/` (Session, Insight, Playlist, Retrieval, Classification) group tools and optionally inject dynamic system-prompt fragments via `get_instructions()`. Tool functions live in `tools/`. Key convention: tools let exceptions propagate to `hooks.on_tool_execute_error` for structured recovery, except `retrieval_tools.retrieve_tracks_from_brain_state` which catches `DeapFileMissingError` inline for user-facing clarity. `history_processor.py` summarizes large tool results in prior turns to prevent token bloat.
+- **`src/cortexdj/agents/`**: Pydantic AI agent — `brain_agent.py` is the assistant. Capabilities in `capabilities/` (Session, Insight, Playlist, Retrieval, Classification) group tools and optionally inject dynamic system-prompt fragments via `get_instructions()`. Tool functions live in `tools/`. Key convention: tools let exceptions propagate to `hooks.on_tool_execute_error` for structured recovery, except `retrieval_tools.retrieve_tracks_from_brain_state` which catches `DeapFileMissingError` inline for user-facing clarity. `history_processor.py`'s `summarize_tool_results` is registered as a `ProcessHistory` capability on `brain_agent` to compact large tool results in prior turns and prevent token bloat.
 - **`src/cortexdj/models/`**: SQLAlchemy async models with CRUD classmethods (Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message, TrackAudioEmbedding). `TrackAudioEmbedding` is the pgvector-backed retrieval index with an HNSW cosine search op.
 - **`src/cortexdj/schemas/`**: Pydantic schemas for API contracts
 - **`src/cortexdj/services/`**: Business logic — `eeg_processing`, `spotify` (identity only; `preview_url` deprecated for standard-mode apps Nov 2024), `session`, `thread`, `title_generator`, `trajectory`, `retrieval` (encode_session_to_clap_space + pgvector search), `audio_catalog` (iTunes Search wrapper with duration-delta match heuristic).
@@ -87,7 +87,7 @@ Next.js 16 with App Router.
 1. Frontend `useChat` sends messages to `/api/chat` route
 2. Route proxies to backend `POST /agent/chat`
 3. Backend loads thread's `brain_context` into `AgentDeps`; `ClassificationCapability.get_instructions()` dynamically injects it into the system prompt
-4. `HistoryProcessor` summarizes large tool results from prior turns to prevent token bloat
+4. The `ProcessHistory` capability (`summarize_tool_results`) compacts large tool results from prior turns to prevent token bloat
 5. Pydantic AI agent decides which tools to call
 6. Agent streams response back as SSE (Vercel AI SDK format)
 7. Frontend renders with tool-call transparency, brain context badge, and inline panels: `<SessionVisualization>` on `analyze_session`, `<RetrievedTracksPanel>` on `retrieve_tracks_from_brain_state` (component-level details in the Frontend section above)
