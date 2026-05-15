@@ -178,14 +178,20 @@ Specific, actionable suggestions with file paths. Prioritize by impact.
 
 Ask the user before committing. If approved:
 
-1. Stage the dependency and documentation files:
-   - `backend/pyproject.toml`
-   - `backend/uv.lock`
-   - `frontend/package.json`
-   - `frontend/pnpm-lock.yaml`
-   - `docs/pydantic-ai-llms-full.txt`
-   - `docs/vercel-ai-sdk-ui.txt`
+1. Show what the update actually changed, so the approval is against a concrete diff:
 
-2. Commit with message: `chore: bump all dependencies to latest versions`
+```bash
+git status --porcelain
+git diff --stat
+```
+
+2. If `git status --porcelain` is empty, nothing was updated (deps already at latest, docs unchanged). Report this and skip the commit — do not create an empty commit.
+
+3. Otherwise stage and commit everything that changed. The run is on its own `update-deps/<date>` branch with no auto-fixes (Phase 5 is report-only), so the only changes present are the dependency, lockfile, and documentation refreshes:
+
+```bash
+git add -A
+git commit -m "chore: bump all dependencies to latest versions"
+```
 
 Do NOT automatically run code-reviewer or create-pr — those are manual follow-up steps.
