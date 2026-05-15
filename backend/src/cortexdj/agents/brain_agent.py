@@ -8,6 +8,7 @@ import logging
 
 import logfire
 from pydantic_ai import Agent
+from pydantic_ai.capabilities import ProcessHistory
 from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
 
 from cortexdj.agents.capabilities.classification import ClassificationCapability
@@ -99,6 +100,6 @@ brain_agent = Agent(
         RetrievalCapability(),
         ClassificationCapability(),
         build_brain_agent_hooks(),
+        ProcessHistory(summarize_tool_results),
     ],
-    history_processors=[summarize_tool_results],
 )
