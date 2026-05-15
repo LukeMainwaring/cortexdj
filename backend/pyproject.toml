@@ -21,24 +21,24 @@ dependencies = [
   "numpy>=2.4.4",
   "pgvector>=0.4.2",
   "psycopg[binary,pool]>=3.3.4",
-  "pydantic-ai>=1.94.0",
+  "pydantic-ai>=1.96.1",
   "pydantic>=2.13.4",
   "scipy>=1.17.1",
   "spotipy>=2.26.0",
   "sqlalchemy[asyncio,mypy]>=2.0.49",
   "tensorboard>=2.20.0",
-  "torch>=2.11.0",
-  "transformers>=5.8.0",
-  "uvicorn>=0.46.0",
+  "torch>=2.12.0",
+  "transformers>=5.8.1",
+  "uvicorn>=0.47.0",
 ]
 
 [dependency-groups]
 dev = [
   "mypy>=2.1.0",
   "pre-commit>=4.6.0",
-  "pydantic-evals>=1.94.0",
+  "pydantic-evals>=1.96.1",
   "pytest>=9.0.3",
-  "ruff>=0.15.12",
+  "ruff>=0.15.13",
 ]
 
 [tool.pytest.ini_options]
