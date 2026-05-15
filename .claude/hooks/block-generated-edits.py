@@ -19,9 +19,19 @@ def main() -> int:
     except (json.JSONDecodeError, ValueError):
         return 0  # unparseable input -> never block
 
-    file_path = (data.get("tool_input") or {}).get("file_path")
+    tool_input = data.get("tool_input") or {}
+    # Accept any known path-bearing key so a schema/matcher change does not
+    # silently disable the guard. If none is present, fail CLOSED: a security
+    # guard must not allow an edit it could not inspect.
+    file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
     if not file_path:
-        return 0
+        print(
+            "Blocked: could not determine the target file path from the tool "
+            "payload, so the frontend/api/generated/ guard cannot verify this "
+            "edit is safe. Refusing by default. (See AGENTS.md.)",
+            file=sys.stderr,
+        )
+        return 2
 
     project_dir = data.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
     norm = os.path.abspath(os.path.join(project_dir, file_path)).replace(os.sep, "/")
