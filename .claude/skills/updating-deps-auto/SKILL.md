@@ -241,7 +241,6 @@ Write the PR body to `.github/update-deps/$(date +%Y-%m-%d)/pr-body.md` with the
 - [ ] Verify `docker compose up -d` starts cleanly
 - [ ] Smoke test chat UI end-to-end
 
-🤖 Generated autonomously by Claude Code (`updating-deps-auto`)
 ```
 
 ### Commit + Push
