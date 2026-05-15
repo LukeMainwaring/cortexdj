@@ -26,6 +26,14 @@ The Vercel AI SDK's documentation lives in two places with **different content**
 outside the UI slice and finding nothing, it hasn't been deleted — it's on
 the web docs. Use WebFetch on `https://ai-sdk.dev/docs/...` before giving up.
 
+**Built UI ≠ API docs.** Neither place above contains production components —
+they specify the `useChat` / `sendMessage` / SSE *contract*. For a UI/UX
+feature that exists in the `vercel/chatbot` template but not yet in cortexdj
+(attachments, voice input, scroll affordances), the **`vercel-chatbot-template`
+agent** is the component-implementation reference: it extracts the template's
+React/Tailwind and adapts it onto cortexdj's structure. The docs above remain
+authoritative for the underlying contract that adapted UI must wire into.
+
 ## The chat surface in this project
 
 - **AI SDK UI only — no Core server-side.** `app/(chat)/api/chat/route.ts` is
