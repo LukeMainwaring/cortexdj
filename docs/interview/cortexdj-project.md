@@ -53,16 +53,28 @@
 - CBraMod basics: TUEG pretraining corpus, the asymmetric conditional positional encoding trick for variable channel counts.
 
 #### Deep dive 3: ML training — Modal, pretrained transfer, auto-research
-*(TODO — populate next iteration)*
-**Pitch.**
+**Pitch.** ML objective: *mood decoding* — classify each 4-second EEG window on arousal and valence, and have that generalize to a brain the model has never seen. I worked it from two angles — first the honest from-scratch baseline (a small dual-head CNN on hand-engineered features), then a pretrained EEG transformer fine-tuned for the same task. A separate contrastive track explores a joint EEG/audio embedding for retrieval. Modal handles GPU on demand, and an auto-research loop lets an agent run experiments unattended.
 
 **Approach.**
+- **From-scratch baseline first.** A small dual-head CNN (EEGNet style) on hand-engineered differential entropy features — fast, interpretable, and the honest reference point. If a from-scratch baseline can't beat the majority-class predictor on macro-F1, something's wrong upstream and no fancier model will fix it.
+- **Then a pretrained EEG transformer.** Fine-tune CBraMod (pretrained on a much larger EEG corpus) for the same dual-head task. The standard two-phase recipe — freeze the backbone first while the new heads catch up to its representations, then unfreeze with a much lower LR on the encoder than on the heads so the pretrained features shift gently rather than get wrecked.
+- **Contrastive training as a separate experiment.** Reuses the CBraMod backbone but with a different objective: jointly embed EEG windows and music into one space so an EEG session can retrieve nearest-neighbor tracks. The exploration was deliberate even though the result was complicated — more in the Takeaways block.
+- **Modal for on-demand GPU.** Nice tool for the side-project shape — one command runs training on a cloud GPU with the dataset already mounted, preemption-safe so long runs resume rather than restart. No idle infrastructure between experiments.
+- **Auto-research as the vision.** An agent edits the training script, runs an experiment on Modal, logs the result, and decides keep-or-revert next iteration. The interesting part isn't the plumbing — it's that ML iteration starts becoming a background process humans *review*, not a thing humans *operate*.
 
-**Angle for Precision.**
+**Angle for Precision.** Modal + auto-research is the agentic-AI-tooling pattern the JD calls for, in miniature — agents experiment unattended, humans handle judgment. And the baseline-then-pretrained progression is the realistic recipe for any new neural-signal task: prove the ground truth with a simple model first, then layer in the foundation-model muscle.
 
 **Likely follow-ups.**
+- *Q:* How does the auto-research loop actually work? → An agent edits the training script, runs one experiment on Modal, gets back a scalar metric, and appends a row to an append-only JSONL log. The agent reads the log on the next iteration to decide keep-or-revert. The point is that one Modal invocation equals one fully-recorded experiment — the agent never loses track of what it's tried.
+- *Q:* Why two-phase fine-tuning instead of end-to-end? → Pretrained encoder weights are valuable and easy to damage with the wrong learning rate. Training the heads first against a frozen encoder lets them catch up to its representations; then unfreezing with a much lower LR on the encoder lets it shift gently rather than chase the heads.
+- *Q:* Why CBraMod over other pretrained EEG models? → Two criteria: compact enough for real-time inference, and flexible channel counts so the same backbone can handle DEAP today and a different sensor geometry later with fine-tuning. I surveyed about 15 alternatives — most were either too heavy, fixed-channel, or pretrained on the wrong domain.
 
 **Brush up.**
+- Two-phase / progressive unfreezing fine-tuning patterns; discriminative learning rates.
+- Contrastive loss math: InfoNCE, CLIP-style symmetric, soft-target / supervised contrastive variants.
+- Agentic ML research loops as a pattern — append-only experiment logs, scalar metric contracts.
+- EMA-smoothed early stopping; macro-F1 vs accuracy on skewed labels; per-class recall as the fastest collapse detector.
+- The from-scratch baseline → pretrained progression as methodology; when to step up to a foundation model.
 
 #### Takeaways
 *(TODO — populate next iteration)*
