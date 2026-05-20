@@ -29,16 +29,29 @@
 - Different charting/data-viz libraries
 
 #### Deep dive 2: Data input, signal decoding & preprocessing
-*(TODO — populate next iteration)*
-**Pitch.**
+**Pitch.** EEG has low signal-to-noise and high inter-subject variability, so the realistic challenge isn't a fancier model — it's a *fair pipeline* that doesn't let the model cheat. I normalize labels per subject so the model can't memorize rating habits, validate strictly leave-one-subject-out so every number is on an unseen brain, and reuse the same windowing code at training and inference. The unglamorous half of the project, but the half that decides whether the numbers actually mean anything.
 
 **Approach.**
+- **4-second windows.** Each 60-second trial gets sliced into 15 non-overlapping 4-second segments — long enough for frequency-band powers to stabilize, short enough to track moment-to-moment emotional state.
+- **Two preprocessing paths, one shared slicer.** Engineered features (differential entropy across 5 frequency bands per channel) feed the small CNN baseline; raw resampled signal feeds the pretrained transformer. The window-slicer is the same code at training and at inference — no train/predict drift.
+- **Labels normalized per subject.** Each subject's 1–9 Likert ratings get split at their *own* median, not a global threshold. Without this, the model learns "this person rates everything a 7" rather than what their brain actually did.
+- **Leave-one-subject-out validation.** 32 folds — every reported number is on a brain the model has never seen. The honest evaluation choice, not the favorable one.
+- **Cache the expensive parts.** Feature extraction and audio embeddings cache to disk with content-keyed hashes so cold builds happen once. Caches are host-portable so Modal workers reuse a cache built locally.
 
-**Angle for Precision.**
+**Angle for Precision.** This is the BCI inter-subject calibration problem in miniature — every brain calibrates differently, and per-subject normalization plus leave-one-out validation are what separate "works in the lab" from "generalizes in the clinic." Motti's signal-processing background will recognize the pattern instantly.
 
 **Likely follow-ups.**
+- *Q:* How do you handle inter-subject variability? → Two ways. At the label level, I normalize each subject's ratings to their own median rather than a global threshold — so the model isn't learning rating habits. At evaluation, I validate leave-one-subject-out: 32 folds, every reported number is on a brain the model has never seen.
+- *Q:* Why two model paths? → EEGNet is the from-scratch baseline on engineered features — small, fast, interpretable, and the honest reference point. CBraMod is the pretrained transformer on raw signal — heavier, but the realistic path to deployment because it learns its own representation rather than depending on hand-crafted features.
+- *Q:* How would this transfer to different sensor geometries — surface arrays with very different channel counts? → The window-slicing and label-calibration logic is sensor-agnostic; what changes is the model. CBraMod's positional encoding accepts variable channel counts, so the same backbone scales across electrode geometries with fine-tuning — a big chunk of why I went with a pretrained model in the first place.
 
 **Brush up.**
+- EEG frequency bands (delta / theta / alpha / beta / gamma) and their physiological correlates.
+- Differential entropy as an EEG feature; why DE over raw band power.
+- Inter-subject normalization techniques in BCI: per-subject z-scoring, baseline subtraction, calibration tasks.
+- Cross-validation strategies for biological data: LOSO vs. within-subject vs. k-fold; what each tells you.
+- CBraMod basics: TUEG pretraining corpus, the asymmetric conditional positional encoding trick for variable channel counts.
+
 #### Deep dive 3: ML training — Modal, pretrained transfer, auto-research
 *(TODO — populate next iteration)*
 **Pitch.**
