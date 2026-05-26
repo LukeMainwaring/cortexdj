@@ -88,9 +88,19 @@ model.push_to_hub("username/cortexdj-emotion-cbramod")
 model = CBraMod.from_pretrained("username/cortexdj-emotion-cbramod")
 ```
 
+## External validation: NeuralBench-EEG (Meta FAIR, 2026)
+
+[Banville et al., 2026](https://github.com/facebookresearch/neuroai/tree/main/neuralbench-repo) benchmarked 14 EEG architectures across 36 tasks / 94 datasets under a single standardized recipe. Findings that bear on the recommendations above:
+
+- **Foundation models only marginally beat task-specific from-scratch models.** REVE/LaBraM/LUNA lead the ranking, but **CTNet (150K params, task-specific)** ranks 4th — beating CBraMod (4.9M) and three other foundation models. The gap is narrow enough that adding more datasets per task flips the order. Validates the "Emotion-specific baselines" framing: TSception/DGCNN/EEGConformer aren't just sanity checks, they're plausibly competitive.
+- **CBraMod sits mid-pack (5th of 14)** in the Core ranking, just behind CTNet and SimpleConvTimeAgg. REVE (#1, 69M params, pretrained on 60K hours) outperforms by a real but narrow margin — supports the Tier 1 ordering and suggests the upside of swapping CBraMod → REVE is bounded.
+- **Cross-subject is where everything gets hard.** Motor imagery, P300, and N2pc collapse to near-dummy performance under cross-subject splits. Our LOSO CV sits in the same subject-disjoint family — actually stricter than NeuralBench's 20%-subject holdout — so DEAP accuracies in the literature that used within-subject splits are not apples-to-apples comparables.
+- **Each foundation model expects a specific input distribution.** CBraMod's recipe specifies 200 Hz / 0.3–75 Hz / `scale_factor=10000` against MNE volts (≈ ×0.01 against DEAP µV). The cortexdj data path now applies this scale via `CBRAMOD_SCALE_FACTOR` in `ml/dataset.py`; the bandpass mismatch (DEAP is pre-filtered to 4–45 Hz) is not recoverable without raw `.bdf` files.
+- **Standardized downstream recipe** for reference: AdamW lr=1e-4, wd=0.05, cosine + 10% warmup, ≤50 epochs, end-to-end finetune, linear probe on mean-pooled tokens. Diverges from cortexdj's current MLP-head + two-phase freeze→unfreeze schedule; worth running as a baseline comparator before committing to either.
+
 ## Open Questions
 
-1. **Sampling rate mismatch** — DEAP preprocessed data is 128 Hz; most pretrained models expect 200–256 Hz. Resampling is straightforward but may affect pretrained representations. Needs benchmark with and without resampling.
+1. **Sampling rate mismatch** — DEAP preprocessed data is 128 Hz; most pretrained models expect 200–256 Hz. Resampling is straightforward but may affect pretrained representations. Needs benchmark with and without resampling. *Partial answer from NeuralBench: each foundation model has a model-specific preprocessing recipe that resampling alone won't satisfy — see "Each foundation model expects a specific input distribution" above.*
 
 2. **Channel mapping** — DEAP uses 32 channels in a specific montage. Flexible-channel models (CBraMod, REVE, LUNA) handle this via positional encoding, but accuracy impact needs measurement. Concrete API: braindecode's [`plot_channel_interpolation`](https://braindecode.org/stable/auto_examples/model_building/plot_channel_interpolation.html) example. Practical extremes to ablate against: DREAMER (14 ch, Emotiv) and MUSIN-G (128 ch, HGSN) — see [datasets-analysis.md](datasets-analysis.md).
 

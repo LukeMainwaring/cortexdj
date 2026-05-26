@@ -32,6 +32,7 @@ from cortexdj.core.paths import AUDIO_CACHE_DIR, DATA_DIR, DEAP_DATA_DIR
 from cortexdj.ml.contrastive import CLAP_MODEL_ID, ClapAudioEncoder, load_audio_waveform
 from cortexdj.ml.dataset import (
     CBRAMOD_SAMPLING_RATE,
+    CBRAMOD_SCALE_FACTOR,
     SEGMENT_SAMPLES,
     _cache_dir,
     _extract_participant_id,
@@ -40,6 +41,10 @@ from cortexdj.ml.dataset import (
 
 logger = logging.getLogger(__name__)
 
+# Gates the CLAP audio embedding cache only (see `_audio_cache_key`). EEG-side
+# preprocessing has no persistent cache in this file — `DeapClapPairDataset`
+# reads `.dat` fresh each construction — so bump this only when the audio
+# embedding pipeline changes.
 _CACHE_VERSION = "v2"
 STIMULI_RESOLVED_PATH = DATA_DIR / "deap_stimuli_resolved.json"
 
@@ -57,7 +62,8 @@ def trial_to_eeg_windows(
     Shared by the training dataset and the runtime retrieval service so both
     sides produce windows with identical shape and preprocessing. `trial_data`
     is expected as (n_channels, n_samples) at DEAP's 128Hz sampling rate;
-    returns (n_windows, n_channels, target_segment_samples) at 200Hz.
+    returns (n_windows, n_channels, target_segment_samples) at 200Hz, scaled by
+    `CBRAMOD_SCALE_FACTOR` to match the pretrained input distribution.
     """
     n_samples = trial_data.shape[1]
     n_segments = n_samples // source_segment_samples
@@ -67,7 +73,7 @@ def trial_to_eeg_windows(
         end = start + source_segment_samples
         segment = trial_data[:, start:end]  # (n_channels, source_segment_samples)
         resampled = resample(segment, target_segment_samples, axis=1).astype(np.float32)
-        windows.append(resampled)
+        windows.append(resampled * CBRAMOD_SCALE_FACTOR)
     if not windows:
         return np.zeros((0, trial_data.shape[0], target_segment_samples), dtype=np.float32)
     return np.stack(windows, axis=0)

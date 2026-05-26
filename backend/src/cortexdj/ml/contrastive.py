@@ -85,7 +85,7 @@ class EegCLAPEncoder(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Take (B, 32, 800) raw EEG at 200Hz → (B, 512) unit vectors."""
+        """Take (B, 32, 800) EEG at 200Hz, pre-scaled by `CBRAMOD_SCALE_FACTOR` → (B, 512) unit vectors."""
         out = self.backbone(x, return_features=True)
         features = out["features"]  # (B, ..., backbone_embed_dim)
         pooled = features.reshape(features.shape[0], -1, features.shape[-1]).mean(dim=1)
@@ -225,9 +225,11 @@ def retrieval_metrics(
 def encode_session(model: EegCLAPEncoder, segments: np.ndarray, device: torch.device) -> np.ndarray:
     """Aggregate a session's EEG windows into a single 512-d query vector.
 
-    `segments` is a `(n_segments, 32, 800)` float32 array of already-resampled
-    4-second EEG windows. Returns an L2-normalized numpy vector suitable for
-    pgvector cosine similarity search.
+    `segments` is a `(n_segments, 32, 800)` float32 array of 4-second EEG
+    windows at 200Hz, pre-scaled to CBraMod's input range (callers should go
+    through `trial_to_eeg_windows`, which applies `CBRAMOD_SCALE_FACTOR`).
+    Returns an L2-normalized numpy vector suitable for pgvector cosine
+    similarity search.
     """
     model.eval()
     tensor = torch.from_numpy(segments.astype(np.float32)).to(device)
