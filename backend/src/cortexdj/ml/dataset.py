@@ -26,13 +26,20 @@ from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE, extract_features
 logger = logging.getLogger(__name__)
 
 # Bump when feature extraction or labeling logic changes.
-_CACHE_VERSION = "v3"
+_CACHE_VERSION = "v4"
 
 NUM_EEG_CHANNELS = 32
 SEGMENT_SAMPLES = DEFAULT_SAMPLING_RATE * 4  # 4-second segments (512 samples at 128Hz)
 EMOTION_STATES = ["calm", "relaxed", "stressed", "excited"]
 AROUSAL_THRESHOLD = 5.0
 VALENCE_THRESHOLD = 5.0
+
+# Multiply DEAP µV signals by this before feeding CBraMod. Without it, CBraMod
+# sees signals ~100× too large and its pretrained features operate
+# off-distribution. Derivation: NeuralBench's CBraMod recipe (neuralbench-repo
+# `neuralbench/models/cbramod.yaml`: scaler=null, scale_factor=10000) applies
+# 1e4 to MNE volts; the µV equivalent is µV × 1e-6 V/µV × 1e4 = µV × 1e-2.
+CBRAMOD_SCALE_FACTOR = 0.01
 
 # Label binarization strategy for DEAP's 1-9 Likert self-reports.
 #
@@ -379,8 +386,8 @@ class DEAPRawDataset(Dataset[tuple[torch.Tensor, int, int]]):
                 end = start + self.source_segment_samples
                 segment = trial_data[:, start:end]  # (32, 512)
 
-                # Resample 128Hz -> target (200Hz for CBraMod)
-                resampled = resample(segment, self.target_segment_samples, axis=1)
+                # Resample 128Hz -> target (200Hz for CBraMod), scale to match pretrained input range.
+                resampled = resample(segment, self.target_segment_samples, axis=1) * CBRAMOD_SCALE_FACTOR
                 self.samples.append((resampled, arousal_label, valence_label))
                 self.participant_ids.append(participant_id)
 

@@ -9,7 +9,7 @@ import torch
 from scipy.signal import resample
 
 from cortexdj.core.paths import CHECKPOINTS_DIR
-from cortexdj.ml.dataset import CBRAMOD_SEGMENT_SAMPLES, scores_to_quadrant
+from cortexdj.ml.dataset import CBRAMOD_SCALE_FACTOR, CBRAMOD_SEGMENT_SAMPLES, scores_to_quadrant
 from cortexdj.ml.model import EEGNetClassifier
 from cortexdj.ml.preprocessing import compute_band_powers, extract_features
 from cortexdj.ml.pretrained import PretrainedDualHead, load_pretrained_dual_head
@@ -85,7 +85,7 @@ def predict_segment(
 ) -> EEGPredictionResult:
     """Run inference on a single EEG segment (n_channels x n_samples)."""
     if isinstance(model, PretrainedDualHead):
-        resampled = resample(eeg_data, CBRAMOD_SEGMENT_SAMPLES, axis=1)
+        resampled = resample(eeg_data, CBRAMOD_SEGMENT_SAMPLES, axis=1) * CBRAMOD_SCALE_FACTOR
         input_tensor = torch.tensor(resampled, dtype=torch.float32).unsqueeze(0)
     else:
         features = extract_features(eeg_data)
