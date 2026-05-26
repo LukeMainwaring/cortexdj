@@ -77,8 +77,22 @@
 - The from-scratch baseline → pretrained progression as methodology; when to step up to a foundation model.
 
 #### Takeaways
-*(TODO — populate next iteration)*
 
 **Meta-lessons to surface.**
+- **Animation is data semantics for time-series.** When the signal is motion, libraries that flatten motion are the wrong tool.
+- **A fair pipeline beats a fancier model.** Per-subject normalization and leave-one-subject-out validation are what decide whether the numbers actually mean anything.
+- **Baseline before foundation.** A from-scratch baseline that can't beat majority class is a tell about your pipeline, not your model.
+- **Inline visualization beats separate dashboards.** Making the viz part of the agent conversation changes what users do with it.
+- **ML iteration as a background process.** Auto-research is the side-project version of "agents experiment, humans judge" — the direction every ML team is heading anyway.
 
-**Where I'd be careful not to overclaim.** *(future home for the contrastive-retrieval clean negative result at DEAP scale — kept as a strength, not a gap)
+**Where I'd be careful not to overclaim.**
+- **Contrastive EEG↔audio retrieval doesn't produce usable signal at DEAP scale.** Built the full pipeline and ran the experiments. 4-second EEG windows encode mood and arousal, not the timbral/harmonic identity audio embeddings care about. Within-subject evaluation also plateaued at random baseline, so it's not a subject-transfer problem — it's a signal-mismatch one. I keep this in the writeup deliberately: being able to state a clean negative result *with the reason behind it* is the point, not a gap to hide.
+- **Hobby-project caveats.** No clinical users, no production latency targets, no regulatory frame. The instincts transfer; the numbers don't.
+- **The frontend viz isn't kHz-ready as-is.** Renders at ~0.25 Hz cadence — what transfers is the pipeline instinct (decimate server-side, choose rendering tech by point count), not the implementation.
+- **Classification numbers are leak-free on DEAP, not on a clinical signal.** LOSO results are honest, but DEAP is music-video stimuli with self-reported labels, not patient-derived neural decoding.
+
+**Where it could go next.**
+- **Close the contrastive retrieval loop honestly.** Larger, more diverse dataset where mood and track identity actually co-vary; revisit whether window granularity or auxiliary supervision changes the signal.
+- **Real-time inference on actual hardware.** Wire in a consumer headset and test the channel-transfer story (32-ch → 4-ch via CBraMod fine-tuning).
+- **Production-grade visualization renderer.** Canvas or WebGL for higher point counts — the current SVG path is honest about its ceiling.
+- **Auto-research with hypothesis-driven proposals.** Today the agent does keep-or-revert; the obvious next step is letting it propose what to try next, not just sweep hyperparameters.
