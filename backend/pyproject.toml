@@ -11,7 +11,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic>=1.18.4",
   "asyncpg>=0.31.0",
-  "braindecode>=1.5.1",
+  "braindecode>=1.5.2",
   "safetensors>=0.7.0",
   "fastapi[standard]>=0.136.3",
   "httpx>=0.28.1",
@@ -21,7 +21,7 @@ dependencies = [
   "numpy>=2.4.6",
   "pgvector>=0.4.2",
   "psycopg[binary,pool]>=3.3.4",
-  "pydantic-ai>=1.102.0",
+  "pydantic-ai>=1.104.0",
   "pydantic>=2.13.4",
   "scipy>=1.17.1",
   "spotipy>=2.26.0",
@@ -36,9 +36,9 @@ dependencies = [
 dev = [
   "mypy>=2.1.0",
   "pre-commit>=4.6.0",
-  "pydantic-evals>=1.102.0",
+  "pydantic-evals>=1.104.0",
   "pytest>=9.0.3",
-  "ruff>=0.15.14",
+  "ruff>=0.15.15",
 ]
 
 [tool.pytest.ini_options]
