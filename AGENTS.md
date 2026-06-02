@@ -103,3 +103,4 @@ Next.js 16 with App Router.
 - Editing the frontend chat UI? See `.claude/rules/frontend/vercel-ai-sdk.md` first — pinned UI docs cover the UI surface only; everything else on `ai-sdk.dev`. No AI SDK Core server-side — backend SSE is the source of truth.
 - Editing frontend code in general? See `.claude/rules/frontend/code-conventions.md` first — import-alias scope, shadcn/ui usage, kebab-case filenames, `cn()` from `@/lib/utils`.
 - Editing backend Python? See `.claude/rules/backend/code-conventions.md` first — filename, typing, and naming conventions.
+- Writing or naming new code (any stack)? See `.claude/rules/conventions.md` first — behavioral names, intent-carrying docstrings + negative constraints, rationale in ADRs.
