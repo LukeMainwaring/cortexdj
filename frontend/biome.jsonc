@@ -44,7 +44,6 @@
         /* Needs more work to fix */
         "noNestedTernary": "off"
       },
-      "nursery": {},
       "complexity": {
         /* Needs more work to fix */
         "noExcessiveCognitiveComplexity": "off",
