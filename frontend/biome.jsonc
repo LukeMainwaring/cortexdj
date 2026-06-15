@@ -44,10 +44,6 @@
         /* Needs more work to fix */
         "noNestedTernary": "off"
       },
-      "nursery": {
-        /* Too many false positives */
-        "noUnnecessaryConditions": "off"
-      },
       "complexity": {
         /* Needs more work to fix */
         "noExcessiveCognitiveComplexity": "off",

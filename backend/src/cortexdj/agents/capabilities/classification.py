@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from pydantic_ai import RunContext, ToolDefinition
@@ -8,6 +9,8 @@ from cortexdj.agents.deps import AgentDeps
 from cortexdj.agents.tools.classification_tools import get_model_info, set_brain_context
 
 _MODEL_TOOLS = frozenset({get_model_info.__name__})
+
+_InjectBrainContext = Callable[[RunContext[AgentDeps]], str]
 
 
 def _inject_brain_context(ctx: RunContext[AgentDeps]) -> str:
@@ -40,7 +43,7 @@ class ClassificationCapability(AbstractCapability[AgentDeps]):
         ts.tool(set_brain_context)
         return ts
 
-    def get_instructions(self) -> object:
+    def get_instructions(self) -> _InjectBrainContext:
         return _inject_brain_context
 
     async def prepare_tools(
