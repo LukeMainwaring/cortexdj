@@ -15,6 +15,7 @@ venv/
 node_modules/
 .next/
 out/
+*.tsbuildinfo
 
 # Data & models
 backend/data/checkpoints/
