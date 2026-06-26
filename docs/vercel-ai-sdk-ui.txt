@@ -28,6 +28,12 @@
       href: '/docs/ai-sdk-ui/chatbot-tool-usage'
     },
     {
+      title: 'MCP Apps',
+      description:
+        'Learn how to render interactive MCP tool UIs in a chatbot.',
+      href: '/docs/ai-sdk-core/mcp-apps'
+    },
+    {
       title: 'Completion',
       description: 'Learn how to integrate an interface for text completion.',
       href: '/docs/ai-sdk-ui/completion'
@@ -91,28 +97,47 @@
   - [Loop Control](/docs/agents/loop-control)
   - [Configuring Call Options](/docs/agents/configuring-call-options)
   - [Memory](/docs/agents/memory)
+  - [Policy-Based Tool Approvals](/docs/agents/policy-tool-approvals)
   - [Subagents](/docs/agents/subagents)
+  - [Tool Approvals](/docs/agents/tool-approvals)
+  - [WorkflowAgent](/docs/agents/workflow-agent)
+  - [Terminal UI](/docs/agents/terminal-ui)
 - [AI SDK Core](/docs/ai-sdk-core)
   - [Overview](/docs/ai-sdk-core/overview)
   - [Generating Text](/docs/ai-sdk-core/generating-text)
   - [Generating Structured Data](/docs/ai-sdk-core/generating-structured-data)
   - [Tool Calling](/docs/ai-sdk-core/tools-and-tool-calling)
   - [Model Context Protocol (MCP)](/docs/ai-sdk-core/mcp-tools)
+  - [MCP Apps](/docs/ai-sdk-core/mcp-apps)
+  - [Runtime and Tool Context](/docs/ai-sdk-core/runtime-and-tool-context)
   - [Prompt Engineering](/docs/ai-sdk-core/prompt-engineering)
   - [Settings](/docs/ai-sdk-core/settings)
+  - [Reasoning](/docs/ai-sdk-core/reasoning)
   - [Embeddings](/docs/ai-sdk-core/embeddings)
   - [Reranking](/docs/ai-sdk-core/reranking)
   - [Image Generation](/docs/ai-sdk-core/image-generation)
+  - [Realtime](/docs/ai-sdk-core/realtime)
   - [Transcription](/docs/ai-sdk-core/transcription)
   - [Speech](/docs/ai-sdk-core/speech)
   - [Video Generation](/docs/ai-sdk-core/video-generation)
+  - [File Uploads](/docs/ai-sdk-core/file-uploads)
   - [Language Model Middleware](/docs/ai-sdk-core/middleware)
+  - [Skill Uploads](/docs/ai-sdk-core/skill-uploads)
   - [Provider & Model Management](/docs/ai-sdk-core/provider-management)
   - [Error Handling](/docs/ai-sdk-core/error-handling)
   - [Testing](/docs/ai-sdk-core/testing)
   - [Telemetry](/docs/ai-sdk-core/telemetry)
   - [DevTools](/docs/ai-sdk-core/devtools)
-  - [Event Callbacks](/docs/ai-sdk-core/event-listeners)
+  - [Lifecycle Callbacks](/docs/ai-sdk-core/lifecycle-callbacks)
+- [AI SDK Harnesses](/docs/ai-sdk-harnesses)
+  - [Overview](/docs/ai-sdk-harnesses/overview)
+  - [HarnessAgent](/docs/ai-sdk-harnesses/harness-agent)
+  - [Tools](/docs/ai-sdk-harnesses/tools)
+  - [Skills](/docs/ai-sdk-harnesses/skills)
+  - [Harness Adapters](/docs/ai-sdk-harnesses/harness-adapters)
+  - [Workflow Utilities](/docs/ai-sdk-harnesses/workflow-utilities)
+  - [UI](/docs/ai-sdk-harnesses/ui)
+  - [Terminal UI](/docs/ai-sdk-harnesses/terminal-ui)
 - [AI SDK UI](/docs/ai-sdk-ui)
   - [Overview](/docs/ai-sdk-ui/overview)
   - [Chatbot](/docs/ai-sdk-ui/chatbot)
@@ -162,6 +187,8 @@
     - [transcribe](/docs/reference/ai-sdk-core/transcribe)
     - [generateSpeech](/docs/reference/ai-sdk-core/generate-speech)
     - [experimental_generateVideo](/docs/reference/ai-sdk-core/generate-video)
+    - [uploadFile](/docs/reference/ai-sdk-core/upload-file)
+    - [uploadSkill](/docs/reference/ai-sdk-core/upload-skill)
     - [Agent (Interface)](/docs/reference/ai-sdk-core/agent)
     - [ToolLoopAgent](/docs/reference/ai-sdk-core/tool-loop-agent)
     - [createAgentUIStream](/docs/reference/ai-sdk-core/create-agent-ui-stream)
@@ -170,27 +197,31 @@
     - [tool](/docs/reference/ai-sdk-core/tool)
     - [dynamicTool](/docs/reference/ai-sdk-core/dynamic-tool)
     - [createMCPClient](/docs/reference/ai-sdk-core/create-mcp-client)
+    - [experimental_getRealtimeToolDefinitions](/docs/reference/ai-sdk-core/get-realtime-tool-definitions)
+    - [MCP Apps](/docs/reference/ai-sdk-core/mcp-apps)
     - [Experimental_StdioMCPTransport](/docs/reference/ai-sdk-core/mcp-stdio-transport)
     - [jsonSchema](/docs/reference/ai-sdk-core/json-schema)
     - [zodSchema](/docs/reference/ai-sdk-core/zod-schema)
     - [valibotSchema](/docs/reference/ai-sdk-core/valibot-schema)
     - [Output](/docs/reference/ai-sdk-core/output)
+    - [filterActiveTools](/docs/reference/ai-sdk-core/filter-active-tools)
     - [ModelMessage](/docs/reference/ai-sdk-core/model-message)
     - [UIMessage](/docs/reference/ai-sdk-core/ui-message)
     - [validateUIMessages](/docs/reference/ai-sdk-core/validate-ui-messages)
     - [safeValidateUIMessages](/docs/reference/ai-sdk-core/safe-validate-ui-messages)
+    - [Experimental_SandboxSession](/docs/reference/ai-sdk-core/sandbox)
     - [createProviderRegistry](/docs/reference/ai-sdk-core/provider-registry)
     - [customProvider](/docs/reference/ai-sdk-core/custom-provider)
     - [cosineSimilarity](/docs/reference/ai-sdk-core/cosine-similarity)
     - [wrapLanguageModel](/docs/reference/ai-sdk-core/wrap-language-model)
     - [wrapImageModel](/docs/reference/ai-sdk-core/wrap-image-model)
-    - [LanguageModelV3Middleware](/docs/reference/ai-sdk-core/language-model-v2-middleware)
+    - [LanguageModelV4Middleware](/docs/reference/ai-sdk-core/language-model-v2-middleware)
     - [extractReasoningMiddleware](/docs/reference/ai-sdk-core/extract-reasoning-middleware)
     - [simulateStreamingMiddleware](/docs/reference/ai-sdk-core/simulate-streaming-middleware)
     - [defaultSettingsMiddleware](/docs/reference/ai-sdk-core/default-settings-middleware)
     - [addToolInputExamplesMiddleware](/docs/reference/ai-sdk-core/add-tool-input-examples-middleware)
     - [extractJsonMiddleware](/docs/reference/ai-sdk-core/extract-json-middleware)
-    - [stepCountIs](/docs/reference/ai-sdk-core/step-count-is)
+    - [isStepCount](/docs/reference/ai-sdk-core/is-step-count)
     - [hasToolCall](/docs/reference/ai-sdk-core/has-tool-call)
     - [isLoopFinished](/docs/reference/ai-sdk-core/loop-finished)
     - [simulateReadableStream](/docs/reference/ai-sdk-core/simulate-readable-stream)
@@ -202,6 +233,7 @@
     - [useChat](/docs/reference/ai-sdk-ui/use-chat)
     - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
     - [useObject](/docs/reference/ai-sdk-ui/use-object)
+    - [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
     - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
     - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
     - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -210,6 +242,7 @@
     - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
     - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
     - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+    - [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
     - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
   - [AI SDK RSC](/docs/reference/ai-sdk-rsc)
     - [streamUI](/docs/reference/ai-sdk-rsc/stream-ui)
@@ -224,6 +257,9 @@
     - [useUIState](/docs/reference/ai-sdk-rsc/use-ui-state)
     - [useStreamableValue](/docs/reference/ai-sdk-rsc/use-streamable-value)
     - [render (Removed)](/docs/reference/ai-sdk-rsc/render)
+  - [AI SDK Workflow](/docs/reference/ai-sdk-workflow)
+    - [WorkflowAgent](/docs/reference/ai-sdk-workflow/workflow-agent)
+    - [WorkflowChatTransport](/docs/reference/ai-sdk-workflow/workflow-chat-transport)
   - [AI SDK Errors](/docs/reference/ai-sdk-errors)
     - [AI_APICallError](/docs/reference/ai-sdk-errors/ai-api-call-error)
     - [AI_DownloadError](/docs/reference/ai-sdk-errors/ai-download-error)
@@ -234,6 +270,7 @@
     - [AI_InvalidPromptError](/docs/reference/ai-sdk-errors/ai-invalid-prompt-error)
     - [AI_InvalidResponseDataError](/docs/reference/ai-sdk-errors/ai-invalid-response-data-error)
     - [AI_InvalidToolApprovalError](/docs/reference/ai-sdk-errors/ai-invalid-tool-approval-error)
+    - [AI_InvalidToolApprovalSignatureError](/docs/reference/ai-sdk-errors/ai-invalid-tool-approval-signature-error)
     - [AI_InvalidToolInputError](/docs/reference/ai-sdk-errors/ai-invalid-tool-input-error)
     - [AI_JSONParseError](/docs/reference/ai-sdk-errors/ai-json-parse-error)
     - [AI_LoadAPIKeyError](/docs/reference/ai-sdk-errors/ai-load-api-key-error)
@@ -246,6 +283,7 @@
     - [AI_NoSpeechGeneratedError](/docs/reference/ai-sdk-errors/ai-no-speech-generated-error)
     - [AI_NoSuchModelError](/docs/reference/ai-sdk-errors/ai-no-such-model-error)
     - [AI_NoSuchProviderError](/docs/reference/ai-sdk-errors/ai-no-such-provider-error)
+    - [AI_NoSuchProviderReferenceError](/docs/reference/ai-sdk-errors/ai-no-such-provider-reference-error)
     - [AI_NoSuchToolError](/docs/reference/ai-sdk-errors/ai-no-such-tool-error)
     - [AI_NoTranscriptGeneratedError](/docs/reference/ai-sdk-errors/ai-no-transcript-generated-error)
     - [AI_NoVideoGeneratedError](/docs/reference/ai-sdk-errors/ai-no-video-generated-error)
@@ -256,8 +294,11 @@
     - [AI_TypeValidationError](/docs/reference/ai-sdk-errors/ai-type-validation-error)
     - [AI_UIMessageStreamError](/docs/reference/ai-sdk-errors/ai-ui-message-stream-error)
     - [AI_UnsupportedFunctionalityError](/docs/reference/ai-sdk-errors/ai-unsupported-functionality-error)
+  - [AI SDK TUI](/docs/reference/ai-sdk-tui)
+    - [runAgentTUI](/docs/reference/ai-sdk-tui/run-agent-tui)
 - [Migration Guides](/docs/migration-guides)
   - [Versioning](/docs/migration-guides/versioning)
+  - [Migrate AI SDK 6.x to 7.0](/docs/migration-guides/migration-guide-7-0)
   - [Migrate AI SDK 5.x to 6.0](/docs/migration-guides/migration-guide-6-0)
   - [Migrate Your Data to AI SDK 5.0](/docs/migration-guides/migration-guide-5-0-data)
   - [Migrate AI SDK 4.x to 5.0](/docs/migration-guides/migration-guide-5-0)
@@ -285,7 +326,7 @@
   - [TypeScript performance issues with Zod and AI SDK 5](/docs/troubleshooting/typescript-performance-zod)
   - [useChat "An error occurred"](/docs/troubleshooting/use-chat-an-error-occurred)
   - [Repeated assistant messages in useChat](/docs/troubleshooting/repeated-assistant-messages)
-  - [onFinish not called when stream is aborted](/docs/troubleshooting/stream-abort-handling)
+  - [onEnd not called when stream is aborted](/docs/troubleshooting/stream-abort-handling)
   - [Tool calling with structured outputs](/docs/troubleshooting/tool-calling-with-structured-outputs)
   - [Abort and resumable streams](/docs/troubleshooting/abort-breaks-resumable-streams)
   - [streamText fails silently](/docs/troubleshooting/stream-text-not-working)
@@ -374,7 +415,13 @@ export default function Page() {
 ```
 
 ```ts filename='app/api/chat/route.ts'
-import { convertToModelMessages, streamText, UIMessage } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 // Allow streaming responses up to 30 seconds
@@ -385,11 +432,13 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: __MODEL__,
-    system: 'You are a helpful assistant.',
+    instructions: 'You are a helpful assistant.',
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -426,7 +475,7 @@ You can use `status` for e.g. the following purposes:
 - To show a "Stop" button to abort the current message.
 - To disable the submit button.
 
-```tsx filename='app/page.tsx' highlight="6,22-29,36"
+```tsx filename='app/page.tsx' highlight="8,26-33,47,50"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -496,7 +545,7 @@ It can be used to display an error message, disable the submit button, or show a
   server.
 </Note>
 
-```tsx file="app/page.tsx" highlight="6,20-27,33"
+```tsx file="app/page.tsx" highlight="8,26-33,47"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -756,7 +805,7 @@ The request-level options are merged with hook-level options, with request-level
 You can configure custom `body` fields on a per-request basis using the second parameter of the `sendMessage` function.
 This is useful if you want to pass in additional information to your backend that is not part of the message list.
 
-```tsx filename="app/page.tsx" highlight="20-25"
+```tsx filename="app/page.tsx" highlight="25-32"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -817,21 +866,24 @@ You can attach custom metadata to messages for tracking information like timesta
 
 ```ts
 // Server: Send metadata about the message
-return result.toUIMessageStreamResponse({
-  messageMetadata: ({ part }) => {
-    if (part.type === 'start') {
-      return {
-        createdAt: Date.now(),
-        model: 'gpt-5.1',
-      };
-    }
+return createUIMessageStreamResponse({
+  stream: toUIMessageStream({
+    stream: result.stream,
+    messageMetadata: ({ part }) => {
+      if (part.type === 'start') {
+        return {
+          createdAt: Date.now(),
+          model: 'gpt-5.1',
+        };
+      }
 
-    if (part.type === 'finish') {
-      return {
-        totalTokens: part.totalUsage.totalTokens,
-      };
-    }
-  },
+      if (part.type === 'finish') {
+        return {
+          totalTokens: part.totalUsage.totalTokens,
+        };
+      }
+    },
+  }),
 });
 ```
 
@@ -900,7 +952,9 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -969,7 +1023,9 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -1032,10 +1088,16 @@ With `streamText`, you can control how error messages and usage information are 
 
 By default, the error message is masked for security reasons.
 The default error message is "An error occurred."
-You can forward error messages or send your own error message by providing a `getErrorMessage` function:
+You can forward error messages or send your own error message by providing an `onError` function:
 
-```ts filename="app/api/chat/route.ts" highlight="13-27"
-import { convertToModelMessages, streamText, UIMessage } from 'ai';
+```ts filename="app/api/chat/route.ts" highlight="21-35"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 export async function POST(req: Request) {
@@ -1046,22 +1108,25 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse({
-    onError: error => {
-      if (error == null) {
-        return 'unknown error';
-      }
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      onError: error => {
+        if (error == null) {
+          return 'unknown error';
+        }
 
-      if (typeof error === 'string') {
-        return error;
-      }
+        if (typeof error === 'string') {
+          return error;
+        }
 
-      if (error instanceof Error) {
-        return error.message;
-      }
+        if (error instanceof Error) {
+          return error.message;
+        }
 
-      return JSON.stringify(error);
-    },
+        return JSON.stringify(error);
+      },
+    }),
   });
 }
 ```
@@ -1080,7 +1145,9 @@ Usage data is attached as metadata to messages and becomes available once the mo
 import { openai } from '@ai-sdk/openai';
 import {
   convertToModelMessages,
+  createUIMessageStreamResponse,
   streamText,
+  toUIMessageStream,
   UIMessage,
   type LanguageModelUsage,
 } from 'ai';
@@ -1102,14 +1169,17 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    messageMetadata: ({ part }) => {
-      // Send total usage when generation is finished
-      if (part.type === 'finish') {
-        return { totalUsage: part.totalUsage };
-      }
-    },
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: messages,
+      messageMetadata: ({ part }) => {
+        // Send total usage when generation is finished
+        if (part.type === 'finish') {
+          return { totalUsage: part.totalUsage };
+        }
+      },
+    }),
   });
 }
 ```
@@ -1211,8 +1281,14 @@ and Anthropic `claude-sonnet-4-5-20250929` support reasoning tokens.
 These tokens are typically sent before the message content.
 You can forward them to the client with the `sendReasoning` option:
 
-```ts filename="app/api/chat/route.ts" highlight="13"
-import { convertToModelMessages, streamText, UIMessage } from 'ai';
+```ts filename="app/api/chat/route.ts" highlight="20"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
@@ -1222,8 +1298,11 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse({
-    sendReasoning: true,
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      sendReasoning: true,
+    }),
   });
 }
 ```
@@ -1251,16 +1330,26 @@ messages.map(message => (
 ));
 ```
 
+Some models may also produce files as part of reasoning (e.g. images).
+These are available as `reasoning-file` parts (`ReasoningFileUIPart`) with
+`mediaType` and `url` properties, similar to regular file parts.
+
 ## Sources
 
 Some providers such as [Perplexity](/providers/ai-sdk-providers/perplexity#sources) and
-[Google Generative AI](/providers/ai-sdk-providers/google-generative-ai#sources) include sources in the response.
+[Google](/providers/ai-sdk-providers/google#sources) include sources in the response.
 
 Currently sources are limited to web pages that ground the response.
 You can forward them to the client with the `sendSources` option:
 
-```ts filename="app/api/chat/route.ts" highlight="13"
-import { convertToModelMessages, streamText, UIMessage } from 'ai';
+```ts filename="app/api/chat/route.ts" highlight="20"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
@@ -1270,8 +1359,11 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse({
-    sendSources: true,
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      sendSources: true,
+    }),
   });
 }
 ```
@@ -1509,6 +1601,9 @@ export default function Page() {
 }
 ```
 
+Files generated as part of model reasoning are available as `reasoning-file`
+parts (`ReasoningFileUIPart`) with the same `mediaType` and `url` properties.
+
 ## Type Inference for Tools
 
 When working with tools in TypeScript, AI SDK UI provides type inference helpers to ensure type safety for your tool inputs and outputs.
@@ -1677,6 +1772,9 @@ import { existsSync, mkdirSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 
+// Treat chat IDs as opaque tokens before using them in file paths.
+const chatIdRegex = /^[A-Za-z0-9_-]+$/;
+
 export async function createChat(): Promise<string> {
   const id = generateId(); // generate a unique chat ID
   await writeFile(getChatFile(id), '[]'); // create an empty chat file
@@ -1684,11 +1782,26 @@ export async function createChat(): Promise<string> {
 }
 
 function getChatFile(id: string): string {
-  const chatDir = path.join(process.cwd(), '.chats');
+  if (!chatIdRegex.test(id)) {
+    throw new Error('Invalid chat ID');
+  }
+
+  const chatDir = path.resolve(process.cwd(), '.chats');
+  const chatFile = path.resolve(chatDir, `${id}.json`);
+
+  // Defense in depth: keep the resolved file inside the chat directory.
+  if (!chatFile.startsWith(`${chatDir}${path.sep}`)) {
+    throw new Error('Invalid chat ID');
+  }
+
   if (!existsSync(chatDir)) mkdirSync(chatDir, { recursive: true });
-  return path.join(chatDir, `${id}.json`);
+  return chatFile;
 }
 ```
+
+The chat ID can come from the URL or the request body, so validate it as an
+opaque token before using it in a file path. The resolved path check ensures the
+file stays inside the intended `.chats` directory.
 
 ## Loading an existing chat
 
@@ -1715,10 +1828,12 @@ When processing messages on the server that contain tool calls, custom metadata,
 
 When your messages include tool calls, validate them against your tool definitions:
 
-```tsx filename="app/api/chat/route.ts" highlight="7-25,32-37"
+```tsx filename="app/api/chat/route.ts" highlight="9-27,34-39"
 import {
   convertToModelMessages,
+  createUIMessageStreamResponse,
   streamText,
+  toUIMessageStream,
   UIMessage,
   validateUIMessages,
   tool,
@@ -1766,11 +1881,14 @@ export async function POST(req: Request) {
     tools,
   });
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    onFinish: ({ messages }) => {
-      saveChat({ chatId: id, messages });
-    },
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: messages,
+      onEnd: ({ messages }) => {
+        saveChat({ chatId: id, messages });
+      },
+    }),
   });
 }
 ```
@@ -1904,13 +2022,19 @@ parts, validate them using `validateUIMessages` before processing (see the
 
 </Note>
 
-Storing messages is done in the `onFinish` callback of the `toUIMessageStreamResponse` function.
-`onFinish` receives the complete messages including the new AI response as `UIMessage[]`.
+Storing messages is done in the `onEnd` callback of the `toUIMessageStream` function.
+`onEnd` receives the complete messages including the new AI response as `UIMessage[]`.
 
-```tsx filename="app/api/chat/route.ts" highlight="6,11-17"
+```tsx filename="app/api/chat/route.ts" highlight="12,17-25"
 import { openai } from '@ai-sdk/openai';
 import { saveChat } from '@util/chat-store';
-import { convertToModelMessages, streamText, UIMessage } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 
 export async function POST(req: Request) {
   const { messages, chatId }: { messages: UIMessage[]; chatId: string } =
@@ -1921,11 +2045,14 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    onFinish: ({ messages }) => {
-      saveChat({ chatId, messages });
-    },
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: messages,
+      onEnd: ({ messages }) => {
+        saveChat({ chatId, messages });
+      },
+    }),
   });
 }
 ```
@@ -1970,15 +2097,20 @@ However, **for persistence, you need server-side generated IDs** to ensure consi
 
 When implementing persistence, you have two options for generating server-side IDs:
 
-1. **Using `generateMessageId` in `toUIMessageStreamResponse`**
+1. **Using `generateMessageId` in `toUIMessageStream`**
 2. **Setting IDs in your start message part with `createUIMessageStream`**
 
-#### Option 1: Using `generateMessageId` in `toUIMessageStreamResponse`
+#### Option 1: Using `generateMessageId` in `toUIMessageStream`
 
 You can control the ID format by providing ID generators using [`createIdGenerator()`](/docs/reference/ai-sdk-core/create-id-generator):
 
-```tsx filename="app/api/chat/route.ts" highlight="7-11"
-import { createIdGenerator, streamText } from 'ai';
+```tsx filename="app/api/chat/route.ts" highlight="18-22"
+import {
+  createIdGenerator,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from 'ai';
 
 export async function POST(req: Request) {
   // ...
@@ -1986,16 +2118,19 @@ export async function POST(req: Request) {
     // ...
   });
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    // Generate consistent server-side IDs for persistence:
-    generateMessageId: createIdGenerator({
-      prefix: 'msg',
-      size: 16,
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: messages,
+      // Generate consistent server-side IDs for persistence:
+      generateMessageId: createIdGenerator({
+        prefix: 'msg',
+        size: 16,
+      }),
+      onEnd: ({ messages }) => {
+        saveChat({ chatId, messages });
+      },
     }),
-    onFinish: ({ messages }) => {
-      saveChat({ chatId, messages });
-    },
   });
 }
 ```
@@ -2004,12 +2139,13 @@ export async function POST(req: Request) {
 
 Alternatively, you can use `createUIMessageStream` to control the message ID by writing a start message part:
 
-```tsx filename="app/api/chat/route.ts" highlight="8-18"
+```tsx filename="app/api/chat/route.ts" highlight="9-19"
 import {
   generateId,
   streamText,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  toUIMessageStream,
 } from 'ai';
 
 export async function POST(req: Request) {
@@ -2028,10 +2164,12 @@ export async function POST(req: Request) {
         messages: await convertToModelMessages(messages),
       });
 
-      writer.merge(result.toUIMessageStream({ sendStart: false })); // omit start message part
+      writer.merge(
+        toUIMessageStream({ stream: result.stream, sendStart: false }),
+      ); // omit start message part
     },
     originalMessages: messages,
-    onFinish: ({ responseMessage }) => {
+    onEnd: ({ responseMessage }) => {
       // save your chat here
     },
   });
@@ -2086,8 +2224,14 @@ const {
 
 On the server, you can then load the previous messages and append the new message to the previous messages. If your messages contain tools, metadata, or custom data parts, you should validate them:
 
-```tsx filename="app/api/chat/route.ts" highlight="2-11,14-18"
-import { convertToModelMessages, UIMessage, validateUIMessages } from 'ai';
+```tsx filename="app/api/chat/route.ts" highlight="18-24"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
+  UIMessage,
+  validateUIMessages,
+} from 'ai';
 // import your tools and schemas
 
 export async function POST(req: Request) {
@@ -2111,11 +2255,14 @@ export async function POST(req: Request) {
     messages: convertToModelMessages(validatedMessages),
   });
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: validatedMessages,
-    onFinish: ({ messages }) => {
-      saveChat({ chatId: id, messages });
-    },
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: validatedMessages,
+      onEnd: ({ messages }) => {
+        saveChat({ chatId: id, messages });
+      },
+    }),
   });
 }
 ```
@@ -2134,7 +2281,13 @@ and then save the result as usual.
 meaning that the result is stored even when the client has already disconnected.
 
 ```tsx filename="app/api/chat/route.ts" highlight="19-21"
-import { convertToModelMessages, streamText, UIMessage } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 import { saveChat } from '@util/chat-store';
 
 export async function POST(req: Request) {
@@ -2146,15 +2299,18 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  // consume the stream to ensure it runs to completion & triggers onFinish
+  // consume the stream to ensure it runs to completion & triggers onEnd
   // even when the client response is aborted:
   result.consumeStream(); // no await
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    onFinish: ({ messages }) => {
-      saveChat({ chatId, messages });
-    },
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: messages,
+      onEnd: ({ messages }) => {
+        saveChat({ chatId, messages });
+      },
+    }),
   });
 }
 ```
@@ -2292,8 +2448,10 @@ import { openai } from '@ai-sdk/openai';
 import { readChat, saveChat } from '@util/chat-store';
 import {
   convertToModelMessages,
+  createUIMessageStreamResponse,
   generateId,
   streamText,
+  toUIMessageStream,
   type UIMessage,
 } from 'ai';
 import { after } from 'next/server';
@@ -2321,13 +2479,16 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    generateMessageId: generateId,
-    onFinish: ({ messages }) => {
-      // Clear the active stream when finished
-      saveChat({ id, messages, activeStreamId: null });
-    },
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: messages,
+      generateMessageId: generateId,
+      onEnd: ({ messages }) => {
+        // Clear the active stream when finished
+        saveChat({ id, messages, activeStreamId: null });
+      },
+    }),
     async consumeSseStream({ stream }) {
       const streamId = generateId();
 
@@ -2543,10 +2704,7 @@ export async function POST(
   const activeStreamId = chat.activeStreamId;
   const body = (await req.json().catch(() => ({}))) as StopRequest;
 
-  if (
-    body.activeStreamId != null &&
-    body.activeStreamId !== activeStreamId
-  ) {
+  if (body.activeStreamId != null && body.activeStreamId !== activeStreamId) {
     return Response.json({ success: true });
   }
 
@@ -2621,7 +2779,7 @@ After a user stops a stream, avoid automatic reconnect attempts for that chat un
 # Chatbot Tool Usage
 
 With [`useChat`](/docs/reference/ai-sdk-ui/use-chat) and [`streamText`](/docs/reference/ai-sdk-core/stream-text), you can use tools in your chatbot application.
-The AI SDK supports three types of tools in this context:
+The AI SDK supports three tool execution patterns in this context:
 
 1. Automatically executed server-side tools
 2. Automatically executed client-side tools
@@ -2664,7 +2822,13 @@ In this example, we'll use three tools:
 ### API route
 
 ```tsx filename='app/api/chat/route.ts'
-import { convertToModelMessages, streamText, UIMessage } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 import { z } from 'zod';
 
@@ -2705,7 +2869,9 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -2735,7 +2901,7 @@ There are three things worth mentioning:
    It asks the user for confirmation and displays the result once the user confirms or denies the execution.
    The result is added to the chat using `addToolOutput` with the `tool` parameter for type safety.
 
-```tsx filename='app/page.tsx' highlight="2,6,10,14-20"
+```tsx filename='app/page.tsx' highlight="6,11,16,19-23,25-26,28-33,51,66-70,77-81"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -2978,10 +3144,16 @@ For tools that need to run in the browser (updating UI state, accessing browser 
 
 ### Server Setup
 
-Enable approval by setting `needsApproval` on your tool. See [Tool Execution Approval](/docs/ai-sdk-core/tools-and-tool-calling#tool-execution-approval) for configuration options including dynamic approval based on input.
+Enable approval with `toolApproval` on `streamText`. The older
+`needsApproval` property on tools is deprecated. See [Tool Execution Approval](/docs/ai-sdk-core/tools-and-tool-calling#tool-execution-approval) for configuration options including dynamic approval based on input.
 
 ```tsx filename='app/api/chat/route.ts'
-import { streamText, tool } from 'ai';
+import {
+  createUIMessageStreamResponse,
+  streamText,
+  tool,
+  toUIMessageStream,
+} from 'ai';
 __PROVIDER_IMPORT__;
 import { z } from 'zod';
 
@@ -2997,22 +3169,30 @@ export async function POST(req: Request) {
         inputSchema: z.object({
           city: z.string(),
         }),
-        needsApproval: true,
         execute: async ({ city }) => {
           const weather = await fetchWeather(city);
           return weather;
         },
       }),
     },
+    toolApproval: {
+      getWeather: 'user-approval',
+    },
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ### Client-Side Approval UI
 
-When a tool requires approval, the tool part state is `approval-requested`. Use `addToolApprovalResponse` to approve or deny:
+When a tool requires manual approval, the tool part state is
+`approval-requested`. Automatic approvals and denials also flow through the
+same approval states, but they set `part.approval.isAutomatic === true`, so you
+can render the status without calling `addToolApprovalResponse`. Automatic
+approval decisions can also include `part.approval.reason`.
 
 ```tsx filename='app/page.tsx'
 'use client';
@@ -3029,7 +3209,15 @@ export default function Chat() {
           {message.parts.map(part => {
             if (part.type === 'tool-getWeather') {
               switch (part.state) {
-                case 'approval-requested':
+                case 'approval-requested': {
+                  if (part.approval.isAutomatic) {
+                    return (
+                      <div key={part.toolCallId}>
+                        Checking approval for {part.input.city}...
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={part.toolCallId}>
                       <p>Get weather for {part.input.city}?</p>
@@ -3055,10 +3243,31 @@ export default function Chat() {
                       </button>
                     </div>
                   );
+                }
+                case 'approval-responded':
+                  return (
+                    <div key={part.toolCallId}>
+                      Weather request for {part.input.city} was
+                      {part.approval.isAutomatic ? ' automatically' : ''}{' '}
+                      {part.approval.approved ? 'approved' : 'denied'}.
+                      {part.approval.reason
+                        ? ` Reason: ${part.approval.reason}`
+                        : ''}
+                    </div>
+                  );
                 case 'output-available':
                   return (
                     <div key={part.toolCallId}>
                       Weather in {part.input.city}: {part.output}
+                    </div>
+                  );
+                case 'output-denied':
+                  return (
+                    <div key={part.toolCallId}>
+                      Weather request for {part.input.city} was denied.
+                      {part.approval.reason
+                        ? ` Reason: ${part.approval.reason}`
+                        : ''}
                     </div>
                   );
               }
@@ -3071,6 +3280,28 @@ export default function Chat() {
   );
 }
 ```
+
+Call `addToolApprovalResponse` only for manual approvals. Automatic approval
+decisions already arrive in the UI stream as `approval-requested` and
+`approval-responded` states, and denied executions continue to `output-denied`.
+If you return a `reason` from an automatic approval or denial, it is available
+as `part.approval.reason`.
+
+### Securing Approvals for Sensitive Tools
+
+In the `useChat` pattern, the client sends the full message history to the server each turn. Without additional protection, a modified client could fabricate an approval response. For tools that perform sensitive operations, add `experimental_toolApprovalSecret` to your `streamText` call so the server cryptographically verifies that it issued the approval:
+
+```tsx filename='app/api/chat/route.ts' highlight="6"
+const result = streamText({
+  model: __MODEL__,
+  messages,
+  tools: { deleteFile },
+  toolApproval: { deleteFile: 'user-approval' },
+  experimental_toolApprovalSecret: process.env.TOOL_APPROVAL_SECRET,
+});
+```
+
+See [Security Considerations](/docs/agents/tool-approvals#security-considerations) for setup details.
 
 ### Auto-Submit After Approval
 
@@ -3145,7 +3376,9 @@ export async function POST(req: Request) {
     // ...
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -3218,8 +3451,15 @@ message.parts.map((part, index) => {
 You can also use multi-step calls on the server-side with `streamText`.
 This works when all invoked tools have an `execute` function on the server side.
 
-```tsx filename='app/api/chat/route.ts' highlight="15-21,24"
-import { convertToModelMessages, streamText, UIMessage, stepCountIs } from 'ai';
+```tsx filename='app/api/chat/route.ts' highlight="22-28,31"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 import { z } from 'zod';
 
@@ -3242,10 +3482,12 @@ export async function POST(req: Request) {
         },
       },
     },
-    stopWhen: stepCountIs(5),
+    stopWhen: isStepCount(5),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -3279,8 +3521,11 @@ const result = streamText({
   // ...
 });
 
-return result.toUIMessageStreamResponse({
-  onError: errorHandler,
+return createUIMessageStreamResponse({
+  stream: toUIMessageStream({
+    stream: result.stream,
+    onError: errorHandler,
+  }),
 });
 ```
 
@@ -3358,7 +3603,11 @@ export default function Page() {
 ```
 
 ```ts filename='app/api/completion/route.ts'
-import { streamText } from 'ai';
+import {
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 // Allow streaming responses up to 30 seconds
@@ -3372,7 +3621,9 @@ export async function POST(req: Request) {
     prompt,
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -3580,7 +3831,7 @@ You can use the error object to show an error message, disable the submit button
   server.
 </Note>
 
-```tsx file="app/page.tsx" highlight="7,18-25,31"
+```tsx file="app/page.tsx" highlight="8,28-35,41"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -3633,7 +3884,7 @@ export default function Chat() {
 
 Alternatively you can write a custom submit handler that replaces the last message when an error is present.
 
-```tsx file="app/page.tsx" highlight="17-23,35"
+```tsx file="app/page.tsx" highlight="13-15,17-18,35"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -3804,7 +4055,14 @@ export default function Page() {
 To handle the chat requests and model responses, set up an API route:
 
 ```ts filename="app/api/chat/route.ts"
-import { streamText, convertToModelMessages, UIMessage, stepCountIs } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 export async function POST(request: Request) {
@@ -3812,12 +4070,14 @@ export async function POST(request: Request) {
 
   const result = streamText({
     model: __MODEL__,
-    system: 'You are a friendly assistant!',
+    instructions: 'You are a friendly assistant!',
     messages: await convertToModelMessages(messages),
-    stopWhen: stepCountIs(5),
+    stopWhen: isStepCount(5),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -3855,8 +4115,15 @@ In this file, you've created a tool called `weatherTool`. This tool simulates fe
 
 Update the API route to include the tool you've defined:
 
-```ts filename="app/api/chat/route.ts" highlight="3,8,14"
-import { streamText, convertToModelMessages, UIMessage, stepCountIs } from 'ai';
+```ts filename="app/api/chat/route.ts" highlight="10,15,20"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 import { tools } from '@/ai/tools';
 
@@ -3865,13 +4132,15 @@ export async function POST(request: Request) {
 
   const result = streamText({
     model: __MODEL__,
-    system: 'You are a friendly assistant!',
+    instructions: 'You are a friendly assistant!',
     messages: await convertToModelMessages(messages),
-    stopWhen: stepCountIs(5),
+    stopWhen: isStepCount(5),
     tools,
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -4175,10 +4444,15 @@ export type MyUIMessage = UIMessage<MessageMetadata>;
 
 ### Sending Metadata from the Server
 
-Use the `messageMetadata` callback in `toUIMessageStreamResponse` to send metadata at different streaming stages:
+Use the `messageMetadata` callback in `toUIMessageStream` to send metadata at different streaming stages:
 
-```ts filename="app/api/chat/route.ts" highlight="11-20"
-import { convertToModelMessages, streamText } from 'ai';
+```ts filename="app/api/chat/route.ts" highlight="21-29,31-37"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from 'ai';
 __PROVIDER_IMPORT__;
 import type { MyUIMessage } from '@/types';
 
@@ -4190,24 +4464,27 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages, // pass this in for type-safe return objects
-    messageMetadata: ({ part }) => {
-      // Send metadata when streaming starts
-      if (part.type === 'start') {
-        return {
-          createdAt: Date.now(),
-          model: 'your-model-id',
-        };
-      }
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      originalMessages: messages, // pass this in for type-safe return objects
+      messageMetadata: ({ part }) => {
+        // Send metadata when streaming starts
+        if (part.type === 'start') {
+          return {
+            createdAt: Date.now(),
+            model: 'your-model-id',
+          };
+        }
 
-      // Send additional metadata when streaming completes
-      if (part.type === 'finish') {
-        return {
-          totalTokens: part.totalUsage.totalTokens,
-        };
-      }
-    },
+        // Send additional metadata when streaming completes
+        if (part.type === 'finish') {
+          return {
+            totalTokens: part.totalUsage.totalTokens,
+          };
+        }
+      },
+    }),
   });
 }
 ```
@@ -4221,7 +4498,7 @@ export async function POST(req: Request) {
 
 Access metadata through the `message.metadata` property:
 
-```tsx filename="app/page.tsx" highlight="8,18-23"
+```tsx filename="app/page.tsx" highlight="8,20-23,33-36"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -4386,7 +4663,7 @@ export default function Page() {
 On the server, we use [`streamText`](/docs/reference/ai-sdk-core/stream-text) with [`Output.object()`](/docs/reference/ai-sdk-core/output#output-object) to stream the object generation process.
 
 ```typescript filename='app/api/notifications/route.ts'
-import { streamText, Output } from 'ai';
+import { createTextStreamResponse, Output, streamText, toTextStream } from 'ai';
 __PROVIDER_IMPORT__;
 import { notificationSchema } from './schema';
 
@@ -4403,7 +4680,9 @@ export async function POST(req: Request) {
       `Generate 3 notifications for a messages app in this context:` + context,
   });
 
-  return result.toTextStreamResponse();
+  return createTextStreamResponse({
+    stream: toTextStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -4448,7 +4727,7 @@ export default function ClassifyPage() {
 On the server, use `streamText` with `Output.choice()` to stream the classification result:
 
 ```typescript filename='app/api/classify/route.ts'
-import { streamText, Output } from 'ai';
+import { createTextStreamResponse, Output, streamText, toTextStream } from 'ai';
 __PROVIDER_IMPORT__;
 
 export async function POST(req: Request) {
@@ -4460,7 +4739,9 @@ export async function POST(req: Request) {
     prompt: `Classify this statement as true or false: ${context}`,
   });
 
-  return result.toTextStreamResponse();
+  return createTextStreamResponse({
+    stream: toTextStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -4695,19 +4976,19 @@ AI SDK UI supports the following frameworks: [React](https://react.dev/), [Svelt
 
 Here is a comparison of the supported functions across these frameworks:
 
-|                                                                 | [useChat](/docs/reference/ai-sdk-ui/use-chat) | [useCompletion](/docs/reference/ai-sdk-ui/use-completion) | [useObject](/docs/reference/ai-sdk-ui/use-object) |
-| --------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- |
-| React `@ai-sdk/react`                                           | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               |
-| Vue.js `@ai-sdk/vue`                                            | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               |
-| Svelte `@ai-sdk/svelte`                                         | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              |
-| Angular `@ai-sdk/angular`                                       | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              |
-| [SolidJS](https://github.com/kodehort/ai-sdk-solid) (community) | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               |
+|                                                                 | [useChat](/docs/reference/ai-sdk-ui/use-chat) | [useCompletion](/docs/reference/ai-sdk-ui/use-completion) | [useObject](/docs/reference/ai-sdk-ui/use-object) | [MCP Apps](/docs/ai-sdk-core/mcp-apps) |
+| --------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
+| React `@ai-sdk/react`                                           | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               | <Check size={18} />                    |
+| Vue.js `@ai-sdk/vue`                                            | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               | <Cross size={18} />                    |
+| Svelte `@ai-sdk/svelte`                                         | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              | <Cross size={18} />                    |
+| Angular `@ai-sdk/angular`                                       | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              | <Cross size={18} />                    |
+| [SolidJS](https://github.com/kodehort/ai-sdk-solid) (community) | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               | <Cross size={18} />                    |
 
 ## Framework Examples
 
 Explore these example implementations for different frameworks:
 
-- [**Next.js**](https://github.com/vercel/ai/tree/main/examples/next-openai)
+- [**Next.js**](https://github.com/vercel/ai/tree/main/examples/ai-e2e-next)
 - [**Nuxt**](https://github.com/vercel/ai/tree/main/examples/nuxt-openai)
 - [**SvelteKit**](https://github.com/vercel/ai/tree/main/examples/sveltekit-openai)
 - [**Angular**](https://github.com/vercel/ai/tree/main/examples/angular)
@@ -4749,7 +5030,7 @@ The `readUIMessageStream` helper transforms a stream of `UIMessageChunk` objects
 ## Basic Usage
 
 ```tsx
-import { readUIMessageStream, streamText } from 'ai';
+import { readUIMessageStream, streamText, toUIMessageStream } from 'ai';
 __PROVIDER_IMPORT__;
 
 async function main() {
@@ -4759,7 +5040,7 @@ async function main() {
   });
 
   for await (const uiMessage of readUIMessageStream({
-    stream: result.toUIMessageStream(),
+    stream: toUIMessageStream({ stream: result.stream }),
   })) {
     console.log('Current message state:', uiMessage);
   }
@@ -4771,7 +5052,7 @@ async function main() {
 Handle streaming responses that include tool calls:
 
 ```tsx
-import { readUIMessageStream, streamText, tool } from 'ai';
+import { readUIMessageStream, streamText, toUIMessageStream, tool } from 'ai';
 __PROVIDER_IMPORT__;
 import { z } from 'zod';
 
@@ -4794,7 +5075,7 @@ async function handleToolCalls() {
   });
 
   for await (const uiMessage of readUIMessageStream({
-    stream: result.toUIMessageStream(),
+    stream: toUIMessageStream({ stream: result.stream }),
   })) {
     // Handle different part types
     uiMessage.parts.forEach(part => {
@@ -4819,7 +5100,7 @@ async function handleToolCalls() {
 Resume streaming from a previous message state:
 
 ```tsx
-import { readUIMessageStream, streamText } from 'ai';
+import { readUIMessageStream, streamText, toUIMessageStream } from 'ai';
 __PROVIDER_IMPORT__;
 
 async function resumeConversation(lastMessage: UIMessage) {
@@ -4832,7 +5113,7 @@ async function resumeConversation(lastMessage: UIMessage) {
 
   // Resume from the last message
   for await (const uiMessage of readUIMessageStream({
-    stream: result.toUIMessageStream(),
+    stream: toUIMessageStream({ stream: result.stream }),
     message: lastMessage, // Resume from this message
   })) {
     console.log('Resumed message:', uiMessage);
@@ -4886,8 +5167,8 @@ When you use `useChat` or `useCompletion`, you need to enable text streaming
 by setting the `streamProtocol` options to `text`.
 
 You can generate text streams with `streamText` in the backend.
-When you call `toTextStreamResponse()` on the result object,
-a streaming HTTP response is returned.
+Pass the result's `stream` to `toTextStream` and return it with
+`createTextStreamResponse` to create a streaming HTTP response.
 
 <Note>
   Text streams only support basic text data. If you need to stream other types
@@ -4945,7 +5226,13 @@ export default function Chat() {
 ```
 
 ```ts filename='app/api/chat/route.ts'
-import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import {
+  convertToModelMessages,
+  createTextStreamResponse,
+  streamText,
+  toTextStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 // Allow streaming responses up to 30 seconds
@@ -4959,7 +5246,9 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toTextStreamResponse();
+  return createTextStreamResponse({
+    stream: toTextStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -5075,6 +5364,19 @@ data: {"type":"reasoning-end","id":"reasoning_123"}
 
 ```
 
+### Reasoning File Part
+
+Reasoning file parts contain references to files generated as part of reasoning, such as images produced during the reasoning process.
+
+Format: Server-Sent Event with JSON object
+
+Example:
+
+```
+data: {"type":"reasoning-file","url":"data:image/png;base64,iVBOR...","mediaType":"image/png"}
+
+```
+
 ### Source Parts
 
 Source parts provide references to external content sources.
@@ -5115,6 +5417,19 @@ Example:
 
 ```
 data: {"type":"file","url":"https://example.com/file.png","mediaType":"image/png"}
+
+```
+
+### Custom Part
+
+Custom parts represent provider-specific content that doesn't fit into the standard part types. The `kind` field identifies the specific custom content type in the format `{provider}.{provider-type}`.
+
+Format: Server-Sent Event with JSON object
+
+Example:
+
+```
+data: {"type":"custom","kind":"openai.compaction","providerMetadata":{"openai":{"itemId":"cmp_123"}}}
 
 ```
 
@@ -5185,6 +5500,36 @@ data: {"type":"tool-input-available","toolCallId":"call_fJdQDqnXeGxTmr4E3YPSR7Ar
 
 ```
 
+### Tool Approval Request Part
+
+Indicates that a tool call requires approval, or records that the approval decision was made automatically.
+
+Format: Server-Sent Event with JSON object
+
+Example:
+
+```
+data: {"type":"tool-approval-request","toolCallId":"call_fJdQDqnXeGxTmr4E3YPSR7Ar","approvalId":"approval_123","isAutomatic":true}
+
+```
+
+When `isAutomatic` is omitted, the request expects an explicit approval response from the client.
+
+### Tool Approval Response Part
+
+Records the approval decision for a tool call.
+
+Format: Server-Sent Event with JSON object
+
+Example:
+
+```
+data: {"type":"tool-approval-response","approvalId":"approval_123","approved":false,"reason":"User denied the request"}
+
+```
+
+For provider-executed tools, the response can also include `providerExecuted: true`.
+
 ### Tool Output Available Part
 
 Contains the result of tool execution.
@@ -5195,6 +5540,19 @@ Example:
 
 ```
 data: {"type":"tool-output-available","toolCallId":"call_fJdQDqnXeGxTmr4E3YPSR7Ar","output":{"city":"San Francisco","weather":"sunny"}}
+
+```
+
+### Tool Output Denied Part
+
+Indicates that tool execution was denied after the approval flow completed.
+
+Format: Server-Sent Event with JSON object
+
+Example:
+
+```
+data: {"type":"tool-output-denied","toolCallId":"call_fJdQDqnXeGxTmr4E3YPSR7Ar"}
 
 ```
 
@@ -5269,7 +5627,7 @@ The data stream protocol is supported
 by `useChat` and `useCompletion` on the frontend and used by default.
 `useCompletion` only supports the `text` and `data` stream parts.
 
-On the backend, you can use `toUIMessageStreamResponse()` from the `streamText` result object to return a streaming HTTP response.
+On the backend, you can pass the `streamText` result stream to `toUIMessageStream` and return it with `createUIMessageStreamResponse`.
 
 ### UI Message Stream Example
 
@@ -5319,7 +5677,13 @@ export default function Chat() {
 ```
 
 ```ts filename='app/api/chat/route.ts'
-import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  UIMessage,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 // Allow streaming responses up to 30 seconds
@@ -5333,7 +5697,9 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -5407,10 +5773,11 @@ In your server-side route handler, you can create a `UIMessageStream` and then p
 ```tsx filename="route.ts"
 import { openai } from '@ai-sdk/openai';
 import {
+  convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
   streamText,
-  convertToModelMessages,
+  toUIMessageStream,
 } from 'ai';
 __PROVIDER_IMPORT__;
 import type { MyUIMessage } from '@/ai/types';
@@ -5470,7 +5837,7 @@ export async function POST(req: Request) {
         },
       });
 
-      writer.merge(result.toUIMessageStream());
+      writer.merge(toUIMessageStream({ stream: result.stream }));
     },
   });
 
@@ -5714,22 +6081,25 @@ Both [message metadata](/docs/ai-sdk-ui/message-metadata) and data parts allow y
 Message metadata is best for **message-level information** that describes the message as a whole:
 
 - Attached at the message level via `message.metadata`
-- Sent using the `messageMetadata` callback in `toUIMessageStreamResponse`
+- Sent using the `messageMetadata` callback in `toUIMessageStream`
 - Ideal for: timestamps, model info, token usage, user context
 - Type-safe with custom metadata types
 
 ```ts
 // Server: Send metadata about the message
-return result.toUIMessageStreamResponse({
-  messageMetadata: ({ part }) => {
-    if (part.type === 'finish') {
-      return {
-        model: part.response.modelId,
-        totalTokens: part.totalUsage.totalTokens,
-        createdAt: Date.now(),
-      };
-    }
-  },
+return createUIMessageStreamResponse({
+  stream: toUIMessageStream({
+    stream: result.stream,
+    messageMetadata: ({ part }) => {
+      if (part.type === 'finish') {
+        return {
+          model: part.response.modelId,
+          totalTokens: part.totalUsage.totalTokens,
+          createdAt: Date.now(),
+        };
+      }
+    },
+  }),
 });
 ```
 
@@ -5931,6 +6301,44 @@ const transport = new DirectChatTransport({
 
 For complete API details, see the [DirectChatTransport reference](/docs/reference/ai-sdk-ui/direct-chat-transport).
 
+## Workflow Transport
+
+For chat apps built on the [Workflow SDK](/docs/agents/workflow-agent), `WorkflowChatTransport` from `@ai-sdk/workflow` provides automatic stream reconnection. It handles the common scenario where a workflow function times out mid-stream — the transport detects the missing `finish` event and reconnects to resume from where it left off.
+
+```tsx
+import { useChat } from '@ai-sdk/react';
+import { WorkflowChatTransport } from '@ai-sdk/workflow';
+import { useMemo } from 'react';
+
+export default function Chat() {
+  const transport = useMemo(
+    () =>
+      new WorkflowChatTransport({
+        api: '/api/chat',
+        maxConsecutiveErrors: 5,
+        initialStartIndex: -50, // On page refresh, fetch last 50 chunks
+        onChatEnd: ({ chatId, chunkIndex }) => {
+          console.log(`Chat complete: ${chunkIndex} chunks`);
+        },
+      }),
+    [],
+  );
+
+  const { messages, sendMessage } = useChat({ transport });
+
+  // ... render chat UI
+}
+```
+
+Key features:
+
+- **Automatic reconnection**: Detects interrupted streams (no `finish` event) and reconnects via GET to `{api}/{runId}/stream`
+- **Page refresh recovery**: `initialStartIndex` with negative values (e.g., `-50`) fetches only the tail of the stream instead of replaying everything
+- **Configurable retries**: `maxConsecutiveErrors` controls how many consecutive reconnection failures to tolerate
+- **Lifecycle callbacks**: `onChatSendMessage` and `onChatEnd` for tracking chat state
+
+For the full API reference, see [`WorkflowChatTransport`](/docs/reference/ai-sdk-workflow/workflow-chat-transport). For server-side endpoint setup, see the [WorkflowAgent guide](/docs/agents/workflow-agent#resumable-streaming-with-workflowchattransport).
+
 ## Building Custom Transports
 
 To understand how to build your own transport, refer to the source code of the default implementation:
@@ -5999,6 +6407,11 @@ AI SDK UI contains the following hooks:
       href: '/docs/reference/ai-sdk-ui/use-object',
     },
     {
+      title: 'experimental_useRealtime',
+      description: 'Use a hook to build realtime voice conversations.',
+      href: '/docs/reference/ai-sdk-ui/use-realtime',
+    },
+    {
       title: 'convertToModelMessages',
       description:
         'Convert useChat messages to ModelMessages for AI functions.',
@@ -6033,6 +6446,11 @@ AI SDK UI contains the following hooks:
         'Transform a stream of UIMessageChunk objects into an AsyncIterableStream of UIMessage objects.',
       href: '/docs/reference/ai-sdk-ui/read-ui-message-stream',
     },
+    {
+      title: 'experimental_MCPAppRenderer',
+      description: 'Render interactive MCP App tool UIs in React.',
+      href: '/docs/reference/ai-sdk-ui/mcp-app-renderer',
+    },
   ]}
 />
 
@@ -6043,13 +6461,13 @@ AI SDK UI supports the following frameworks: [React](https://react.dev/), [Svelt
 
 Here is a comparison of the supported functions across these frameworks:
 
-|                                                                 | [useChat](/docs/reference/ai-sdk-ui/use-chat) | [useCompletion](/docs/reference/ai-sdk-ui/use-completion) | [useObject](/docs/reference/ai-sdk-ui/use-object) |
-| --------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- |
-| React `@ai-sdk/react`                                           | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               |
-| Vue.js `@ai-sdk/vue`                                            | <Check size={18} /> Chat                      | <Check size={18} />                                       | <Check size={18} />                               |
-| Svelte `@ai-sdk/svelte`                                         | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              |
-| Angular `@ai-sdk/angular`                                       | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              |
-| [SolidJS](https://github.com/kodehort/ai-sdk-solid) (community) | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               |
+|                                                                 | [useChat](/docs/reference/ai-sdk-ui/use-chat) | [useCompletion](/docs/reference/ai-sdk-ui/use-completion) | [useObject](/docs/reference/ai-sdk-ui/use-object) | [MCP Apps](/docs/ai-sdk-core/mcp-apps) |
+| --------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
+| React `@ai-sdk/react`                                           | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               | <Check size={18} />                    |
+| Vue.js `@ai-sdk/vue`                                            | <Check size={18} /> Chat                      | <Check size={18} />                                       | <Check size={18} />                               | <Cross size={18} />                    |
+| Svelte `@ai-sdk/svelte`                                         | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              | <Cross size={18} />                    |
+| Angular `@ai-sdk/angular`                                       | <Check size={18} /> Chat                      | <Check size={18} /> Completion                            | <Check size={18} /> StructuredObject              | <Cross size={18} />                    |
+| [SolidJS](https://github.com/kodehort/ai-sdk-solid) (community) | <Check size={18} />                           | <Check size={18} />                                       | <Check size={18} />                               | <Cross size={18} />                    |
 
 <Note>
   [Contributions](https://github.com/vercel/ai/blob/main/CONTRIBUTING.md) are
@@ -6069,6 +6487,8 @@ Here is a comparison of the supported functions across these frameworks:
   - [transcribe](/docs/reference/ai-sdk-core/transcribe)
   - [generateSpeech](/docs/reference/ai-sdk-core/generate-speech)
   - [experimental_generateVideo](/docs/reference/ai-sdk-core/generate-video)
+  - [uploadFile](/docs/reference/ai-sdk-core/upload-file)
+  - [uploadSkill](/docs/reference/ai-sdk-core/upload-skill)
   - [Agent (Interface)](/docs/reference/ai-sdk-core/agent)
   - [ToolLoopAgent](/docs/reference/ai-sdk-core/tool-loop-agent)
   - [createAgentUIStream](/docs/reference/ai-sdk-core/create-agent-ui-stream)
@@ -6077,27 +6497,31 @@ Here is a comparison of the supported functions across these frameworks:
   - [tool](/docs/reference/ai-sdk-core/tool)
   - [dynamicTool](/docs/reference/ai-sdk-core/dynamic-tool)
   - [createMCPClient](/docs/reference/ai-sdk-core/create-mcp-client)
+  - [experimental_getRealtimeToolDefinitions](/docs/reference/ai-sdk-core/get-realtime-tool-definitions)
+  - [MCP Apps](/docs/reference/ai-sdk-core/mcp-apps)
   - [Experimental_StdioMCPTransport](/docs/reference/ai-sdk-core/mcp-stdio-transport)
   - [jsonSchema](/docs/reference/ai-sdk-core/json-schema)
   - [zodSchema](/docs/reference/ai-sdk-core/zod-schema)
   - [valibotSchema](/docs/reference/ai-sdk-core/valibot-schema)
   - [Output](/docs/reference/ai-sdk-core/output)
+  - [filterActiveTools](/docs/reference/ai-sdk-core/filter-active-tools)
   - [ModelMessage](/docs/reference/ai-sdk-core/model-message)
   - [UIMessage](/docs/reference/ai-sdk-core/ui-message)
   - [validateUIMessages](/docs/reference/ai-sdk-core/validate-ui-messages)
   - [safeValidateUIMessages](/docs/reference/ai-sdk-core/safe-validate-ui-messages)
+  - [Experimental_SandboxSession](/docs/reference/ai-sdk-core/sandbox)
   - [createProviderRegistry](/docs/reference/ai-sdk-core/provider-registry)
   - [customProvider](/docs/reference/ai-sdk-core/custom-provider)
   - [cosineSimilarity](/docs/reference/ai-sdk-core/cosine-similarity)
   - [wrapLanguageModel](/docs/reference/ai-sdk-core/wrap-language-model)
   - [wrapImageModel](/docs/reference/ai-sdk-core/wrap-image-model)
-  - [LanguageModelV3Middleware](/docs/reference/ai-sdk-core/language-model-v2-middleware)
+  - [LanguageModelV4Middleware](/docs/reference/ai-sdk-core/language-model-v2-middleware)
   - [extractReasoningMiddleware](/docs/reference/ai-sdk-core/extract-reasoning-middleware)
   - [simulateStreamingMiddleware](/docs/reference/ai-sdk-core/simulate-streaming-middleware)
   - [defaultSettingsMiddleware](/docs/reference/ai-sdk-core/default-settings-middleware)
   - [addToolInputExamplesMiddleware](/docs/reference/ai-sdk-core/add-tool-input-examples-middleware)
   - [extractJsonMiddleware](/docs/reference/ai-sdk-core/extract-json-middleware)
-  - [stepCountIs](/docs/reference/ai-sdk-core/step-count-is)
+  - [isStepCount](/docs/reference/ai-sdk-core/is-step-count)
   - [hasToolCall](/docs/reference/ai-sdk-core/has-tool-call)
   - [isLoopFinished](/docs/reference/ai-sdk-core/loop-finished)
   - [simulateReadableStream](/docs/reference/ai-sdk-core/simulate-readable-stream)
@@ -6109,6 +6533,7 @@ Here is a comparison of the supported functions across these frameworks:
   - [useChat](/docs/reference/ai-sdk-ui/use-chat)
   - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
   - [useObject](/docs/reference/ai-sdk-ui/use-object)
+  - [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
   - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
   - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
   - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -6117,6 +6542,7 @@ Here is a comparison of the supported functions across these frameworks:
   - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
   - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
   - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+  - [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
   - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 - [AI SDK RSC](/docs/reference/ai-sdk-rsc)
   - [streamUI](/docs/reference/ai-sdk-rsc/stream-ui)
@@ -6131,6 +6557,9 @@ Here is a comparison of the supported functions across these frameworks:
   - [useUIState](/docs/reference/ai-sdk-rsc/use-ui-state)
   - [useStreamableValue](/docs/reference/ai-sdk-rsc/use-streamable-value)
   - [render (Removed)](/docs/reference/ai-sdk-rsc/render)
+- [AI SDK Workflow](/docs/reference/ai-sdk-workflow)
+  - [WorkflowAgent](/docs/reference/ai-sdk-workflow/workflow-agent)
+  - [WorkflowChatTransport](/docs/reference/ai-sdk-workflow/workflow-chat-transport)
 - [AI SDK Errors](/docs/reference/ai-sdk-errors)
   - [AI_APICallError](/docs/reference/ai-sdk-errors/ai-api-call-error)
   - [AI_DownloadError](/docs/reference/ai-sdk-errors/ai-download-error)
@@ -6141,6 +6570,7 @@ Here is a comparison of the supported functions across these frameworks:
   - [AI_InvalidPromptError](/docs/reference/ai-sdk-errors/ai-invalid-prompt-error)
   - [AI_InvalidResponseDataError](/docs/reference/ai-sdk-errors/ai-invalid-response-data-error)
   - [AI_InvalidToolApprovalError](/docs/reference/ai-sdk-errors/ai-invalid-tool-approval-error)
+  - [AI_InvalidToolApprovalSignatureError](/docs/reference/ai-sdk-errors/ai-invalid-tool-approval-signature-error)
   - [AI_InvalidToolInputError](/docs/reference/ai-sdk-errors/ai-invalid-tool-input-error)
   - [AI_JSONParseError](/docs/reference/ai-sdk-errors/ai-json-parse-error)
   - [AI_LoadAPIKeyError](/docs/reference/ai-sdk-errors/ai-load-api-key-error)
@@ -6153,6 +6583,7 @@ Here is a comparison of the supported functions across these frameworks:
   - [AI_NoSpeechGeneratedError](/docs/reference/ai-sdk-errors/ai-no-speech-generated-error)
   - [AI_NoSuchModelError](/docs/reference/ai-sdk-errors/ai-no-such-model-error)
   - [AI_NoSuchProviderError](/docs/reference/ai-sdk-errors/ai-no-such-provider-error)
+  - [AI_NoSuchProviderReferenceError](/docs/reference/ai-sdk-errors/ai-no-such-provider-reference-error)
   - [AI_NoSuchToolError](/docs/reference/ai-sdk-errors/ai-no-such-tool-error)
   - [AI_NoTranscriptGeneratedError](/docs/reference/ai-sdk-errors/ai-no-transcript-generated-error)
   - [AI_NoVideoGeneratedError](/docs/reference/ai-sdk-errors/ai-no-video-generated-error)
@@ -6163,6 +6594,8 @@ Here is a comparison of the supported functions across these frameworks:
   - [AI_TypeValidationError](/docs/reference/ai-sdk-errors/ai-type-validation-error)
   - [AI_UIMessageStreamError](/docs/reference/ai-sdk-errors/ai-ui-message-stream-error)
   - [AI_UnsupportedFunctionalityError](/docs/reference/ai-sdk-errors/ai-unsupported-functionality-error)
+- [AI SDK TUI](/docs/reference/ai-sdk-tui)
+  - [runAgentTUI](/docs/reference/ai-sdk-tui/run-agent-tui)
 
 
 [Full Sitemap](/sitemap.md)
@@ -6175,7 +6608,12 @@ Here is a comparison of the supported functions across these frameworks:
 The `convertToModelMessages` function is used to transform an array of UI messages from the `useChat` hook into an array of `ModelMessage` objects. These `ModelMessage` objects are compatible with AI core functions like `streamText`.
 
 ```ts filename="app/api/chat/route.ts"
-import { convertToModelMessages, streamText } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 export async function POST(req: Request) {
@@ -6186,7 +6624,9 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -6230,6 +6670,15 @@ A Promise that resolves to an array of [`ModelMessage`](/docs/reference/ai-sdk-c
   ]}
 />
 
+## Tool Approval States
+
+`convertToModelMessages` preserves tool approval state from UI messages when converting them back into `ModelMessage`s for a follow-up `generateText` or `streamText` call.
+
+- Tool parts in `approval-requested` state become `tool-approval-request` content parts.
+- Tool parts in `approval-responded` state become `tool-approval-response` content parts, including `reason` when present.
+- Automatic approval metadata is preserved by forwarding `approval.isAutomatic` to the `tool-approval-request` part.
+- Denied tool approvals also produce a synthetic `tool-result` with `output: { type: 'execution-denied', reason?: string }`, so the model receives a complete tool lifecycle and can respond to the denial in the next step.
+
 ## Multi-modal Tool Responses
 
 The `convertToModelMessages` function supports tools that can return multi-modal content. This is useful when tools need to return non-text content like images.
@@ -6242,7 +6691,9 @@ import { z } from 'zod';
 const screenshotTool = tool({
   inputSchema: z.object({}),
   execute: async () => 'imgbase64',
-  toModelOutput: ({ output }) => [{ type: 'image', data: output }],
+  toModelOutput: ({ output }) => [
+    { type: 'file-data', data: output, mediaType: 'image/png' },
+  ],
 });
 
 const result = streamText({
@@ -6266,7 +6717,12 @@ The `convertToModelMessages` function supports converting custom data parts atta
 By default, data parts in user messages are filtered out during conversion. To include them, provide a `convertDataPart` callback that transforms data parts into text or file parts that the model can understand:
 
 ```ts filename="app/api/chat/route.ts"
-import { convertToModelMessages, streamText } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from 'ai';
 
 type CustomUIMessage = UIMessage<
   never,
@@ -6304,7 +6760,9 @@ export async function POST(req: Request) {
     }),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -6403,6 +6861,7 @@ convertToModelMessages<MyUIMessage>(messages, {
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -6411,6 +6870,7 @@ convertToModelMessages<MyUIMessage>(messages, {
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -6463,12 +6923,12 @@ const stream = createUIMessageStream({
       prompt: 'Write a haiku about AI',
     });
 
-    writer.merge(result.toUIMessageStream());
+    writer.merge(toUIMessageStream({ stream: result.stream }));
   },
   onError: error => `Custom error: ${error.message}`,
   originalMessages: existingMessages,
-  onFinish: ({ messages, isContinuation, responseMessage }) => {
-    console.log('Stream finished with messages:', messages);
+  onEnd: ({ messages, isContinuation, responseMessage }) => {
+    console.log('Stream ended with messages:', messages);
   },
 });
 ```
@@ -6522,13 +6982,12 @@ const stream = createUIMessageStream({
         'The original messages. If provided, persistence mode is assumed and a message ID is provided for the response message.',
     },
     {
-      name: 'onFinish',
+      name: 'onEnd',
       type: '(options: { messages: UIMessage[]; isContinuation: boolean; isAborted: boolean; responseMessage: UIMessage; finishReason?: FinishReason }) => PromiseLike<void> | void',
-      description:
-        'A callback function that is called when the stream finishes.',
+      description: 'A callback function that is called when the stream ends.',
       properties: [
         {
-          type: 'FinishOptions',
+          type: 'EndOptions',
           parameters: [
             {
               name: 'messages',
@@ -6563,6 +7022,11 @@ const stream = createUIMessageStream({
       ],
     },
     {
+      name: 'onFinish',
+      type: '(options: { messages: UIMessage[]; isContinuation: boolean; isAborted: boolean; responseMessage: UIMessage; finishReason?: FinishReason }) => PromiseLike<void> | void',
+      description: 'Deprecated alias for `onEnd`.',
+    },
+    {
       name: 'generateId',
       type: 'IdGenerator | undefined',
       description:
@@ -6583,6 +7047,7 @@ A readable stream that emits UI message chunks. The stream automatically handles
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -6591,6 +7056,7 @@ A readable stream that emits UI message chunks. The stream automatically handles
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -6617,6 +7083,7 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   streamText,
+  toUIMessageStream,
 } from 'ai';
 __PROVIDER_IMPORT__;
 
@@ -6663,7 +7130,7 @@ const response = createUIMessageStreamResponse({
         prompt: 'Say hello',
       });
 
-      writer.merge(result.toUIMessageStream());
+      writer.merge(toUIMessageStream({ stream: result.stream }));
     },
   }),
 });
@@ -6720,6 +7187,7 @@ A Response object that streams UI message chunks with the specified status, head
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -6728,6 +7196,7 @@ A Response object that streams UI message chunks with the specified status, head
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -7071,6 +7540,7 @@ export default function Chat() {
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -7079,6 +7549,7 @@ export default function Chat() {
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -7164,6 +7635,7 @@ type WeatherUITool = InferUITool<typeof weatherTool>;
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -7172,6 +7644,7 @@ type WeatherUITool = InferUITool<typeof weatherTool>;
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -7281,6 +7754,7 @@ type MyUITools = InferUITools<typeof tools>;
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -7289,6 +7763,328 @@ type MyUITools = InferUITools<typeof tools>;
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
+- [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
+
+
+[Full Sitemap](/sitemap.md)
+
+<!-- source: https://ai-sdk.dev/docs/reference/ai-sdk-ui/mcp-app-renderer -->
+
+
+# `experimental_MCPAppRenderer`
+
+<Note type="warning">
+  `experimental_MCPAppRenderer` is experimental and may change in a future
+  release.
+</Note>
+
+`experimental_MCPAppRenderer` renders an MCP App for an AI SDK tool UI part. It detects MCP App metadata on the tool part, loads the app resource, renders the app in a sandbox proxy iframe, and bridges MCP Apps JSON-RPC messages between the iframe and your host application.
+
+For tool parts without MCP App metadata, the component renders the `fallback`.
+
+## Import
+
+<Snippet
+  text={`import { experimental_MCPAppRenderer as MCPAppRenderer } from "@ai-sdk/react"`}
+  prompt={false}
+/>
+
+## Example
+
+```tsx
+'use client';
+
+import {
+  experimental_MCPAppRenderer as MCPAppRenderer,
+  type MCPAppBridgeHandlers,
+  type MCPAppMetadata,
+  type MCPAppResource,
+  type MCPAppSandboxConfig,
+} from '@ai-sdk/react';
+import { isToolUIPart } from 'ai';
+
+const sandbox = {
+  url: '/mcp-app-sandbox',
+  className: 'h-80 w-full rounded-lg border',
+  style: { border: 0 },
+} satisfies MCPAppSandboxConfig;
+
+async function loadResource(app: MCPAppMetadata): Promise<MCPAppResource> {
+  const response = await fetch('/api/mcp-app-host/read-resource', {
+    method: 'POST',
+    body: JSON.stringify({ uri: app.resourceUri }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to load MCP App resource');
+  }
+
+  return response.json();
+}
+
+const handlers: MCPAppBridgeHandlers = {
+  callTool: params =>
+    fetch('/api/mcp-app-host/call-tool', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }).then(response => response.json()),
+  openLink: ({ url }) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return {};
+  },
+};
+
+export function MessagePart({ part }: { part: unknown }) {
+  if (!isToolUIPart(part)) {
+    return null;
+  }
+
+  return (
+    <MCPAppRenderer
+      part={part}
+      loadResource={loadResource}
+      handlers={handlers}
+      sandbox={sandbox}
+      fallback={null}
+    />
+  );
+}
+```
+
+## Props
+
+<PropertiesTable
+  content={[
+    {
+      name: 'part',
+      type: 'ToolUIPart<UITools> | DynamicToolUIPart',
+      description:
+        'The AI SDK tool UI part. The renderer looks for MCP App metadata in `part.toolMetadata.mcp.app`.',
+    },
+    {
+      name: 'sandbox',
+      type: 'MCPAppSandboxConfig',
+      description:
+        'Configuration for the outer sandbox proxy iframe used to host the app.',
+    },
+    {
+      name: 'resource',
+      type: 'MCPAppResource',
+      isOptional: true,
+      description:
+        'A preloaded MCP App resource. Provide either `resource` or `loadResource`.',
+    },
+    {
+      name: 'loadResource',
+      type: '(app: MCPAppMetadata) => Promise<MCPAppResource>',
+      isOptional: true,
+      description:
+        'Loads the MCP App resource for the app metadata found on the tool part.',
+    },
+    {
+      name: 'handlers',
+      type: 'MCPAppBridgeHandlers',
+      isOptional: true,
+      description:
+        'Callbacks used to handle iframe requests such as `tools/call`, `resources/read`, `ui/open-link`, and display mode changes.',
+    },
+    {
+      name: 'hostInfo',
+      type: '{ name: string; version: string }',
+      isOptional: true,
+      description:
+        'Host identity returned to the app during the `ui/initialize` handshake.',
+    },
+    {
+      name: 'hostContext',
+      type: 'MCPAppHostContext',
+      isOptional: true,
+      description:
+        'Host context sent to the app, such as theme, display mode, and available display modes.',
+    },
+    {
+      name: 'fallback',
+      type: 'ReactNode',
+      isOptional: true,
+      description:
+        'Rendered while the resource is loading, when loading fails, or when the tool part is not an MCP App.',
+    },
+  ]}
+/>
+
+## Sandbox Config
+
+<PropertiesTable
+  content={[
+    {
+      name: 'url',
+      type: 'string | URL',
+      description:
+        'The URL of the sandbox proxy iframe. The proxy receives app HTML from the host and creates the inner app iframe.',
+    },
+    {
+      name: 'title',
+      type: 'string',
+      isOptional: true,
+      description: 'Accessible iframe title.',
+    },
+    {
+      name: 'className',
+      type: 'string',
+      isOptional: true,
+      description: 'Class name applied to the outer iframe.',
+    },
+    {
+      name: 'style',
+      type: 'CSSProperties',
+      isOptional: true,
+      description: 'Inline styles applied to the outer iframe.',
+    },
+    {
+      name: 'targetOrigin',
+      type: 'string',
+      isOptional: true,
+      description:
+        'Target origin used for `postMessage`. Defaults to `*`; set this to your sandbox origin in production.',
+    },
+    {
+      name: 'outerSandbox',
+      type: 'string',
+      isOptional: true,
+      description:
+        'Sandbox attribute for the outer proxy iframe. Defaults to `allow-scripts allow-same-origin allow-forms`.',
+    },
+    {
+      name: 'innerSandbox',
+      type: 'string',
+      isOptional: true,
+      description:
+        'Sandbox attribute sent to the proxy for the inner app iframe. Defaults to `allow-scripts allow-forms`.',
+    },
+  ]}
+/>
+
+## Bridge Handlers
+
+`experimental_MCPAppRenderer` uses these handlers to respond to iframe requests. In production, server-backed handlers should validate authorization and MCP Apps tool visibility before calling the MCP server.
+
+<PropertiesTable
+  content={[
+    {
+      name: 'allowedTools',
+      type: 'string[]',
+      isOptional: true,
+      description:
+        'Optional client-side allowlist checked before forwarding `tools/call` requests.',
+    },
+    {
+      name: 'callTool',
+      type: '(params: MCPAppToolCallParams) => Promise<unknown> | unknown',
+      isOptional: true,
+      description: 'Handles app-initiated `tools/call` requests.',
+    },
+    {
+      name: 'readResource',
+      type: '(params: { uri: string }) => Promise<unknown> | unknown',
+      isOptional: true,
+      description: 'Handles app-initiated `resources/read` requests.',
+    },
+    {
+      name: 'listResources',
+      type: '(params?: unknown) => Promise<unknown> | unknown',
+      isOptional: true,
+      description: 'Handles app-initiated `resources/list` requests.',
+    },
+    {
+      name: 'openLink',
+      type: '(params: { url: string }) => Promise<unknown> | unknown',
+      isOptional: true,
+      description: 'Handles app-initiated `ui/open-link` requests.',
+    },
+    {
+      name: 'sendMessage',
+      type: '(params: unknown) => Promise<unknown> | unknown',
+      isOptional: true,
+      description: 'Handles app-initiated `ui/message` requests.',
+    },
+    {
+      name: 'updateModelContext',
+      type: '(params: unknown) => Promise<unknown> | unknown',
+      isOptional: true,
+      description: 'Handles app-initiated `ui/update-model-context` requests.',
+    },
+    {
+      name: 'requestDisplayMode',
+      type: "(params: { mode: 'inline' | 'fullscreen' | 'pip' }) => Promise<{ mode: MCPAppDisplayMode }> | { mode: MCPAppDisplayMode }",
+      isOptional: true,
+      description: 'Handles app-initiated `ui/request-display-mode` requests.',
+    },
+    {
+      name: 'onSizeChange',
+      type: '(params: { width?: number; height?: number }) => void',
+      isOptional: true,
+      description: 'Called when the app sends a size change notification.',
+    },
+    {
+      name: 'onInitialized',
+      type: '() => void',
+      isOptional: true,
+      description: 'Called after the app sends `ui/notifications/initialized`.',
+    },
+    {
+      name: 'onRequestTeardown',
+      type: '(params: unknown) => void',
+      isOptional: true,
+      description: 'Called when the app requests teardown.',
+    },
+    {
+      name: 'onLog',
+      type: '(params: unknown) => void',
+      isOptional: true,
+      description: 'Called when the app sends a log notification.',
+    },
+    {
+      name: 'onError',
+      type: '(error: Error) => void',
+      isOptional: true,
+      description:
+        'Called when a supported iframe request fails while being handled.',
+    },
+  ]}
+/>
+
+## See Also
+
+<ExampleLinks
+  examples={[
+    {
+      title: 'MCP Apps guide',
+      link: '/docs/ai-sdk-core/mcp-apps',
+    },
+    {
+      title: 'MCP Apps helpers',
+      link: '/docs/reference/ai-sdk-core/mcp-apps',
+    },
+  ]}
+/>
+
+
+## Navigation
+
+- [useChat](/docs/reference/ai-sdk-ui/use-chat)
+- [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
+- [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
+- [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
+- [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
+- [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
+- [createUIMessageStreamResponse](/docs/reference/ai-sdk-ui/create-ui-message-stream-response)
+- [pipeUIMessageStreamToResponse](/docs/reference/ai-sdk-ui/pipe-ui-message-stream-to-response)
+- [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
+- [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
+- [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -7376,6 +8172,7 @@ pipeUIMessageStreamToResponse({
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -7384,6 +8181,7 @@ pipeUIMessageStreamToResponse({
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -7397,7 +8195,12 @@ pipeUIMessageStreamToResponse({
 The `pruneMessages` function is used to prune or filter an array of `ModelMessage` objects. This is useful for reducing message context (to save tokens), removing intermediate reasoning, or trimming tool calls and empty messages before sending to an LLM.
 
 ```ts filename="app/api/chat/route.ts"
-import { pruneMessages, streamText } from 'ai';
+import {
+  createUIMessageStreamResponse,
+  pruneMessages,
+  streamText,
+  toUIMessageStream,
+} from 'ai';
 __PROVIDER_IMPORT__;
 
 export async function POST(req: Request) {
@@ -7415,7 +8218,9 @@ export async function POST(req: Request) {
     messages: prunedMessages,
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -7502,6 +8307,7 @@ For advanced usage and the full list of possible message parts, see [`ModelMessa
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -7510,6 +8316,7 @@ For advanced usage and the full list of possible message parts, see [`ModelMessa
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -7577,6 +8384,7 @@ For comprehensive examples and use cases, see [Reading UI Message Streams](/docs
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -7585,6 +8393,7 @@ For comprehensive examples and use cases, see [Reading UI Message Streams](/docs
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -7619,7 +8428,7 @@ Allows you to easily create a conversational user interface for your chatbot app
     <Snippet text="import { Chat } from '@ai-sdk/svelte'" dark prompt={false} />
   </Tab>
   <Tab>
-    <Snippet text="import { Chat } from '@ai-sdk/vue'" dark prompt={false} />
+    <Snippet text="import { useChat } from '@ai-sdk/vue'" dark prompt={false} />
   </Tab>
   <Tab>
     <Snippet
@@ -8088,6 +8897,7 @@ Allows you to easily create a conversational user interface for your chatbot app
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -8096,6 +8906,7 @@ Allows you to easily create a conversational user interface for your chatbot app
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -8291,6 +9102,7 @@ Allows you to create text completion based capabilities for your application. It
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -8299,6 +9111,7 @@ Allows you to create text completion based capabilities for your application. It
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
@@ -8505,6 +9318,7 @@ export default function Page() {
 - [useChat](/docs/reference/ai-sdk-ui/use-chat)
 - [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
 - [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
 - [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
 - [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
 - [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
@@ -8513,6 +9327,274 @@ export default function Page() {
 - [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
 - [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
 - [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
+- [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
+
+
+[Full Sitemap](/sitemap.md)
+
+<!-- source: https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-realtime -->
+
+
+# `experimental_useRealtime()`
+
+<Note type="warning">
+  `experimental_useRealtime` is an experimental feature.
+</Note>
+
+Creates a browser-side realtime session for bidirectional audio and text
+conversations with a realtime provider model.
+
+The hook connects to a realtime WebSocket using a short-lived token from your
+setup endpoint, returns messages as `UIMessage[]`, and provides controls for
+audio capture, playback, text input, and tool output.
+
+```tsx
+import { openai } from '@ai-sdk/openai';
+import { experimental_useRealtime } from '@ai-sdk/react';
+
+const realtime = experimental_useRealtime({
+  model: openai.experimental_realtime('gpt-realtime'),
+  api: {
+    token: '/api/realtime/setup',
+  },
+});
+```
+
+For AI Gateway, pass `gateway.experimental_realtime(...)` as the model and point
+`api.token` at a server-side setup endpoint that calls
+`gateway.experimental_realtime.getToken()`.
+
+## Import
+
+<Snippet
+  text={`import { experimental_useRealtime } from "@ai-sdk/react"`}
+  prompt={false}
+/>
+
+## API Signature
+
+### Parameters
+
+<PropertiesTable
+  content={[
+    {
+      name: 'model',
+      type: 'Experimental_RealtimeModel',
+      description: 'The realtime model to connect to.',
+    },
+    {
+      name: 'api',
+      type: '{ token: string }',
+      description:
+        'API endpoints used by the realtime session. The token endpoint is called with POST to create the realtime setup response.',
+      properties: [
+        {
+          type: 'Object',
+          parameters: [
+            {
+              name: 'token',
+              type: 'string',
+              description:
+                'The setup endpoint that returns an Experimental_RealtimeSetupResponse.',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'sessionConfig',
+      type: 'Partial<Experimental_RealtimeSessionConfig>',
+      isOptional: true,
+      description:
+        'Provider-neutral session configuration, such as instructions, voice, audio formats, input audio transcription, turn detection, tools, and providerOptions.',
+    },
+    {
+      name: 'sampleRate',
+      type: 'number',
+      isOptional: true,
+      description:
+        'Default audio sample rate used when inputAudioFormat.rate or outputAudioFormat.rate is not specified. Defaults to 24000.',
+    },
+    {
+      name: 'maxEvents',
+      type: 'number',
+      isOptional: true,
+      description:
+        'Maximum number of provider events to keep in the events array. Defaults to 500.',
+    },
+    {
+      name: 'onToolCall',
+      type: '(options: { toolCall: { toolCallId: string; toolName: string; args: unknown } }) => unknown | Promise<unknown> | undefined',
+      isOptional: true,
+      description:
+        'Called when the provider requests a tool call. Return a value to automatically submit it as tool output, or return undefined and call addToolOutput manually later.',
+    },
+    {
+      name: 'onEvent',
+      type: '(event: Experimental_RealtimeServerEvent) => void',
+      isOptional: true,
+      description: 'Called for every normalized realtime server event.',
+    },
+    {
+      name: 'onError',
+      type: '(error: Error) => void',
+      isOptional: true,
+      description: 'Called when the realtime session encounters an error.',
+    },
+  ]}
+/>
+
+### Returns
+
+<PropertiesTable
+  content={[
+    {
+      name: 'status',
+      type: "'disconnected' | 'connecting' | 'connected' | 'error'",
+      description: 'The current connection status.',
+    },
+    {
+      name: 'messages',
+      type: 'UIMessage[]',
+      description:
+        'Messages assembled from realtime text, transcript, and tool events.',
+    },
+    {
+      name: 'events',
+      type: 'Experimental_RealtimeServerEvent[]',
+      description:
+        'Recent normalized provider events for inspection or debug UI.',
+    },
+    {
+      name: 'isCapturing',
+      type: 'boolean',
+      description: 'Whether microphone audio capture is active.',
+    },
+    {
+      name: 'isPlaying',
+      type: 'boolean',
+      description: 'Whether model audio playback is active.',
+    },
+    {
+      name: 'connect',
+      type: '() => Promise<void>',
+      description:
+        'Fetches the setup token and opens the provider WebSocket connection.',
+    },
+    {
+      name: 'disconnect',
+      type: '() => void',
+      description: 'Closes the provider WebSocket connection.',
+    },
+    {
+      name: 'addToolOutput',
+      type: '(callId: string, result: unknown) => void',
+      description:
+        'Submits the result for a tool call back to the realtime provider.',
+    },
+    {
+      name: 'sendEvent',
+      type: '(event: Experimental_RealtimeClientEvent) => void',
+      description: 'Sends a normalized realtime client event.',
+    },
+    {
+      name: 'sendTextMessage',
+      type: '(text: string) => void',
+      description: 'Sends a user text message and requests a response.',
+    },
+    {
+      name: 'sendAudio',
+      type: '(base64Audio: string) => void',
+      description:
+        'Sends a base64-encoded audio chunk to the provider input audio buffer.',
+    },
+    {
+      name: 'commitAudio',
+      type: '() => void',
+      description: 'Commits the provider input audio buffer.',
+    },
+    {
+      name: 'clearAudioBuffer',
+      type: '() => void',
+      description: 'Clears the provider input audio buffer.',
+    },
+    {
+      name: 'requestResponse',
+      type: '(options?: { modalities?: string[] }) => void',
+      description: 'Requests a new model response.',
+    },
+    {
+      name: 'cancelResponse',
+      type: '() => void',
+      description: 'Cancels the active model response.',
+    },
+    {
+      name: 'startAudioCapture',
+      type: '(stream: MediaStream) => void',
+      description:
+        'Starts capturing microphone audio from the provided MediaStream.',
+    },
+    {
+      name: 'stopAudioCapture',
+      type: '() => void',
+      description: 'Stops microphone audio capture.',
+    },
+    {
+      name: 'stopPlayback',
+      type: '() => void',
+      description: 'Stops queued model audio playback.',
+    },
+  ]}
+/>
+
+## Tool Calling
+
+Realtime tool execution is client-driven. Use `onToolCall` to handle tool calls
+and return the tool output:
+
+```tsx
+const realtime = experimental_useRealtime({
+  model: openai.experimental_realtime('gpt-realtime'),
+  api: {
+    token: '/api/realtime/setup',
+  },
+  onToolCall: async ({ toolCall }) => {
+    if (toolCall.toolName === 'getWeather') {
+      const response = await fetch('/api/weather', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toolCall.args),
+      });
+
+      return response.json();
+    }
+  },
+});
+```
+
+For tools that require user interaction, return `undefined` from `onToolCall`
+and call `addToolOutput` later.
+
+See [Realtime](/docs/ai-sdk-core/realtime#tool-calling) for a complete example
+with server-backed app-specific tool endpoints.
+
+
+## Navigation
+
+- [useChat](/docs/reference/ai-sdk-ui/use-chat)
+- [useCompletion](/docs/reference/ai-sdk-ui/use-completion)
+- [useObject](/docs/reference/ai-sdk-ui/use-object)
+- [experimental_useRealtime](/docs/reference/ai-sdk-ui/use-realtime)
+- [convertToModelMessages](/docs/reference/ai-sdk-ui/convert-to-model-messages)
+- [pruneMessages](/docs/reference/ai-sdk-ui/prune-messages)
+- [createUIMessageStream](/docs/reference/ai-sdk-ui/create-ui-message-stream)
+- [createUIMessageStreamResponse](/docs/reference/ai-sdk-ui/create-ui-message-stream-response)
+- [pipeUIMessageStreamToResponse](/docs/reference/ai-sdk-ui/pipe-ui-message-stream-to-response)
+- [readUIMessageStream](/docs/reference/ai-sdk-ui/read-ui-message-stream)
+- [InferUITools](/docs/reference/ai-sdk-ui/infer-ui-tools)
+- [InferUITool](/docs/reference/ai-sdk-ui/infer-ui-tool)
+- [experimental_MCPAppRenderer](/docs/reference/ai-sdk-ui/mcp-app-renderer)
 - [DirectChatTransport](/docs/reference/ai-sdk-ui/direct-chat-transport)
 
 
