@@ -1,0 +1,2128 @@
+{
+  "name": "cortexdj",
+  "description": "AI-powered EEG classifier that detects emotional states during music listening and curates Spotify playlists grounded in what your brain actually did, mapping each EEG segment into four emotion quadrants via an agentic FastAPI + Next.js stack. Note: this project has over 100 source files; consider scoping analysis to a subdirectory for faster results.",
+  "languages": [
+    "config",
+    "css",
+    "dockerfile",
+    "javascript",
+    "json",
+    "jsonc",
+    "mako",
+    "markdown",
+    "python",
+    "shell",
+    "toml",
+    "typescript",
+    "yaml"
+  ],
+  "frameworks": [
+    "React",
+    "Next.js",
+    "Tailwind CSS",
+    "FastAPI",
+    "Pydantic",
+    "SQLAlchemy",
+    "Alembic",
+    "Uvicorn",
+    "pytest",
+    "Docker",
+    "Docker Compose",
+    "GitHub Actions"
+  ],
+  "files": [
+    {
+      "path": ".claude/agents/code-reviewer.md",
+      "language": "markdown",
+      "sizeLines": 95,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/agents/product-advisor.md",
+      "language": "markdown",
+      "sizeLines": 80,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/agents/vercel-chatbot-template.md",
+      "language": "markdown",
+      "sizeLines": 127,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/hooks/backend-ruff.py",
+      "language": "python",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".claude/hooks/block-generated-edits.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".claude/hooks/frontend-lint.py",
+      "language": "python",
+      "sizeLines": 61,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".claude/rules/backend/code-conventions.md",
+      "language": "markdown",
+      "sizeLines": 63,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/rules/backend/modal.md",
+      "language": "markdown",
+      "sizeLines": 190,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/rules/backend/pydantic-ai.md",
+      "language": "markdown",
+      "sizeLines": 32,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/rules/conventions.md",
+      "language": "markdown",
+      "sizeLines": 72,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/rules/frontend/code-conventions.md",
+      "language": "markdown",
+      "sizeLines": 64,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/rules/frontend/vercel-ai-sdk.md",
+      "language": "markdown",
+      "sizeLines": 49,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/settings.json",
+      "language": "json",
+      "sizeLines": 52,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".claude/skills/create-pr/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 48,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/explain-code/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 13,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/grill-me/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 10,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/grill-with-docs/ADR-FORMAT.md",
+      "language": "markdown",
+      "sizeLines": 47,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/grill-with-docs/CONTEXT-FORMAT.md",
+      "language": "markdown",
+      "sizeLines": 60,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/grill-with-docs/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 88,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/handoff/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 15,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/improve-codebase-architecture/DEEPENING.md",
+      "language": "markdown",
+      "sizeLines": 37,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/improve-codebase-architecture/HTML-REPORT.md",
+      "language": "markdown",
+      "sizeLines": 123,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/improve-codebase-architecture/INTERFACE-DESIGN.md",
+      "language": "markdown",
+      "sizeLines": 44,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/improve-codebase-architecture/LANGUAGE.md",
+      "language": "markdown",
+      "sizeLines": 53,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/improve-codebase-architecture/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 81,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/tdd/deep-modules.md",
+      "language": "markdown",
+      "sizeLines": 33,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/tdd/interface-design.md",
+      "language": "markdown",
+      "sizeLines": 31,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/tdd/mocking.md",
+      "language": "markdown",
+      "sizeLines": 59,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/tdd/refactoring.md",
+      "language": "markdown",
+      "sizeLines": 10,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/tdd/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 109,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/tdd/tests.md",
+      "language": "markdown",
+      "sizeLines": 61,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/updating-deps-auto/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 262,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".claude/skills/updating-deps/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 197,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".env.sample",
+      "language": "config",
+      "sizeLines": 20,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".github/CODEOWNERS",
+      "language": "unknown",
+      "sizeLines": 1,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".github/update-deps/2026-04-07/pr-body.md",
+      "language": "markdown",
+      "sizeLines": 46,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/update-deps/2026-04-13/pr-body.md",
+      "language": "markdown",
+      "sizeLines": 59,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/update-deps/2026-06-01/pr-body.md",
+      "language": "markdown",
+      "sizeLines": 48,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/update-deps/2026-06-08/pr-body.md",
+      "language": "markdown",
+      "sizeLines": 70,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/update-deps/2026-06-15/pr-body.md",
+      "language": "markdown",
+      "sizeLines": 67,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "language": "yaml",
+      "sizeLines": 79,
+      "fileCategory": "infra"
+    },
+    {
+      "path": ".github/workflows/create-deps-pr.yml",
+      "language": "yaml",
+      "sizeLines": 61,
+      "fileCategory": "infra"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "language": "yaml",
+      "sizeLines": 34,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".understand-anything/.understandignore",
+      "language": "unknown",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".understand-anything/config.json",
+      "language": "json",
+      "sizeLines": 1,
+      "fileCategory": "config"
+    },
+    {
+      "path": "AGENTS.md",
+      "language": "markdown",
+      "sizeLines": 106,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "backend/.dockerignore",
+      "language": "unknown",
+      "sizeLines": 15,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "backend/.modalignore",
+      "language": "unknown",
+      "sizeLines": 8,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/autoresearch/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/autoresearch/prepare.py",
+      "language": "python",
+      "sizeLines": 115,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/autoresearch/program.md",
+      "language": "markdown",
+      "sizeLines": 88,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "backend/autoresearch/README.md",
+      "language": "markdown",
+      "sizeLines": 104,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "backend/autoresearch/train.py",
+      "language": "python",
+      "sizeLines": 192,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/data/DEAP_SETUP.md",
+      "language": "markdown",
+      "sizeLines": 71,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "backend/data/deap_stimuli.json",
+      "language": "json",
+      "sizeLines": 402,
+      "fileCategory": "config"
+    },
+    {
+      "path": "backend/Dockerfile",
+      "language": "dockerfile",
+      "sizeLines": 39,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "backend/pyproject.toml",
+      "language": "toml",
+      "sizeLines": 75,
+      "fileCategory": "config"
+    },
+    {
+      "path": "backend/scripts/create-db-revision-docker.sh",
+      "language": "shell",
+      "sizeLines": 18,
+      "fileCategory": "script"
+    },
+    {
+      "path": "backend/scripts/downgrade-db-revision-docker.sh",
+      "language": "shell",
+      "sizeLines": 3,
+      "fileCategory": "script"
+    },
+    {
+      "path": "backend/scripts/download-checkpoints.sh",
+      "language": "shell",
+      "sizeLines": 39,
+      "fileCategory": "script"
+    },
+    {
+      "path": "backend/scripts/migrate-docker.sh",
+      "language": "shell",
+      "sizeLines": 3,
+      "fileCategory": "script"
+    },
+    {
+      "path": "backend/scripts/modal_autoresearch.py",
+      "language": "python",
+      "sizeLines": 320,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/scripts/modal_train.py",
+      "language": "python",
+      "sizeLines": 181,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/scripts/probe_audio_catalog.py",
+      "language": "python",
+      "sizeLines": 123,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/scripts/run_autoresearch.py",
+      "language": "python",
+      "sizeLines": 29,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/scripts/run_hosted.sh",
+      "language": "shell",
+      "sizeLines": 8,
+      "fileCategory": "script"
+    },
+    {
+      "path": "backend/scripts/run_local.sh",
+      "language": "shell",
+      "sizeLines": 8,
+      "fileCategory": "script"
+    },
+    {
+      "path": "backend/src/cortexdj/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/brain_agent.py",
+      "language": "python",
+      "sizeLines": 105,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/capabilities/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/capabilities/classification.py",
+      "language": "python",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/capabilities/insight.py",
+      "language": "python",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/capabilities/playlist.py",
+      "language": "python",
+      "sizeLines": 54,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/capabilities/retrieval.py",
+      "language": "python",
+      "sizeLines": 59,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/capabilities/session.py",
+      "language": "python",
+      "sizeLines": 69,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/deps.py",
+      "language": "python",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/history_processor.py",
+      "language": "python",
+      "sizeLines": 157,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/hooks.py",
+      "language": "python",
+      "sizeLines": 51,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/tools/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/tools/classification_tools.py",
+      "language": "python",
+      "sizeLines": 90,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/tools/insight_tools.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/tools/playlist_tools.py",
+      "language": "python",
+      "sizeLines": 461,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/tools/retrieval_tools.py",
+      "language": "python",
+      "sizeLines": 82,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/agents/tools/session_tools.py",
+      "language": "python",
+      "sizeLines": 54,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/alembic.ini",
+      "language": "config",
+      "sizeLines": 49,
+      "fileCategory": "config"
+    },
+    {
+      "path": "backend/src/cortexdj/app.py",
+      "language": "python",
+      "sizeLines": 117,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/core/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/core/config.py",
+      "language": "python",
+      "sizeLines": 70,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/core/paths.py",
+      "language": "python",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/dependencies/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/dependencies/db.py",
+      "language": "python",
+      "sizeLines": 74,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/dependencies/eeg_model.py",
+      "language": "python",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/migrations/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/migrations/env.py",
+      "language": "python",
+      "sizeLines": 51,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/migrations/script.py.mako",
+      "language": "mako",
+      "sizeLines": 24,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/migrations/versions/36df67a68339_add_spotify_tokens_table.py",
+      "language": "python",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/migrations/versions/77c744e4b096_add_pgvector_extension_and_track_audio_.py",
+      "language": "python",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/migrations/versions/b37bb7cb8d13_initial_schema.py",
+      "language": "python",
+      "sizeLines": 130,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/contrastive_dataset.py",
+      "language": "python",
+      "sizeLines": 262,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/contrastive_train.py",
+      "language": "python",
+      "sizeLines": 536,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/contrastive.py",
+      "language": "python",
+      "sizeLines": 239,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/dataset.py",
+      "language": "python",
+      "sizeLines": 452,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/metrics.py",
+      "language": "python",
+      "sizeLines": 160,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/model.py",
+      "language": "python",
+      "sizeLines": 84,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/predict.py",
+      "language": "python",
+      "sizeLines": 120,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/preprocessing.py",
+      "language": "python",
+      "sizeLines": 84,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/pretrained.py",
+      "language": "python",
+      "sizeLines": 104,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/ml/train.py",
+      "language": "python",
+      "sizeLines": 1657,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/__init__.py",
+      "language": "python",
+      "sizeLines": 24,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/base.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/eeg_segment.py",
+      "language": "python",
+      "sizeLines": 94,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/message.py",
+      "language": "python",
+      "sizeLines": 60,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/playlist.py",
+      "language": "python",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/session_track.py",
+      "language": "python",
+      "sizeLines": 55,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/session.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/spotify_token.py",
+      "language": "python",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/thread.py",
+      "language": "python",
+      "sizeLines": 97,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/track_audio_embedding.py",
+      "language": "python",
+      "sizeLines": 81,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/models/track.py",
+      "language": "python",
+      "sizeLines": 46,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/__init__.py",
+      "language": "python",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/agent.py",
+      "language": "python",
+      "sizeLines": 90,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/audio.py",
+      "language": "python",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/health.py",
+      "language": "python",
+      "sizeLines": 23,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/main.py",
+      "language": "python",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/retrieval.py",
+      "language": "python",
+      "sizeLines": 46,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/sessions.py",
+      "language": "python",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/spotify_auth.py",
+      "language": "python",
+      "sizeLines": 126,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/routers/thread.py",
+      "language": "python",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/agent_type.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/base.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/eeg_segment.py",
+      "language": "python",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/health_check.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/playlist.py",
+      "language": "python",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/retrieval.py",
+      "language": "python",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/session.py",
+      "language": "python",
+      "sizeLines": 46,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/spotify.py",
+      "language": "python",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/thread.py",
+      "language": "python",
+      "sizeLines": 61,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/schemas/track.py",
+      "language": "python",
+      "sizeLines": 24,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/scripts/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/scripts/build_track_index.py",
+      "language": "python",
+      "sizeLines": 311,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/scripts/fetch_deap_audio.py",
+      "language": "python",
+      "sizeLines": 150,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/scripts/seed_sessions.py",
+      "language": "python",
+      "sizeLines": 242,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/audio_catalog.py",
+      "language": "python",
+      "sizeLines": 270,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/eeg_processing.py",
+      "language": "python",
+      "sizeLines": 102,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/retrieval.py",
+      "language": "python",
+      "sizeLines": 221,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/session.py",
+      "language": "python",
+      "sizeLines": 145,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/spotify.py",
+      "language": "python",
+      "sizeLines": 272,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/thread.py",
+      "language": "python",
+      "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/title_generator.py",
+      "language": "python",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/services/trajectory.py",
+      "language": "python",
+      "sizeLines": 116,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/utils/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/utils/emotion.py",
+      "language": "python",
+      "sizeLines": 38,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/utils/logging.py",
+      "language": "python",
+      "sizeLines": 67,
+      "fileCategory": "code"
+    },
+    {
+      "path": "backend/src/cortexdj/utils/message_serialization.py",
+      "language": "python",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "CLAUDE.md",
+      "language": "markdown",
+      "sizeLines": 106,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "DEVELOPMENT.md",
+      "language": "markdown",
+      "sizeLines": 174,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docker-compose.yml",
+      "language": "yaml",
+      "sizeLines": 53,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docs/datasets-analysis.md",
+      "language": "markdown",
+      "sizeLines": 94,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/DEMO_WORKFLOWS.md",
+      "language": "markdown",
+      "sizeLines": 299,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/feature-brainstorm.md",
+      "language": "markdown",
+      "sizeLines": 9,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/pretrained-models-analysis.md",
+      "language": "markdown",
+      "sizeLines": 113,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "language": "markdown",
+      "sizeLines": 73,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "frontend/.env.example",
+      "language": "config",
+      "sizeLines": 2,
+      "fileCategory": "config"
+    },
+    {
+      "path": "frontend/api/client.ts",
+      "language": "typescript",
+      "sizeLines": 7,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/api/hooks/sessions.ts",
+      "language": "typescript",
+      "sizeLines": 45,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/api/hooks/spotify.ts",
+      "language": "typescript",
+      "sizeLines": 51,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/api/hooks/threads.ts",
+      "language": "typescript",
+      "sizeLines": 81,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/api/scripts/modifyOpenApiFile.mjs",
+      "language": "javascript",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/api/scripts/outputs/.gitkeep",
+      "language": "unknown",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/api/scripts/outputs/openapi.json",
+      "language": "json",
+      "sizeLines": 1397,
+      "fileCategory": "config"
+    },
+    {
+      "path": "frontend/app/(chat)/api/chat/route.ts",
+      "language": "typescript",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/app/(chat)/chat/[id]/page.tsx",
+      "language": "typescript",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/app/(chat)/layout.tsx",
+      "language": "typescript",
+      "sizeLines": 24,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/app/(chat)/page.tsx",
+      "language": "typescript",
+      "sizeLines": 17,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/app/(chat)/settings/layout.tsx",
+      "language": "typescript",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/app/(chat)/settings/page.tsx",
+      "language": "typescript",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/app/(chat)/settings/spotify/page.tsx",
+      "language": "typescript",
+      "sizeLines": 184,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/app/globals.css",
+      "language": "css",
+      "sizeLines": 244,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "frontend/app/layout.tsx",
+      "language": "typescript",
+      "sizeLines": 59,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/biome.jsonc",
+      "language": "jsonc",
+      "sizeLines": 63,
+      "fileCategory": "config"
+    },
+    {
+      "path": "frontend/components.json",
+      "language": "json",
+      "sizeLines": 20,
+      "fileCategory": "config"
+    },
+    {
+      "path": "frontend/components/app-sidebar.tsx",
+      "language": "typescript",
+      "sizeLines": 75,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/brain-context-badge.tsx",
+      "language": "typescript",
+      "sizeLines": 48,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/chat-actions-provider.tsx",
+      "language": "typescript",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/chat-header.tsx",
+      "language": "typescript",
+      "sizeLines": 47,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/chat.tsx",
+      "language": "typescript",
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/elements/actions.tsx",
+      "language": "typescript",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/elements/bouncing-dots.tsx",
+      "language": "typescript",
+      "sizeLines": 7,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/elements/message.tsx",
+      "language": "typescript",
+      "sizeLines": 20,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/elements/prompt-input.tsx",
+      "language": "typescript",
+      "sizeLines": 158,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/elements/response.tsx",
+      "language": "typescript",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/elements/tool-call.tsx",
+      "language": "typescript",
+      "sizeLines": 101,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/emotion-trajectory.tsx",
+      "language": "typescript",
+      "sizeLines": 361,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/greeting.tsx",
+      "language": "typescript",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/icons.tsx",
+      "language": "typescript",
+      "sizeLines": 833,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/message-actions.tsx",
+      "language": "typescript",
+      "sizeLines": 58,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/message.tsx",
+      "language": "typescript",
+      "sizeLines": 212,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/messages.tsx",
+      "language": "typescript",
+      "sizeLines": 91,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/multimodal-input.tsx",
+      "language": "typescript",
+      "sizeLines": 188,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/query-provider.tsx",
+      "language": "typescript",
+      "sizeLines": 23,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/retrieved-tracks-panel.tsx",
+      "language": "typescript",
+      "sizeLines": 307,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/session-list-panel.tsx",
+      "language": "typescript",
+      "sizeLines": 204,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/session-visualization.tsx",
+      "language": "typescript",
+      "sizeLines": 308,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/sidebar-history-item.tsx",
+      "language": "typescript",
+      "sizeLines": 137,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/sidebar-history.tsx",
+      "language": "typescript",
+      "sizeLines": 286,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/sidebar-toggle.tsx",
+      "language": "typescript",
+      "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/sidebar-user-nav.tsx",
+      "language": "typescript",
+      "sizeLines": 78,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/theme-provider.tsx",
+      "language": "typescript",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/alert-dialog.tsx",
+      "language": "typescript",
+      "sizeLines": 141,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/button.tsx",
+      "language": "typescript",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/card.tsx",
+      "language": "typescript",
+      "sizeLines": 99,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/collapsible.tsx",
+      "language": "typescript",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/dropdown-menu.tsx",
+      "language": "typescript",
+      "sizeLines": 200,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/input.tsx",
+      "language": "typescript",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/separator.tsx",
+      "language": "typescript",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/sheet.tsx",
+      "language": "typescript",
+      "sizeLines": 140,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/sidebar.tsx",
+      "language": "typescript",
+      "sizeLines": 767,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/skeleton.tsx",
+      "language": "typescript",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/tabs.tsx",
+      "language": "typescript",
+      "sizeLines": 55,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/textarea.tsx",
+      "language": "typescript",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/ui/tooltip.tsx",
+      "language": "typescript",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/components/waveform-viz.tsx",
+      "language": "typescript",
+      "sizeLines": 117,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/hooks/use-messages.tsx",
+      "language": "typescript",
+      "sizeLines": 29,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/hooks/use-mobile.tsx",
+      "language": "typescript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/hooks/use-scroll-to-bottom.tsx",
+      "language": "typescript",
+      "sizeLines": 108,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/lib/constants.ts",
+      "language": "typescript",
+      "sizeLines": 2,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/lib/types.ts",
+      "language": "typescript",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/lib/utils.ts",
+      "language": "typescript",
+      "sizeLines": 10,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/next-env.d.ts",
+      "language": "typescript",
+      "sizeLines": 6,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/next.config.ts",
+      "language": "typescript",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/openapi-ts.config.ts",
+      "language": "typescript",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/package.json",
+      "language": "json",
+      "sizeLines": 62,
+      "fileCategory": "config"
+    },
+    {
+      "path": "frontend/postcss.config.mjs",
+      "language": "javascript",
+      "sizeLines": 8,
+      "fileCategory": "code"
+    },
+    {
+      "path": "frontend/tsconfig.json",
+      "language": "json",
+      "sizeLines": 34,
+      "fileCategory": "config"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 137,
+      "fileCategory": "docs"
+    }
+  ],
+  "totalFiles": 239,
+  "filteredByIgnore": 42,
+  "estimatedComplexity": "large",
+  "importMap": {
+    ".claude/agents/code-reviewer.md": [],
+    ".claude/agents/product-advisor.md": [],
+    ".claude/agents/vercel-chatbot-template.md": [],
+    ".claude/hooks/backend-ruff.py": [],
+    ".claude/hooks/block-generated-edits.py": [],
+    ".claude/hooks/frontend-lint.py": [],
+    ".claude/rules/backend/code-conventions.md": [],
+    ".claude/rules/backend/modal.md": [],
+    ".claude/rules/backend/pydantic-ai.md": [],
+    ".claude/rules/conventions.md": [],
+    ".claude/rules/frontend/code-conventions.md": [],
+    ".claude/rules/frontend/vercel-ai-sdk.md": [],
+    ".claude/settings.json": [],
+    ".claude/skills/create-pr/SKILL.md": [],
+    ".claude/skills/explain-code/SKILL.md": [],
+    ".claude/skills/grill-me/SKILL.md": [],
+    ".claude/skills/grill-with-docs/ADR-FORMAT.md": [],
+    ".claude/skills/grill-with-docs/CONTEXT-FORMAT.md": [],
+    ".claude/skills/grill-with-docs/SKILL.md": [],
+    ".claude/skills/handoff/SKILL.md": [],
+    ".claude/skills/improve-codebase-architecture/DEEPENING.md": [],
+    ".claude/skills/improve-codebase-architecture/HTML-REPORT.md": [],
+    ".claude/skills/improve-codebase-architecture/INTERFACE-DESIGN.md": [],
+    ".claude/skills/improve-codebase-architecture/LANGUAGE.md": [],
+    ".claude/skills/improve-codebase-architecture/SKILL.md": [],
+    ".claude/skills/tdd/deep-modules.md": [],
+    ".claude/skills/tdd/interface-design.md": [],
+    ".claude/skills/tdd/mocking.md": [],
+    ".claude/skills/tdd/refactoring.md": [],
+    ".claude/skills/tdd/SKILL.md": [],
+    ".claude/skills/tdd/tests.md": [],
+    ".claude/skills/updating-deps-auto/SKILL.md": [],
+    ".claude/skills/updating-deps/SKILL.md": [],
+    ".env.sample": [],
+    ".github/CODEOWNERS": [],
+    ".github/update-deps/2026-04-07/pr-body.md": [],
+    ".github/update-deps/2026-04-13/pr-body.md": [],
+    ".github/update-deps/2026-06-01/pr-body.md": [],
+    ".github/update-deps/2026-06-08/pr-body.md": [],
+    ".github/update-deps/2026-06-15/pr-body.md": [],
+    ".github/workflows/ci.yml": [],
+    ".github/workflows/create-deps-pr.yml": [],
+    ".pre-commit-config.yaml": [],
+    ".understand-anything/.understandignore": [],
+    ".understand-anything/config.json": [],
+    "AGENTS.md": [],
+    "backend/.dockerignore": [],
+    "backend/.modalignore": [],
+    "backend/autoresearch/__init__.py": [],
+    "backend/autoresearch/prepare.py": [],
+    "backend/autoresearch/program.md": [],
+    "backend/autoresearch/README.md": [],
+    "backend/autoresearch/train.py": [
+      "backend/autoresearch/prepare.py"
+    ],
+    "backend/data/DEAP_SETUP.md": [],
+    "backend/data/deap_stimuli.json": [],
+    "backend/Dockerfile": [],
+    "backend/pyproject.toml": [],
+    "backend/scripts/create-db-revision-docker.sh": [],
+    "backend/scripts/downgrade-db-revision-docker.sh": [],
+    "backend/scripts/download-checkpoints.sh": [],
+    "backend/scripts/migrate-docker.sh": [],
+    "backend/scripts/modal_autoresearch.py": [],
+    "backend/scripts/modal_train.py": [],
+    "backend/scripts/probe_audio_catalog.py": [],
+    "backend/scripts/run_autoresearch.py": [],
+    "backend/scripts/run_hosted.sh": [],
+    "backend/scripts/run_local.sh": [],
+    "backend/src/cortexdj/__init__.py": [],
+    "backend/src/cortexdj/agents/__init__.py": [],
+    "backend/src/cortexdj/agents/brain_agent.py": [
+      "backend/src/cortexdj/agents/capabilities/classification.py",
+      "backend/src/cortexdj/agents/capabilities/insight.py",
+      "backend/src/cortexdj/agents/capabilities/playlist.py",
+      "backend/src/cortexdj/agents/capabilities/retrieval.py",
+      "backend/src/cortexdj/agents/capabilities/session.py",
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/agents/history_processor.py",
+      "backend/src/cortexdj/agents/hooks.py",
+      "backend/src/cortexdj/core/config.py"
+    ],
+    "backend/src/cortexdj/agents/capabilities/__init__.py": [],
+    "backend/src/cortexdj/agents/capabilities/classification.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/agents/tools/classification_tools.py"
+    ],
+    "backend/src/cortexdj/agents/capabilities/insight.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/agents/tools/insight_tools.py"
+    ],
+    "backend/src/cortexdj/agents/capabilities/playlist.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/agents/tools/playlist_tools.py"
+    ],
+    "backend/src/cortexdj/agents/capabilities/retrieval.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/agents/tools/retrieval_tools.py"
+    ],
+    "backend/src/cortexdj/agents/capabilities/session.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/agents/tools/session_tools.py"
+    ],
+    "backend/src/cortexdj/agents/deps.py": [
+      "backend/src/cortexdj/ml/predict.py"
+    ],
+    "backend/src/cortexdj/agents/history_processor.py": [],
+    "backend/src/cortexdj/agents/hooks.py": [
+      "backend/src/cortexdj/agents/deps.py"
+    ],
+    "backend/src/cortexdj/agents/tools/__init__.py": [],
+    "backend/src/cortexdj/agents/tools/classification_tools.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/core/paths.py"
+    ],
+    "backend/src/cortexdj/agents/tools/insight_tools.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/models/eeg_segment.py",
+      "backend/src/cortexdj/models/session.py",
+      "backend/src/cortexdj/services/__init__.py",
+      "backend/src/cortexdj/utils/emotion.py"
+    ],
+    "backend/src/cortexdj/agents/tools/playlist_tools.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/models/playlist.py",
+      "backend/src/cortexdj/models/track.py",
+      "backend/src/cortexdj/services/__init__.py",
+      "backend/src/cortexdj/services/spotify.py"
+    ],
+    "backend/src/cortexdj/agents/tools/retrieval_tools.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/services/__init__.py",
+      "backend/src/cortexdj/services/retrieval.py"
+    ],
+    "backend/src/cortexdj/agents/tools/session_tools.py": [
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/services/__init__.py"
+    ],
+    "backend/src/cortexdj/alembic.ini": [],
+    "backend/src/cortexdj/app.py": [
+      "backend/src/cortexdj/core/config.py",
+      "backend/src/cortexdj/routers/main.py",
+      "backend/src/cortexdj/utils/logging.py"
+    ],
+    "backend/src/cortexdj/core/__init__.py": [],
+    "backend/src/cortexdj/core/config.py": [
+      "backend/src/cortexdj/core/paths.py"
+    ],
+    "backend/src/cortexdj/core/paths.py": [],
+    "backend/src/cortexdj/dependencies/__init__.py": [],
+    "backend/src/cortexdj/dependencies/db.py": [
+      "backend/src/cortexdj/core/config.py"
+    ],
+    "backend/src/cortexdj/dependencies/eeg_model.py": [
+      "backend/src/cortexdj/ml/predict.py"
+    ],
+    "backend/src/cortexdj/migrations/__init__.py": [],
+    "backend/src/cortexdj/migrations/env.py": [
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/models/__init__.py"
+    ],
+    "backend/src/cortexdj/migrations/script.py.mako": [],
+    "backend/src/cortexdj/migrations/versions/36df67a68339_add_spotify_tokens_table.py": [],
+    "backend/src/cortexdj/migrations/versions/77c744e4b096_add_pgvector_extension_and_track_audio_.py": [],
+    "backend/src/cortexdj/migrations/versions/b37bb7cb8d13_initial_schema.py": [],
+    "backend/src/cortexdj/ml/__init__.py": [],
+    "backend/src/cortexdj/ml/contrastive_dataset.py": [
+      "backend/src/cortexdj/core/paths.py",
+      "backend/src/cortexdj/ml/contrastive.py",
+      "backend/src/cortexdj/ml/dataset.py"
+    ],
+    "backend/src/cortexdj/ml/contrastive_train.py": [
+      "backend/src/cortexdj/core/paths.py",
+      "backend/src/cortexdj/ml/contrastive_dataset.py",
+      "backend/src/cortexdj/ml/contrastive.py",
+      "backend/src/cortexdj/ml/train.py"
+    ],
+    "backend/src/cortexdj/ml/contrastive.py": [],
+    "backend/src/cortexdj/ml/dataset.py": [
+      "backend/src/cortexdj/ml/preprocessing.py"
+    ],
+    "backend/src/cortexdj/ml/metrics.py": [],
+    "backend/src/cortexdj/ml/model.py": [
+      "backend/src/cortexdj/ml/preprocessing.py"
+    ],
+    "backend/src/cortexdj/ml/predict.py": [
+      "backend/src/cortexdj/core/paths.py",
+      "backend/src/cortexdj/ml/dataset.py",
+      "backend/src/cortexdj/ml/model.py",
+      "backend/src/cortexdj/ml/preprocessing.py",
+      "backend/src/cortexdj/ml/pretrained.py"
+    ],
+    "backend/src/cortexdj/ml/preprocessing.py": [],
+    "backend/src/cortexdj/ml/pretrained.py": [],
+    "backend/src/cortexdj/ml/train.py": [
+      "backend/src/cortexdj/core/paths.py",
+      "backend/src/cortexdj/ml/dataset.py",
+      "backend/src/cortexdj/ml/metrics.py",
+      "backend/src/cortexdj/ml/model.py",
+      "backend/src/cortexdj/ml/predict.py",
+      "backend/src/cortexdj/ml/pretrained.py"
+    ],
+    "backend/src/cortexdj/models/__init__.py": [
+      "backend/src/cortexdj/models/base.py",
+      "backend/src/cortexdj/models/eeg_segment.py",
+      "backend/src/cortexdj/models/message.py",
+      "backend/src/cortexdj/models/playlist.py",
+      "backend/src/cortexdj/models/session_track.py",
+      "backend/src/cortexdj/models/session.py",
+      "backend/src/cortexdj/models/spotify_token.py",
+      "backend/src/cortexdj/models/thread.py",
+      "backend/src/cortexdj/models/track_audio_embedding.py",
+      "backend/src/cortexdj/models/track.py"
+    ],
+    "backend/src/cortexdj/models/base.py": [],
+    "backend/src/cortexdj/models/eeg_segment.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/models/message.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/models/playlist.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/models/session_track.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/models/session.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/models/spotify_token.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/models/thread.py": [
+      "backend/src/cortexdj/models/base.py",
+      "backend/src/cortexdj/schemas/agent_type.py",
+      "backend/src/cortexdj/schemas/thread.py"
+    ],
+    "backend/src/cortexdj/models/track_audio_embedding.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/models/track.py": [
+      "backend/src/cortexdj/models/base.py"
+    ],
+    "backend/src/cortexdj/routers/__init__.py": [
+      "backend/src/cortexdj/routers/agent.py",
+      "backend/src/cortexdj/routers/health.py",
+      "backend/src/cortexdj/routers/retrieval.py",
+      "backend/src/cortexdj/routers/sessions.py",
+      "backend/src/cortexdj/routers/spotify_auth.py",
+      "backend/src/cortexdj/routers/thread.py"
+    ],
+    "backend/src/cortexdj/routers/agent.py": [
+      "backend/src/cortexdj/agents/brain_agent.py",
+      "backend/src/cortexdj/agents/deps.py",
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/dependencies/eeg_model.py",
+      "backend/src/cortexdj/models/message.py",
+      "backend/src/cortexdj/models/thread.py",
+      "backend/src/cortexdj/schemas/agent_type.py",
+      "backend/src/cortexdj/schemas/thread.py",
+      "backend/src/cortexdj/services/spotify.py",
+      "backend/src/cortexdj/services/title_generator.py",
+      "backend/src/cortexdj/utils/message_serialization.py"
+    ],
+    "backend/src/cortexdj/routers/audio.py": [
+      "backend/src/cortexdj/core/paths.py"
+    ],
+    "backend/src/cortexdj/routers/health.py": [
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/schemas/health_check.py"
+    ],
+    "backend/src/cortexdj/routers/main.py": [
+      "backend/src/cortexdj/routers/agent.py",
+      "backend/src/cortexdj/routers/audio.py",
+      "backend/src/cortexdj/routers/health.py",
+      "backend/src/cortexdj/routers/retrieval.py",
+      "backend/src/cortexdj/routers/sessions.py",
+      "backend/src/cortexdj/routers/spotify_auth.py",
+      "backend/src/cortexdj/routers/thread.py"
+    ],
+    "backend/src/cortexdj/routers/retrieval.py": [
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/schemas/retrieval.py",
+      "backend/src/cortexdj/services/__init__.py",
+      "backend/src/cortexdj/services/retrieval.py"
+    ],
+    "backend/src/cortexdj/routers/sessions.py": [
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/models/eeg_segment.py",
+      "backend/src/cortexdj/schemas/eeg_segment.py",
+      "backend/src/cortexdj/schemas/session.py",
+      "backend/src/cortexdj/services/__init__.py",
+      "backend/src/cortexdj/services/trajectory.py"
+    ],
+    "backend/src/cortexdj/routers/spotify_auth.py": [
+      "backend/src/cortexdj/core/config.py",
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/models/spotify_token.py",
+      "backend/src/cortexdj/schemas/spotify.py",
+      "backend/src/cortexdj/services/spotify.py"
+    ],
+    "backend/src/cortexdj/routers/thread.py": [
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/schemas/agent_type.py",
+      "backend/src/cortexdj/schemas/thread.py",
+      "backend/src/cortexdj/services/__init__.py"
+    ],
+    "backend/src/cortexdj/schemas/__init__.py": [],
+    "backend/src/cortexdj/schemas/agent_type.py": [],
+    "backend/src/cortexdj/schemas/base.py": [],
+    "backend/src/cortexdj/schemas/eeg_segment.py": [
+      "backend/src/cortexdj/schemas/base.py"
+    ],
+    "backend/src/cortexdj/schemas/health_check.py": [],
+    "backend/src/cortexdj/schemas/playlist.py": [
+      "backend/src/cortexdj/schemas/base.py"
+    ],
+    "backend/src/cortexdj/schemas/retrieval.py": [
+      "backend/src/cortexdj/schemas/base.py"
+    ],
+    "backend/src/cortexdj/schemas/session.py": [
+      "backend/src/cortexdj/schemas/base.py"
+    ],
+    "backend/src/cortexdj/schemas/spotify.py": [
+      "backend/src/cortexdj/schemas/base.py"
+    ],
+    "backend/src/cortexdj/schemas/thread.py": [
+      "backend/src/cortexdj/schemas/agent_type.py",
+      "backend/src/cortexdj/schemas/base.py"
+    ],
+    "backend/src/cortexdj/schemas/track.py": [
+      "backend/src/cortexdj/schemas/base.py"
+    ],
+    "backend/src/cortexdj/scripts/__init__.py": [],
+    "backend/src/cortexdj/scripts/build_track_index.py": [
+      "backend/src/cortexdj/core/config.py",
+      "backend/src/cortexdj/core/paths.py",
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/ml/contrastive.py",
+      "backend/src/cortexdj/ml/train.py",
+      "backend/src/cortexdj/models/track_audio_embedding.py",
+      "backend/src/cortexdj/services/audio_catalog.py"
+    ],
+    "backend/src/cortexdj/scripts/fetch_deap_audio.py": [
+      "backend/src/cortexdj/core/paths.py",
+      "backend/src/cortexdj/services/audio_catalog.py",
+      "backend/src/cortexdj/services/spotify.py"
+    ],
+    "backend/src/cortexdj/scripts/seed_sessions.py": [
+      "backend/src/cortexdj/core/config.py",
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/ml/dataset.py",
+      "backend/src/cortexdj/ml/predict.py",
+      "backend/src/cortexdj/ml/preprocessing.py",
+      "backend/src/cortexdj/models/eeg_segment.py",
+      "backend/src/cortexdj/models/session_track.py",
+      "backend/src/cortexdj/models/session.py",
+      "backend/src/cortexdj/models/track.py"
+    ],
+    "backend/src/cortexdj/services/__init__.py": [],
+    "backend/src/cortexdj/services/audio_catalog.py": [
+      "backend/src/cortexdj/core/paths.py"
+    ],
+    "backend/src/cortexdj/services/eeg_processing.py": [
+      "backend/src/cortexdj/models/eeg_segment.py",
+      "backend/src/cortexdj/models/session_track.py",
+      "backend/src/cortexdj/models/session.py",
+      "backend/src/cortexdj/models/track.py"
+    ],
+    "backend/src/cortexdj/services/retrieval.py": [
+      "backend/src/cortexdj/core/config.py",
+      "backend/src/cortexdj/core/paths.py",
+      "backend/src/cortexdj/ml/contrastive_dataset.py",
+      "backend/src/cortexdj/ml/contrastive.py",
+      "backend/src/cortexdj/ml/dataset.py",
+      "backend/src/cortexdj/models/session.py",
+      "backend/src/cortexdj/models/track_audio_embedding.py",
+      "backend/src/cortexdj/services/audio_catalog.py"
+    ],
+    "backend/src/cortexdj/services/session.py": [
+      "backend/src/cortexdj/models/eeg_segment.py",
+      "backend/src/cortexdj/models/session_track.py",
+      "backend/src/cortexdj/models/session.py",
+      "backend/src/cortexdj/models/track.py",
+      "backend/src/cortexdj/services/trajectory.py"
+    ],
+    "backend/src/cortexdj/services/spotify.py": [
+      "backend/src/cortexdj/core/config.py"
+    ],
+    "backend/src/cortexdj/services/thread.py": [
+      "backend/src/cortexdj/models/message.py",
+      "backend/src/cortexdj/models/thread.py",
+      "backend/src/cortexdj/utils/message_serialization.py"
+    ],
+    "backend/src/cortexdj/services/title_generator.py": [
+      "backend/src/cortexdj/dependencies/db.py",
+      "backend/src/cortexdj/models/thread.py"
+    ],
+    "backend/src/cortexdj/services/trajectory.py": [
+      "backend/src/cortexdj/ml/dataset.py",
+      "backend/src/cortexdj/models/eeg_segment.py",
+      "backend/src/cortexdj/schemas/eeg_segment.py"
+    ],
+    "backend/src/cortexdj/utils/__init__.py": [],
+    "backend/src/cortexdj/utils/emotion.py": [],
+    "backend/src/cortexdj/utils/logging.py": [
+      "backend/src/cortexdj/core/config.py",
+      "backend/src/cortexdj/utils/logging.py"
+    ],
+    "backend/src/cortexdj/utils/message_serialization.py": [],
+    "CLAUDE.md": [],
+    "DEVELOPMENT.md": [],
+    "docker-compose.yml": [],
+    "docs/datasets-analysis.md": [],
+    "docs/DEMO_WORKFLOWS.md": [],
+    "docs/feature-brainstorm.md": [],
+    "docs/pretrained-models-analysis.md": [],
+    "docs/ROADMAP.md": [],
+    "frontend/.env.example": [],
+    "frontend/api/client.ts": [
+      "frontend/lib/constants.ts"
+    ],
+    "frontend/api/hooks/sessions.ts": [
+      "frontend/api/client.ts"
+    ],
+    "frontend/api/hooks/spotify.ts": [
+      "frontend/api/client.ts"
+    ],
+    "frontend/api/hooks/threads.ts": [
+      "frontend/api/client.ts",
+      "frontend/lib/types.ts"
+    ],
+    "frontend/api/scripts/modifyOpenApiFile.mjs": [],
+    "frontend/api/scripts/outputs/.gitkeep": [],
+    "frontend/api/scripts/outputs/openapi.json": [],
+    "frontend/app/(chat)/api/chat/route.ts": [
+      "frontend/lib/constants.ts"
+    ],
+    "frontend/app/(chat)/chat/[id]/page.tsx": [
+      "frontend/api/hooks/threads.ts",
+      "frontend/components/chat.tsx"
+    ],
+    "frontend/app/(chat)/layout.tsx": [
+      "frontend/components/app-sidebar.tsx",
+      "frontend/components/ui/sidebar.tsx"
+    ],
+    "frontend/app/(chat)/page.tsx": [
+      "frontend/components/chat.tsx"
+    ],
+    "frontend/app/(chat)/settings/layout.tsx": [
+      "frontend/components/ui/button.tsx"
+    ],
+    "frontend/app/(chat)/settings/page.tsx": [],
+    "frontend/app/(chat)/settings/spotify/page.tsx": [
+      "frontend/api/hooks/spotify.ts",
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/card.tsx"
+    ],
+    "frontend/app/globals.css": [],
+    "frontend/app/layout.tsx": [
+      "frontend/app/globals.css",
+      "frontend/components/query-provider.tsx",
+      "frontend/components/theme-provider.tsx"
+    ],
+    "frontend/biome.jsonc": [],
+    "frontend/components.json": [],
+    "frontend/components/app-sidebar.tsx": [
+      "frontend/components/icons.tsx",
+      "frontend/components/sidebar-history.tsx",
+      "frontend/components/sidebar-user-nav.tsx",
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/sidebar.tsx",
+      "frontend/components/ui/tooltip.tsx"
+    ],
+    "frontend/components/brain-context-badge.tsx": [],
+    "frontend/components/chat-actions-provider.tsx": [],
+    "frontend/components/chat-header.tsx": [
+      "frontend/components/brain-context-badge.tsx",
+      "frontend/components/icons.tsx",
+      "frontend/components/sidebar-toggle.tsx",
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/sidebar.tsx"
+    ],
+    "frontend/components/chat.tsx": [
+      "frontend/api/hooks/threads.ts",
+      "frontend/components/chat-actions-provider.tsx",
+      "frontend/components/chat-header.tsx",
+      "frontend/components/messages.tsx",
+      "frontend/components/multimodal-input.tsx",
+      "frontend/lib/types.ts"
+    ],
+    "frontend/components/elements/actions.tsx": [
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/tooltip.tsx",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/elements/bouncing-dots.tsx": [],
+    "frontend/components/elements/message.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/elements/prompt-input.tsx": [
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/textarea.tsx",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/elements/response.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/elements/tool-call.tsx": [
+      "frontend/components/elements/bouncing-dots.tsx",
+      "frontend/components/ui/collapsible.tsx"
+    ],
+    "frontend/components/emotion-trajectory.tsx": [
+      "frontend/components/ui/button.tsx"
+    ],
+    "frontend/components/greeting.tsx": [],
+    "frontend/components/icons.tsx": [],
+    "frontend/components/message-actions.tsx": [
+      "frontend/components/elements/actions.tsx"
+    ],
+    "frontend/components/message.tsx": [
+      "frontend/components/elements/bouncing-dots.tsx",
+      "frontend/components/elements/message.tsx",
+      "frontend/components/elements/response.tsx",
+      "frontend/components/elements/tool-call.tsx",
+      "frontend/components/message-actions.tsx",
+      "frontend/components/retrieved-tracks-panel.tsx",
+      "frontend/components/session-list-panel.tsx",
+      "frontend/components/session-visualization.tsx",
+      "frontend/lib/types.ts",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/messages.tsx": [
+      "frontend/components/greeting.tsx",
+      "frontend/components/message.tsx",
+      "frontend/components/ui/button.tsx",
+      "frontend/hooks/use-messages.tsx",
+      "frontend/lib/types.ts",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/multimodal-input.tsx": [
+      "frontend/components/elements/prompt-input.tsx",
+      "frontend/components/ui/button.tsx",
+      "frontend/lib/types.ts",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/query-provider.tsx": [
+      "frontend/api/client.ts"
+    ],
+    "frontend/components/retrieved-tracks-panel.tsx": [
+      "frontend/api/hooks/sessions.ts",
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/tooltip.tsx",
+      "frontend/components/waveform-viz.tsx",
+      "frontend/lib/constants.ts",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/session-list-panel.tsx": [
+      "frontend/api/hooks/sessions.ts",
+      "frontend/components/chat-actions-provider.tsx",
+      "frontend/components/ui/tooltip.tsx",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/session-visualization.tsx": [
+      "frontend/api/hooks/sessions.ts",
+      "frontend/components/emotion-trajectory.tsx",
+      "frontend/components/ui/tabs.tsx"
+    ],
+    "frontend/components/sidebar-history-item.tsx": [
+      "frontend/components/ui/dropdown-menu.tsx",
+      "frontend/components/ui/input.tsx",
+      "frontend/components/ui/sidebar.tsx",
+      "frontend/lib/types.ts"
+    ],
+    "frontend/components/sidebar-history.tsx": [
+      "frontend/api/hooks/threads.ts",
+      "frontend/components/sidebar-history-item.tsx",
+      "frontend/components/ui/alert-dialog.tsx",
+      "frontend/components/ui/sidebar.tsx"
+    ],
+    "frontend/components/sidebar-toggle.tsx": [
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/sidebar.tsx",
+      "frontend/components/ui/tooltip.tsx",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/sidebar-user-nav.tsx": [
+      "frontend/components/ui/dropdown-menu.tsx",
+      "frontend/components/ui/sidebar.tsx"
+    ],
+    "frontend/components/theme-provider.tsx": [],
+    "frontend/components/ui/alert-dialog.tsx": [
+      "frontend/components/ui/button.tsx",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/button.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/card.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/collapsible.tsx": [],
+    "frontend/components/ui/dropdown-menu.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/input.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/separator.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/sheet.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/sidebar.tsx": [
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/input.tsx",
+      "frontend/components/ui/separator.tsx",
+      "frontend/components/ui/sheet.tsx",
+      "frontend/components/ui/skeleton.tsx",
+      "frontend/components/ui/tooltip.tsx",
+      "frontend/hooks/use-mobile.tsx",
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/skeleton.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/tabs.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/textarea.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/ui/tooltip.tsx": [
+      "frontend/lib/utils.ts"
+    ],
+    "frontend/components/waveform-viz.tsx": [],
+    "frontend/hooks/use-messages.tsx": [
+      "frontend/hooks/use-scroll-to-bottom.tsx",
+      "frontend/lib/types.ts"
+    ],
+    "frontend/hooks/use-mobile.tsx": [],
+    "frontend/hooks/use-scroll-to-bottom.tsx": [],
+    "frontend/lib/constants.ts": [],
+    "frontend/lib/types.ts": [],
+    "frontend/lib/utils.ts": [],
+    "frontend/next-env.d.ts": [],
+    "frontend/next.config.ts": [],
+    "frontend/openapi-ts.config.ts": [],
+    "frontend/package.json": [],
+    "frontend/postcss.config.mjs": [],
+    "frontend/tsconfig.json": [],
+    "README.md": []
+  }
+}
