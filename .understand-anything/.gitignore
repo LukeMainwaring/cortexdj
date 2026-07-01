@@ -1,0 +1,4 @@
+# Session-local scratch — never commit
+.trash-*/
+tmp/
+*.log

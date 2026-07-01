@@ -1,0 +1,62 @@
+# .understandignore — patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+#
+# Built-in defaults (always excluded): node_modules/, .git/, dist/, build/,
+# obj/, *.lock, *.min.js, etc. Patterns below are ACTIVE (uncommented).
+
+# --- Virtualenvs / installed deps / build output ---
+.venv/
+node_modules/
+frontend/.next/
+.next/
+
+# --- Caches ---
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+backend/.cache/
+huggingface_cache/
+
+# --- Generated code (do not analyze — regenerated from backend OpenAPI) ---
+frontend/api/generated/
+
+# --- Data, checkpoints, model artifacts ---
+backend/data/checkpoints/
+backend/data/deap/
+backend/data/audio_cache/
+backend/data/deap_stimuli_resolved.json
+backend/data/deap_stimuli_miss_log.jsonl
+backend/data/track_index_miss_log.jsonl
+backend/data/tensorboard_runs/
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+*.safetensors
+*.bin
+
+# --- Large vendored LLM-doc dumps (reference text, not project code) ---
+docs/modal-llms-full.txt
+docs/pydantic-ai-llms-full.txt
+docs/vercel-ai-sdk-ui.txt
+
+# --- Lock files (pnpm-lock.yaml isn't matched by the *.lock default) ---
+pnpm-lock.yaml
+
+# --- Editor / OS noise ---
+.DS_Store
+*.swp
+*.swo
+*~
+.env
+.env.local
+
+# --- Tests (excluded per user request) ---
+backend/tests/
+**/*_test.py
+test_*.py
+*.test.*
+*.spec.*
