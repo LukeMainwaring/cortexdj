@@ -11,34 +11,34 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic>=1.18.5",
   "asyncpg>=0.31.0",
-  "braindecode>=1.5.2",
+  "braindecode>=1.6.1",
   "safetensors>=0.8.0",
-  "fastapi[standard]>=0.138.1",
+  "fastapi[standard]>=0.139.2",
   "httpx>=0.28.1",
   "librosa>=0.11.0",
   "mne>=1.12.1",
-  "modal>=1.5.1",
+  "modal>=1.5.2",
   "numpy>=2.4.6",
-  "pgvector>=0.4.2",
+  "pgvector>=0.5.0",
   "psycopg[binary,pool]>=3.3.4",
-  "pydantic-ai>=2.0.0",
+  "pydantic-ai>=2.11.0",
   "pydantic>=2.13.4",
   "scipy>=1.18.0",
   "spotipy>=2.26.0",
   "sqlalchemy[asyncio,mypy]>=2.0.51",
-  "tensorboard>=2.20.0",
-  "torch>=2.12.1",
-  "transformers>=5.12.1",
-  "uvicorn>=0.49.0",
+  "tensorboard>=2.21.0",
+  "torch>=2.13.0",
+  "transformers>=5.14.1",
+  "uvicorn>=0.51.0",
 ]
 
 [dependency-groups]
 dev = [
-  "mypy>=2.1.0",
+  "mypy>=2.3.0",
   "pre-commit>=4.6.0",
-  "pydantic-evals>=2.0.0",
+  "pydantic-evals>=2.11.0",
   "pytest>=9.1.1",
-  "ruff>=0.15.20",
+  "ruff>=0.15.22",
 ]
 
 [tool.pytest.ini_options]
