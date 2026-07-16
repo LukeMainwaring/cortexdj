@@ -104,3 +104,10 @@ Next.js 16 with App Router.
 - Editing frontend code in general? See `.claude/rules/frontend/code-conventions.md` first — import-alias scope, shadcn/ui usage, kebab-case filenames, `cn()` from `@/lib/utils`.
 - Editing backend Python? See `.claude/rules/backend/code-conventions.md` first — filename, typing, and naming conventions.
 - Writing or naming new code (any stack)? See `.claude/rules/conventions.md` first — behavioral names, intent-carrying docstrings + negative constraints, rationale in ADRs.
+
+## Agent Harness
+
+- Skills live canonically in `.agents/skills/` (`.claude/skills` is a symlink into it). Codex parity lives in `.codex/` — `hooks.json`, byte-identical hook copies, and agent TOMLs. **When editing `.claude/hooks/` or `.claude/agents/`, mirror the change in `.codex/`.**
+- Reviewing code? The methodology source of truth is `.agents/skills/code-review-guide/SKILL.md` — both the Claude subagent and Codex agent are thin wrappers around it.
+- Writing or editing a skill? Read `.agents/skills/writing-great-skills/SKILL.md` first.
+- Spec-driven work: `/to-spec` → `/to-tickets` → `/implement`. Run `/setup-matt-pocock-skills` once to configure the issue tracker they use.

@@ -1,0 +1,203 @@
+---
+name: updating-deps
+description: "Update all dependencies to latest versions, re-download library docs, and review changelogs for refactoring opportunities."
+model: opus
+effort: xhigh
+---
+
+# Update Dependencies
+
+> For scheduled/autonomous execution, use the `updating-deps-auto` skill instead.
+
+Update all backend and frontend dependencies to their latest versions, refresh library documentation, validate the build, and review changelogs for refactoring opportunities.
+
+## Phase 1: Branch Setup
+
+Create a dedicated branch for the update:
+
+```bash
+git checkout -b update-deps/$(date +%Y-%m-%d)
+```
+
+If the branch already exists (re-running same day), check it out instead:
+
+```bash
+git checkout update-deps/$(date +%Y-%m-%d)
+```
+
+## Phase 2: Discover Outdated Versions
+
+### Backend
+
+1. Read `backend/pyproject.toml` and note all current dependency version floors (the `>=X.Y.Z` values)
+2. Resolve latest versions:
+
+```bash
+uv lock --upgrade --directory backend
+```
+
+3. Read `backend/uv.lock` to find the resolved version for each dependency listed in `pyproject.toml`
+
+### Frontend
+
+1. Check outdated packages:
+
+```bash
+pnpm -C frontend outdated --json
+```
+
+2. Note current vs latest for all packages
+
+### Summary
+
+Present a markdown table showing each dependency, its current version floor/range, and the latest available version. Group by backend and frontend. Wait for user acknowledgment before proceeding to Phase 3.
+
+## Phase 3: Bump Versions
+
+### Backend
+
+Edit `backend/pyproject.toml` to update each `>=X.Y.Z` floor to the latest resolved version from the lockfile. Then sync:
+
+```bash
+uv sync --directory backend
+```
+
+### Frontend
+
+For dependencies using `^` ranges:
+
+```bash
+pnpm -C frontend update --latest
+```
+
+For exact-pinned dependencies (no `^` prefix — e.g., `react`, `react-dom`, `next`, and any in `devDependencies` pinned exactly like `@biomejs/biome`, `ultracite`), bump individually:
+
+```bash
+pnpm -C frontend add <pkg>@latest
+pnpm -C frontend add -D <pkg>@latest  # for devDependencies
+```
+
+Update everything — no exclusions.
+
+## Phase 4: Re-download Library Documentation
+
+Download fresh copies of the key AI library documentation used by this project:
+
+```bash
+curl -o docs/pydantic-ai-llms-full.txt https://ai.pydantic.dev/llms-full.txt
+```
+
+Vercel AI SDK docs are pulled from the per-page raw-markdown variant (`.md` suffix). The upstream `llms.txt` was restructured around guides and no longer carries the UI reference content, so we discover the doc pages from `sitemap.xml` and pull each one. The response header `x-matched-path: /[variants]/llms.mdx/[type]/[...slug]` confirms `.md` is the documented Fumadocs LLM-markdown route. Sanity assertions trip if upstream changes shape again.
+
+```bash
+set -eo pipefail
+tmpfile=$(mktemp)
+trap 'rm -f "$tmpfile"' EXIT
+curl -fsSL https://ai-sdk.dev/sitemap.xml \
+  | grep -oE 'https://ai-sdk\.dev/docs/(ai-sdk-ui|reference/ai-sdk-ui)[^<]*' \
+  | sort -u > "$tmpfile"
+test -s "$tmpfile" || { echo "ERROR: sitemap returned no AI SDK UI URLs"; exit 1; }
+
+: > docs/vercel-ai-sdk-ui.txt
+while IFS= read -r url; do
+  {
+    printf '\n<!-- source: %s -->\n\n' "$url"
+    curl -fsSL "${url}.md"
+  } >> docs/vercel-ai-sdk-ui.txt
+done < "$tmpfile"
+
+grep -q 'useChat' docs/vercel-ai-sdk-ui.txt || { echo "ERROR: vercel-ai-sdk-ui.txt missing 'useChat' — upstream layout may have changed"; exit 1; }
+test "$(wc -c < docs/vercel-ai-sdk-ui.txt)" -gt 100000 || { echo "ERROR: vercel-ai-sdk-ui.txt unexpectedly small"; exit 1; }
+```
+
+## Phase 5: Validate
+
+Run linting, type checking, and tests to catch any issues from the version bumps:
+
+### Backend
+
+```bash
+uv run --directory backend pre-commit run --all-files
+```
+
+`pre-commit` covers lint, format, and `mypy --strict`, but not behaviour. Run the test suite too (DB-free and provider-free; real-LLM evals stay excluded by the default marker):
+
+```bash
+uv run --directory backend pytest -m "not eval"
+```
+
+### Frontend
+
+```bash
+pnpm -C frontend lint
+```
+
+Report any failures with full error output. Do NOT auto-fix — the user will decide how to address issues.
+
+## Phase 6: Changelog Research
+
+For every direct dependency that changed version (listed in `pyproject.toml` or `package.json`, not transitive-only), fetch the GitHub releases page to review what changed between the old and new versions. Use WebFetch on `https://github.com/<owner>/<repo>/releases`.
+
+Focus on releases between the old version (from Phase 2) and the new version. Extract:
+
+- New features and APIs
+- Breaking changes
+- Deprecations
+- New recommended patterns or best practices
+
+Skip any library that had no version change.
+
+## Phase 7: Refactoring Report
+
+Cross-reference the changelog findings from Phase 6 with the actual codebase. Use Grep and Read to search for deprecated patterns, old API usage, or code that could benefit from newly available features.
+
+Present a structured report:
+
+### 1. Version Summary
+
+| Package | Old Version | New Version |
+|---------|-------------|-------------|
+| ... | ... | ... |
+
+### 2. Breaking Changes
+
+List anything that needs immediate attention to keep the app functional.
+
+### 3. New Patterns / APIs Worth Adopting
+
+For each recommendation, include:
+- What the new pattern/API is
+- Where in the codebase it applies (specific file paths)
+- A brief code example showing the before/after
+
+### 4. Deprecation Warnings
+
+Things currently used in the codebase that are now deprecated and should be migrated.
+
+### 5. Recommended Refactors
+
+Specific, actionable suggestions with file paths. Prioritize by impact.
+
+**Important:** Do NOT apply any refactoring changes. This phase is report-only. The user will decide which refactors to pursue separately.
+
+## Phase 8: Commit
+
+Ask the user before committing. If approved:
+
+1. Show what the update actually changed, so the approval is against a concrete diff:
+
+```bash
+git status --porcelain
+git diff --stat
+```
+
+2. If `git status --porcelain` is empty, nothing was updated (deps already at latest, docs unchanged). Report this and skip the commit — do not create an empty commit.
+
+3. Otherwise stage and commit everything that changed. The run is on its own `update-deps/<date>` branch with no auto-fixes (Phase 5 is report-only), so the only changes present are the dependency, lockfile, and documentation refreshes:
+
+```bash
+git add -A
+git commit -m "chore: bump all dependencies to latest versions"
+```
+
+Do NOT automatically run code-reviewer or create-pr — those are manual follow-up steps.

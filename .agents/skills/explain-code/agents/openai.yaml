@@ -1,0 +1,3 @@
+interface:
+  display_name: "Explain Code"
+  short_description: "Explain code with diagrams and analogies"

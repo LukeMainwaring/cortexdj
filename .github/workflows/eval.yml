@@ -1,0 +1,42 @@
+name: Eval
+
+# Real-LLM agent evals (pydantic-evals). Kept out of PR CI because they call a
+# real provider (cost + flakiness). Run on demand from the Actions tab, or enable
+# the nightly schedule below once OPENAI_API_KEY is set as a repository secret.
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 7 * * *"  # nightly 07:00 UTC safety net on main
+
+jobs:
+  eval:
+    name: Agent Evals
+    runs-on: ubuntu-latest
+    env:
+      # Settings require these at import; the evals never connect to the DB.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cortexdj
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: uv sync --frozen --all-groups
+
+      - name: Run evals
+        working-directory: ./backend
+        run: uv run pytest -m eval tests/evals/

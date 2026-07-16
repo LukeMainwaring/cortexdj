@@ -54,6 +54,46 @@ jobs:
         working-directory: ./backend
         run: uv run mypy --strict src tests
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      # Settings require these at import; the tests never connect to a DB.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cortexdj
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      # Dummy provider key: tests use TestModel/monkeypatch, never a real call.
+      OPENAI_API_KEY: sk-test-deterministic-no-real-calls
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: uv sync --frozen --all-groups
+
+      - name: Run tests + coverage
+        working-directory: ./backend
+        # Coverage floor at 40% (baseline ~43%); ratchet up as coverage grows.
+        run: uv run pytest -m "not eval" --cov=cortexdj --cov-report=term-missing --cov-report=xml --cov-fail-under=40
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: backend/coverage.xml
+
   frontend-lint:
     name: Frontend Lint
     runs-on: ubuntu-latest
