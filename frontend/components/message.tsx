@@ -5,6 +5,7 @@ import { getToolName, isToolUIPart } from "ai";
 import equal from "fast-deep-equal";
 import Image from "next/image";
 import { memo } from "react";
+import { TOOL_PANELS } from "@/features/tool-panel-registry";
 import type { ChatMessage } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
 import { BouncingDots } from "./elements/bouncing-dots";
@@ -12,37 +13,6 @@ import { MessageContent } from "./elements/message";
 import { Response } from "./elements/response";
 import { ToolCall } from "./elements/tool-call";
 import { MessageActions } from "./message-actions";
-import { RetrievedTracksPanel } from "./retrieved-tracks-panel";
-import { SessionListPanel } from "./session-list-panel";
-import { SessionVisualization } from "./session-visualization";
-
-function extractSessionId(input: unknown): string | null {
-  if (input && typeof input === "object" && "session_id" in input) {
-    const value = (input as { session_id: unknown }).session_id;
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
-  }
-  return null;
-}
-
-// The list_sessions tool embeds each session's UUID in an HTML comment
-// (`<!-- id=... -->`) on its line so the agent can resolve "Session 07" → UUID
-// without leaking the UUID to the user. We extract the same comments here so
-// the rendered panel mirrors exactly what the agent decided to show — order
-// and all — instead of duplicating the tool's filter logic on the frontend.
-const SESSION_ID_COMMENT = /<!--\s*id=([0-9a-f-]+)\s*-->/gi;
-
-function extractSessionIdsFromOutput(output: unknown): string[] | null {
-  if (typeof output !== "string") {
-    return null;
-  }
-  const ids: string[] = [];
-  for (const match of output.matchAll(SESSION_ID_COMMENT)) {
-    ids.push(match[1]);
-  }
-  return ids.length > 0 ? ids : null;
-}
 
 const AssistantAvatar = ({ isLoading }: { isLoading?: boolean }) => (
   <div
@@ -129,36 +99,18 @@ const PurePreviewMessage = ({
             }
             if (isToolUIPart(part)) {
               const toolName = getToolName(part);
-              const isOutputAvailable = part.state === "output-available";
-              const analyzeSessionId =
-                toolName === "analyze_session" && isOutputAvailable
-                  ? extractSessionId(part.input)
-                  : null;
-              const retrievalSessionId =
-                toolName === "retrieve_tracks_from_brain_state" &&
-                isOutputAvailable
-                  ? extractSessionId(part.input)
-                  : null;
-              const showSessionList =
-                toolName === "list_sessions" && isOutputAvailable;
-              const sessionListIds = showSessionList
-                ? extractSessionIdsFromOutput(part.output)
-                : null;
+              const entry = TOOL_PANELS[toolName];
+              const showPanel =
+                entry != null && part.state === "output-available";
               return (
                 <div className="flex flex-col gap-2" key={key}>
                   <ToolCall
-                    hideOutput={showSessionList}
+                    hideOutput={showPanel && entry.hideRawOutput === true}
                     isStreaming={isLoading && !hasTextParts}
                     part={part}
                   />
-                  {analyzeSessionId && (
-                    <SessionVisualization sessionId={analyzeSessionId} />
-                  )}
-                  {retrievalSessionId && (
-                    <RetrievedTracksPanel sessionId={retrievalSessionId} />
-                  )}
-                  {showSessionList && (
-                    <SessionListPanel sessionIds={sessionListIds} />
+                  {showPanel && (
+                    <entry.Panel input={part.input} output={part.output} />
                   )}
                 </div>
               );
