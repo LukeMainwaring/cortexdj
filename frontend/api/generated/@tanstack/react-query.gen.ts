@@ -183,27 +183,30 @@ export const listSessionsInfiniteQueryKey = (options?: Options<ListSessionsData>
  *
  * List all EEG sessions.
  */
-export const listSessionsInfiniteOptions = (options?: Options<ListSessionsData>) => infiniteQueryOptions<ListSessionsResponse, AxiosError<ListSessionsError>, InfiniteData<ListSessionsResponse>, QueryKey<Options<ListSessionsData>>, number | Pick<QueryKey<Options<ListSessionsData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
-// @ts-ignore
-{
-    queryFn: async ({ pageParam, queryKey, signal }) => {
-        // @ts-ignore
-        const page: Pick<QueryKey<Options<ListSessionsData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
-            query: {
-                offset: pageParam
-            }
-        };
-        const params = createInfiniteParams(queryKey, page);
-        const { data } = await listSessions({
-            ...options,
-            ...params,
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listSessionsInfiniteQueryKey(options)
-});
+export const listSessionsInfiniteOptions = (options?: Options<ListSessionsData>) => {
+    const opts = infiniteQueryOptions<ListSessionsResponse, AxiosError<ListSessionsError>, InfiniteData<ListSessionsResponse>, QueryKey<Options<ListSessionsData>>, number | Pick<QueryKey<Options<ListSessionsData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<ListSessionsData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await listSessions({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: listSessionsInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
 
 export const listSessionsEnrichedQueryKey = (options?: Options<ListSessionsEnrichedData>) => createQueryKey('listSessionsEnriched', options);
 
@@ -238,27 +241,30 @@ export const listSessionsEnrichedInfiniteQueryKey = (options?: Options<ListSessi
  * `order=recent` (default) returns newest first; `order=stable` returns
  * chronological-insertion order (Session 01 → Session NN).
  */
-export const listSessionsEnrichedInfiniteOptions = (options?: Options<ListSessionsEnrichedData>) => infiniteQueryOptions<ListSessionsEnrichedResponse, AxiosError<ListSessionsEnrichedError>, InfiniteData<ListSessionsEnrichedResponse>, QueryKey<Options<ListSessionsEnrichedData>>, number | Pick<QueryKey<Options<ListSessionsEnrichedData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
-// @ts-ignore
-{
-    queryFn: async ({ pageParam, queryKey, signal }) => {
-        // @ts-ignore
-        const page: Pick<QueryKey<Options<ListSessionsEnrichedData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
-            query: {
-                offset: pageParam
-            }
-        };
-        const params = createInfiniteParams(queryKey, page);
-        const { data } = await listSessionsEnriched({
-            ...options,
-            ...params,
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listSessionsEnrichedInfiniteQueryKey(options)
-});
+export const listSessionsEnrichedInfiniteOptions = (options?: Options<ListSessionsEnrichedData>) => {
+    const opts = infiniteQueryOptions<ListSessionsEnrichedResponse, AxiosError<ListSessionsEnrichedError>, InfiniteData<ListSessionsEnrichedResponse>, QueryKey<Options<ListSessionsEnrichedData>>, number | Pick<QueryKey<Options<ListSessionsEnrichedData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<ListSessionsEnrichedData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await listSessionsEnriched({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: listSessionsEnrichedInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
 
 export const getSessionQueryKey = (options: Options<GetSessionData>) => createQueryKey('getSession', options);
 
