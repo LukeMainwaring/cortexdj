@@ -7,7 +7,6 @@ orchestration logic's handling of edge cases (empty index, k clamping,
 lookup failures, cosine→similarity conversion).
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
@@ -19,6 +18,8 @@ from cortexdj.services.retrieval import (
     retrieve_similar_tracks,
     serialize_hits,
 )
+
+pytestmark = pytest.mark.anyio
 
 
 class TestParticipantDatPath:
@@ -74,26 +75,26 @@ class TestSerializeHits:
 
 
 class TestRetrieveSimilarTracks:
-    def test_missing_session_raises_lookup_error(self) -> None:
+    async def test_missing_session_raises_lookup_error(self) -> None:
         db = MagicMock()
         with patch("cortexdj.services.retrieval.Session.get", new=AsyncMock(return_value=None)):
             with pytest.raises(LookupError, match="sess-bogus"):
-                asyncio.run(retrieve_similar_tracks(db, "sess-bogus", k=10))
+                await retrieve_similar_tracks(db, "sess-bogus", k=10)
 
-    def test_empty_index_returns_empty_list(self) -> None:
+    async def test_empty_index_returns_empty_list(self) -> None:
         db = MagicMock()
         with (
             patch("cortexdj.services.retrieval.Session.get", new=AsyncMock(return_value=MagicMock())),
             patch("cortexdj.services.retrieval.TrackAudioEmbedding.count", new=AsyncMock(return_value=0)),
             patch("cortexdj.services.retrieval.encode_session_to_clap_space") as mock_encode,
         ):
-            hits = asyncio.run(retrieve_similar_tracks(db, "sess-1", k=10))
+            hits = await retrieve_similar_tracks(db, "sess-1", k=10)
         assert hits == []
         # Importantly, we did NOT call the encoder if the index is empty —
         # encoding is the expensive part and there's nothing to query against.
         mock_encode.assert_not_called()
 
-    def test_k_is_clamped_to_valid_range(self) -> None:
+    async def test_k_is_clamped_to_valid_range(self) -> None:
         db = MagicMock()
         mock_row = MagicMock(
             spotify_id="abc",
@@ -113,11 +114,11 @@ class TestRetrieveSimilarTracks:
                 new=AsyncMock(return_value=[(mock_row, 0.2)]),
             ) as mock_topk,
         ):
-            asyncio.run(retrieve_similar_tracks(db, "sess-1", k=500))
+            await retrieve_similar_tracks(db, "sess-1", k=500)
         # k=500 should be clamped to 100.
         assert mock_topk.call_args.kwargs["k"] == 100
 
-    def test_k_floor_is_one(self) -> None:
+    async def test_k_floor_is_one(self) -> None:
         db = MagicMock()
         with (
             patch("cortexdj.services.retrieval.Session.get", new=AsyncMock(return_value=MagicMock())),
@@ -131,10 +132,10 @@ class TestRetrieveSimilarTracks:
                 new=AsyncMock(return_value=[]),
             ) as mock_topk,
         ):
-            asyncio.run(retrieve_similar_tracks(db, "sess-1", k=0))
+            await retrieve_similar_tracks(db, "sess-1", k=0)
         assert mock_topk.call_args.kwargs["k"] == 1
 
-    def test_cosine_distance_converts_to_similarity(self) -> None:
+    async def test_cosine_distance_converts_to_similarity(self) -> None:
         # pgvector returns cosine distance in [0, 2] (0 = identical, 1 = orthogonal,
         # 2 = antipodal). We convert to similarity = 1 - distance so callers get
         # the standard [-1, 1] cosine-similarity convention where higher is closer.
@@ -156,6 +157,6 @@ class TestRetrieveSimilarTracks:
                 new=AsyncMock(return_value=rows),
             ),
         ):
-            hits = asyncio.run(retrieve_similar_tracks(db, "sess-1", k=3))
+            hits = await retrieve_similar_tracks(db, "sess-1", k=3)
         similarities = [h.similarity for h in hits]
         assert similarities == [1.0, 0.5, 0.0]

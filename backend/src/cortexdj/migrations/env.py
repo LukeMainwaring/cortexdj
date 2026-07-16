@@ -9,7 +9,11 @@ config = context.config
 config.set_main_option("sqlalchemy.url", get_postgres_url("postgresql+psycopg"))
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep existing loggers alive: migrations also run in-process (the
+    # integration test tier calls `command.upgrade`), and fileConfig's
+    # default disable_existing_loggers=True would silence every logger
+    # created before this point.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 from cortexdj.models import Base  # noqa: F401, E402
 

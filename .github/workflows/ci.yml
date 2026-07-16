@@ -57,11 +57,28 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      # Same image as local docker compose; backs the integration tier.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexdj_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      # Settings require these at import; the tests never connect to a DB.
+      # The integration tier connects to the service container above and
+      # refuses to run unless the DB name contains "test" (it runs alembic
+      # upgrade/downgrade). The unit tier stays DB-free.
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: cortexdj
+      POSTGRES_DB: cortexdj_test
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
       # Dummy provider key: tests use TestModel/monkeypatch, never a real call.
@@ -86,6 +103,10 @@ jobs:
       - name: Run tests + coverage
         working-directory: ./backend
         # Coverage floor at 40% (baseline ~43%); ratchet up as coverage grows.
+        # The explicit -m "not eval" OVERRIDES addopts' 'not integration'
+        # (the last -m wins), which is what selects the integration tier
+        # here — don't remove it as "redundant" or the tier silently
+        # deselects while CI stays green.
         run: uv run pytest -m "not eval" --cov=cortexdj --cov-report=term-missing --cov-report=xml --cov-fail-under=40
 
       - name: Upload coverage report

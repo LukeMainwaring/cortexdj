@@ -34,6 +34,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "anyio>=4.14.2",
   "mypy>=2.3.0",
   "pre-commit>=4.6.0",
   "pydantic-evals>=2.11.0",
@@ -43,12 +44,15 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
-    "main: marks tests for main demo examples",
-    "additional: marks tests for additional demo examples",
+    "integration: real-DB/HTTP tests; needs Postgres (CI service or `docker compose up -d postgres`)",
     "eval: marks tests that call a real LLM (opt-in; run with `pytest -m eval`)",
 ]
-addopts = "-m 'not eval'"
+# Default run = the fast, DB-free unit tier; `integration` and `eval` are
+# opt-in via -m. Test dirs are packages (an __init__.py each) so the same
+# basename can recur across tiers.
+addopts = "-m 'not eval and not integration'"
 
 [tool.mypy]
 strict = true

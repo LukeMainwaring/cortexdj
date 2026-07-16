@@ -6,11 +6,14 @@ section as buggy at first revision — these tests pin the corrected
 behavior so a future "optimization" can't silently regress it.
 """
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from cortexdj.scripts.build_track_index import _dedupe_by_spotify_id, _gather_candidates
+
+pytestmark = pytest.mark.anyio
 
 
 def _candidate(spotify_id: str, source: str = "user_library") -> dict[str, Any]:
@@ -45,7 +48,7 @@ class TestDedupeBySpotifyId:
 
 
 class TestGatherCandidates:
-    def test_library_only_when_full(self) -> None:
+    async def test_library_only_when_full(self) -> None:
         # Library returns exactly `limit` candidates — topup should be skipped.
         client = MagicMock()
         with (
@@ -58,11 +61,11 @@ class TestGatherCandidates:
                 new=AsyncMock(return_value=[]),
             ) as mock_seeds,
         ):
-            pool = asyncio.run(_gather_candidates(client, limit=10, skip_library=False))
+            pool = await _gather_candidates(client, limit=10, skip_library=False)
         assert len(pool) == 10
         mock_seeds.assert_not_called()
 
-    def test_library_shortfall_triggers_seed_topup(self) -> None:
+    async def test_library_shortfall_triggers_seed_topup(self) -> None:
         # Library returns 3, we need 10 — seeds must top up the remaining 7.
         # The corrected implementation overshoots with `shortfall * 2 = 14`
         # to absorb seed-side dedupe losses.
@@ -77,7 +80,7 @@ class TestGatherCandidates:
                 new=AsyncMock(return_value=[_candidate(f"seed{i}", source="seed_search") for i in range(14)]),
             ) as mock_seeds,
         ):
-            pool = asyncio.run(_gather_candidates(client, limit=10, skip_library=False))
+            pool = await _gather_candidates(client, limit=10, skip_library=False)
         assert len(pool) == 10
         # Seeds should have been asked for shortfall * 2 = 14.
         mock_seeds.assert_called_once()
@@ -85,7 +88,7 @@ class TestGatherCandidates:
         # The 3 library candidates should be first (source preserved).
         assert [c["source"] for c in pool[:3]] == ["user_library"] * 3
 
-    def test_library_and_seed_dedupe(self) -> None:
+    async def test_library_and_seed_dedupe(self) -> None:
         # Library returns 5 unique tracks; seeds return 5 that overlap with
         # library + 3 fresh ones. After dedupe the pool should contain
         # 5 library + 3 fresh seed = 8, sliced to limit=10 → all 8.
@@ -102,7 +105,7 @@ class TestGatherCandidates:
                 new=AsyncMock(return_value=[_candidate(i, source="seed_search") for i in seed_ids]),
             ),
         ):
-            pool = asyncio.run(_gather_candidates(client, limit=10, skip_library=False))
+            pool = await _gather_candidates(client, limit=10, skip_library=False)
         spotify_ids = [c["spotify_id"] for c in pool]
         assert len(spotify_ids) == 8
         # Library order preserved, fresh seeds appended.
@@ -111,7 +114,7 @@ class TestGatherCandidates:
         # Dedupe kept the library copy, not the seed duplicate.
         assert all(c["source"] == "user_library" for c in pool[:5])
 
-    def test_skip_library_uses_only_seeds(self) -> None:
+    async def test_skip_library_uses_only_seeds(self) -> None:
         client = MagicMock()
         with (
             patch(
@@ -122,12 +125,12 @@ class TestGatherCandidates:
                 new=AsyncMock(return_value=[_candidate(f"seed{i}", source="seed_search") for i in range(20)]),
             ),
         ):
-            pool = asyncio.run(_gather_candidates(client, limit=10, skip_library=True))
+            pool = await _gather_candidates(client, limit=10, skip_library=True)
         mock_lib.assert_not_called()
         assert len(pool) == 10
         assert all(c["source"] == "seed_search" for c in pool)
 
-    def test_slice_to_limit(self) -> None:
+    async def test_slice_to_limit(self) -> None:
         # Library + seeds far exceed limit — final pool must be sliced down.
         client = MagicMock()
         with (
@@ -140,7 +143,7 @@ class TestGatherCandidates:
                 new=AsyncMock(return_value=[_candidate(f"seed{i}", source="seed_search") for i in range(50)]),
             ) as mock_seeds,
         ):
-            pool = asyncio.run(_gather_candidates(client, limit=10, skip_library=False))
+            pool = await _gather_candidates(client, limit=10, skip_library=False)
         # Library already fills the limit — seeds never fetched.
         assert len(pool) == 10
         mock_seeds.assert_not_called()

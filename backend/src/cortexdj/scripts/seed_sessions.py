@@ -193,8 +193,6 @@ async def seed_participant(
 
             seeded += 1
 
-        await db.commit()
-
     return seeded
 
 

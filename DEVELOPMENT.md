@@ -47,14 +47,27 @@ uv run --directory backend pre-commit run --all-files
 
 ## Tests
 
+The suite has three tiers under `backend/tests/`:
+
+- **`unit/<area>/`** — fast, DB-free, provider-free. This is the default `pytest` run.
+- **`integration/`** — real Postgres + HTTP (`httpx` against the app). Schema comes from the shipped Alembic migrations; each test rolls back an outer transaction, so tests never pollute each other. Opt-in via `-m integration`.
+- **`evals/`** — real-LLM `brain_agent` evals. Opt-in via `-m eval`; use as a nightly safety net on `main` or manual spot-checks, not on every PR. See `.claude/rules/backend/pydantic-ai.md`.
+
 ```bash
-uv run --directory backend pytest              # unit tests (eval suite excluded)
+uv run --directory backend pytest              # unit tier (integration + eval excluded)
 uv run --directory backend pytest -v           # verbose output
-uv run --directory backend pytest tests/test_preprocessing.py  # single file
+uv run --directory backend pytest tests/unit/ml/test_preprocessing.py  # single file
 uv run --directory backend pytest -m eval      # real-model brain_agent eval suite (opt-in)
 ```
 
-The `eval` marker gates tests that call the real OpenAI API via `brain_agent` — the default `pytest` invocation excludes them via `addopts = "-m 'not eval'"`. Use them as a nightly safety net on `main` or manual spot-checks, not on every PR. See `.claude/rules/backend/pydantic-ai.md` and `backend/tests/evals/` for the suite layout.
+To run the integration tier locally, create the test database once, then point `POSTGRES_DB` at it (the env var overrides the `.env` value; host/port still come from `.env`):
+
+```bash
+./backend/scripts/create-test-db.sh
+POSTGRES_DB=cortexdj_test uv run --directory backend pytest -m integration
+```
+
+The tier refuses to run unless the database name contains `test`, because it runs `alembic upgrade`/`downgrade` against whatever database the env points at. Shared test-data builders live in `backend/tests/factories.py` (`make_*` = unpersisted, `create_*` = persisted via flush).
 
 ## Database migrations
 

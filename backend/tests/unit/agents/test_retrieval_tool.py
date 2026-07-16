@@ -7,7 +7,6 @@ run `seed-track-index`), and exception propagation per the project's
 pydantic-ai convention (let hooks handle tool errors, don't swallow them).
 """
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -23,8 +22,11 @@ def _make_ctx() -> MagicMock:
     return ctx
 
 
+pytestmark = pytest.mark.anyio
+
+
 class TestRetrieveTracksFromBrainState:
-    def test_populated_index_returns_json_with_ranked_hits(self) -> None:
+    async def test_populated_index_returns_json_with_ranked_hits(self) -> None:
         hits = [
             TrackHit(
                 spotify_id="spid1",
@@ -47,7 +49,7 @@ class TestRetrieveTracksFromBrainState:
             "cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks",
             new=AsyncMock(return_value=hits),
         ):
-            payload_json = asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=5))
+            payload_json = await retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=5)
 
         payload = json.loads(payload_json)
         assert payload["session_id"] == "sess-1"
@@ -59,12 +61,12 @@ class TestRetrieveTracksFromBrainState:
         # `note` is only set on the empty-index path; never leak it on success.
         assert "note" not in payload
 
-    def test_empty_index_returns_note_field(self) -> None:
+    async def test_empty_index_returns_note_field(self) -> None:
         with patch(
             "cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks",
             new=AsyncMock(return_value=[]),
         ):
-            payload_json = asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=10))
+            payload_json = await retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=10)
 
         payload = json.loads(payload_json)
         assert payload["tracks"] == []
@@ -73,7 +75,7 @@ class TestRetrieveTracksFromBrainState:
         # command instead of hallucinating a recovery.
         assert "seed-track-index" in payload["note"]
 
-    def test_lookup_error_propagates_to_hooks(self) -> None:
+    async def test_lookup_error_propagates_to_hooks(self) -> None:
         # Per .claude/rules/backend/pydantic-ai.md: tools let exceptions
         # propagate so on_tool_execute_error can produce a structured
         # recovery payload. The tool must NOT catch LookupError.
@@ -82,9 +84,9 @@ class TestRetrieveTracksFromBrainState:
             new=AsyncMock(side_effect=LookupError("session sess-bogus not found")),
         ):
             with pytest.raises(LookupError, match="sess-bogus"):
-                asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-bogus", k=5))
+                await retrieve_tracks_from_brain_state(_make_ctx(), "sess-bogus", k=5)
 
-    def test_deap_file_missing_returns_structured_error(self) -> None:
+    async def test_deap_file_missing_returns_structured_error(self) -> None:
         # `DeapFileMissingError` is server misconfig — the hooks recovery
         # template strips the exception message, so we catch it specifically
         # and return an actionable JSON payload the agent can relay verbatim.
@@ -92,7 +94,7 @@ class TestRetrieveTracksFromBrainState:
             "cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks",
             new=AsyncMock(side_effect=DeapFileMissingError("DEAP file for P99 not found at /x/s99.dat")),
         ):
-            payload_json = asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=5))
+            payload_json = await retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=5)
 
         payload = json.loads(payload_json)
         assert payload["error"] == "deap_data_missing"
@@ -102,17 +104,17 @@ class TestRetrieveTracksFromBrainState:
         # render an empty list as if retrieval succeeded.
         assert "tracks" not in payload
 
-    def test_passes_k_through_to_service(self) -> None:
+    async def test_passes_k_through_to_service(self) -> None:
         mock = AsyncMock(return_value=[])
         with patch("cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks", new=mock):
-            asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=25))
+            await retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=25)
         assert mock.call_args.kwargs["k"] == 25
 
-    def test_negative_k_passes_through_unclamped_at_tool_layer(self) -> None:
+    async def test_negative_k_passes_through_unclamped_at_tool_layer(self) -> None:
         # Pins the "clamping lives in the service, not the tool" contract —
         # otherwise a well-meaning future refactor might add `max(1, k)` at
         # the tool layer and silently mask bugs in the service-side clamp.
         mock = AsyncMock(return_value=[])
         with patch("cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks", new=mock):
-            asyncio.run(retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=-1))
+            await retrieve_tracks_from_brain_state(_make_ctx(), "sess-1", k=-1)
         assert mock.call_args.kwargs["k"] == -1
