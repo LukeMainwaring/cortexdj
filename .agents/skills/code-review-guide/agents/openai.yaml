@@ -1,0 +1,5 @@
+interface:
+  display_name: "Code Review Guide"
+  short_description: "How code review is done in this repo"
+policy:
+  allow_implicit_invocation: false
