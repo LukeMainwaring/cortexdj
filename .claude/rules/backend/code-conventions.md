@@ -31,7 +31,7 @@ Python/FastAPI conventions for the CortexDJ backend.
 
 ## Data Patterns
 
-- Standard PostgreSQL queries on arousal/valence scores (no pgvector, no embedding similarity)
+- Arousal/valence scores are plain columns queried with standard SQL; embedding similarity lives in `TrackAudioEmbedding` (pgvector, HNSW cosine search) and is reached through the retrieval service — don't add ad-hoc vector queries elsewhere
 - DEAP EEG data stored in `backend/data/deap/`; DB stores session metadata + segment classifications
 - Agent streams responses via Pydantic AI's streaming interface, proxied through a Vercel AI SDK-compatible SSE endpoint
 - Agent tools in `agents/tools/`, grouped by capability in `agents/capabilities/`
@@ -53,6 +53,17 @@ Python/FastAPI conventions for the CortexDJ backend.
 
 - After generating an alembic migration, pause and ask if it looks okay before running `migrate-docker.sh`
 - Never run downgrade scripts without explicit user request
+
+## Testing
+
+- Tests live flat under `backend/tests/` — fast, DB-free, provider-free. `conftest.py` sets a dummy `OPENAI_API_KEY` so importing `brain_agent` never needs a real key; tests that invoke the agent use `agent.override` with pydantic-ai `TestModel`.
+- Real-LLM evals live in `tests/evals/`, marked `@pytest.mark.eval` and opt-in via `pytest -m eval`; the default run excludes them through `addopts = "-m 'not eval'"`.
+- CI's test job enforces the coverage floor; don't run coverage locally unless you're investigating a CI failure.
+
+## Dependencies
+
+- Never hand-edit `pyproject.toml` with a remembered version — models pin stale releases from training memory. Run `uv add <package> --directory backend` (add `--dev` for tooling) so the resolver fetches the current compatible release and updates `uv.lock` in one step.
+- Don't pin an exact `==` version unless there's a specific reason; let `uv add` write the default lower-bound constraint.
 
 ## Module Conventions
 

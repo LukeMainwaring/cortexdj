@@ -112,12 +112,18 @@ test "$(wc -c < docs/vercel-ai-sdk-ui.txt)" -gt 100000 || { echo "ERROR: vercel-
 
 ## Phase 5: Validate
 
-Run linting and type checking to catch any issues from the version bumps:
+Run linting, type checking, and tests to catch any issues from the version bumps:
 
 ### Backend
 
 ```bash
 uv run --directory backend pre-commit run --all-files
+```
+
+`pre-commit` covers lint, format, and `mypy --strict`, but not behaviour. Run the test suite too (DB-free and provider-free; real-LLM evals stay excluded by the default marker):
+
+```bash
+uv run --directory backend pytest -m "not eval"
 ```
 
 ### Frontend

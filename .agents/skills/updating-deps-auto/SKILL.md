@@ -99,6 +99,16 @@ uv run --directory backend pre-commit run --all-files
 
 If the above fails, run it **again** — pre-commit hooks often fix issues on the first run and pass on the second.
 
+### Backend Tests
+
+`pre-commit` covers lint, format, and `mypy --strict`, but not behaviour — a dependency bump can pass all three and still break at runtime. Run the test suite:
+
+```bash
+uv run --directory backend pytest -m "not eval"
+```
+
+The suite is DB-free and provider-free, so it runs in the unattended sandbox with no external services. The coverage floor is intentionally **not** enforced here — CI's test job is the backstop for that on the PR.
+
 ### Frontend
 
 ```bash
@@ -108,7 +118,7 @@ pnpm -C frontend lint
 
 ### Failure Handling
 
-If validation still fails after auto-fix attempts, capture the full error output into a `validation_failures` section. **Do NOT stop.** Proceed to Phase 6 — failures will be flagged in the PR.
+If validation (lint, type-check, or unit tests) still fails after auto-fix attempts, capture the full error output into a `validation_failures` section. **Do NOT stop.** Proceed to Phase 6 — failures will be flagged in the PR. A unit-test failure at this stage means the new dependency versions broke behaviour with no code change yet; capture it verbatim so the PR shows exactly which test broke under which bump.
 
 ## Phase 5.5: Commit 1 — Dependency Bumps
 
@@ -152,11 +162,12 @@ After applying all refactors, re-run validation to ensure nothing is broken:
 
 ```bash
 uv run --directory backend pre-commit run --all-files
+uv run --directory backend pytest -m "not eval"
 pnpm -C frontend format
 pnpm -C frontend lint
 ```
 
-If the re-validation fails, attempt auto-fix (run pre-commit again, format again). If a specific refactor causes persistent failures, **revert that refactor** using `git checkout -- <file>` and note it as a recommendation in the PR body instead.
+If the re-validation fails, attempt auto-fix (run pre-commit again, format again). **A failing unit test here almost always means a refactor changed behaviour** — find the offending refactor and **revert it** with `git checkout -- <file>` rather than editing the test to pass, then re-run. If a specific refactor causes persistent lint/type failures, likewise revert it and note it as a recommendation in the PR body instead.
 
 Keep a record of:
 - **Applied refactors**: what changed and where (for the PR body)
@@ -216,7 +227,7 @@ Write the PR body to `.github/update-deps/$(date +%Y-%m-%d)/pr-body.md` with the
 - X backend deps updated, Y frontend deps updated
 
 ## Validation Status
-<!-- "All checks passed (pre-commit, frontend lint)" OR "**VALIDATION FAILURES DETECTED** — manual attention required:" followed by error output -->
+<!-- "All checks passed (pre-commit, unit tests, frontend lint)" OR "**VALIDATION FAILURES DETECTED** — manual attention required:" followed by error output -->
 
 ## Code Review
 <!-- Summary and verdict from code-reviewer agent -->

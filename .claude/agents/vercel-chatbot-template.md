@@ -58,7 +58,7 @@ Fetch the template's `package.json` and compare against `frontend/package.json`:
 gh api repos/vercel/chatbot/contents/package.json --jq '.content' | base64 -d | grep -E '"(ai|@ai-sdk/react|next|react)"'
 ```
 
-Expect cortexdj to be **at or ahead of** the template on every AI SDK package. State one line — normally: "API-compatible; divergence is structural by design, not version lag." (At last check: template `ai@6.0.116` / `@ai-sdk/react@3.0.118`, cortexdj `ai@^6.0.182` / `@ai-sdk/react@^3.0.184` — cortexdj ahead, same major line → API-compatible.) Only a true **major-version** gap is a real compat flag, since it changes which `useChat` / message-part APIs apply.
+Expect cortexdj to be **at or ahead of** the template on every AI SDK package. State one line — normally: "API-compatible; divergence is structural by design, not version lag." Only a true **major-version** gap is a real compat flag, since it changes which `useChat` / message-part APIs apply.
 
 ### Step 2 — Fetch the feature's implementation
 

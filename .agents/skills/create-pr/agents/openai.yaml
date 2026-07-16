@@ -1,0 +1,5 @@
+interface:
+  display_name: "Create PR"
+  short_description: "Summarize the branch and open a PR"
+policy:
+  allow_implicit_invocation: false

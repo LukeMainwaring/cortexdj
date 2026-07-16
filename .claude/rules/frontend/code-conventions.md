@@ -51,6 +51,14 @@ TypeScript/Next.js conventions for the cortexdj frontend.
 - Do not manually edit files in `components/ui/` unless adding a new shadcn
   component or customizing an existing variant.
 
+## Data fetching
+
+- Wrap generated API client calls in TanStack Query hooks (e.g., `useSessionSegments` in
+  `api/hooks/sessions.ts`) rather than calling the generated client directly from
+  components; keep the hooks under `api/hooks/`.
+- Never hand-edit `api/generated/` — it is regenerated from the backend OpenAPI
+  schema via `pnpm -C frontend generate-client`.
+
 ## Code Style
 
 - Use kebab-case for filenames (e.g., `session-visualization.tsx`,
