@@ -1,6 +1,7 @@
 ---
 paths:
   - "frontend/components/**/*.tsx"
+  - "frontend/features/**/*.{ts,tsx}"
   - "frontend/app/(chat)/**/*.{ts,tsx}"
   - "frontend/hooks/**/*.{ts,tsx}"
   - "frontend/api/hooks/**/*.{ts,tsx}"
@@ -44,6 +45,10 @@ authoritative for the underlying contract that adapted UI must wire into.
   `ChatMessage` type in `frontend/lib/types.ts`. Carry that generic through
   every `UseChatHelpers` site — falling back to plain `UIMessage` loses the
   project's custom data/tool-part typing.
-- **Tool-call panels switch on `part.type === "tool-<name>"`** in the message
-  renderer. A new backend tool that needs a custom UI panel adds a branch
-  there.
+- **Tool-call panels come from a registry, not a branch.** Each feature slice
+  exports a tool-name → panel map from `frontend/features/<name>/tool-panels.tsx`;
+  `frontend/features/tool-panel-registry.ts` spreads those maps into
+  `TOOL_PANELS`, and `message.tsx` looks up `part.type === "tool-<name>"` against
+  it. A new backend tool that needs a custom UI panel = a slice component plus
+  one map entry — add `hideRawOutput: true` when the panel replaces `<ToolCall>`'s
+  raw JSON output block. Don't reintroduce per-tool branching in the renderer.
