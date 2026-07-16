@@ -1,6 +1,7 @@
 ---
 paths:
   - "frontend/components/**/*.{ts,tsx}"
+  - "frontend/features/**/*.{ts,tsx}"
   - "frontend/app/**/*.{ts,tsx}"
   - "frontend/hooks/**/*.{ts,tsx}"
   - "frontend/api/hooks/**/*.{ts,tsx}"
@@ -10,6 +11,23 @@ paths:
 # Frontend Patterns
 
 TypeScript/Next.js conventions for the cortexdj frontend.
+
+## Feature slices
+
+Domain UI lives in `frontend/features/<name>/` (kebab-case files, same as
+everywhere else) — `sessions/` and `retrieval/` today. What goes where:
+
+- **A slice never imports another slice.** `frontend/features/tool-panel-registry.ts`
+  is the composition root and the only file that reaches across slices; it
+  spreads each slice's `tool-panels.tsx` map into `TOOL_PANELS`.
+- **Shared chat chrome stays in `components/`** (message renderer, input,
+  sidebar, `ui/`). A component used by two slices belongs there, not in either
+  slice.
+- **Cross-cutting data hooks stay in `api/hooks/`**, shared parsing/format
+  helpers in `lib/`. A slice may own a hook only it uses.
+
+Intra-slice imports are relative (`./tool-panels`); anything crossing a
+top-level directory uses `@/`.
 
 ## Imports
 

@@ -34,6 +34,10 @@ async def retrieve_tracks_from_brain_state(
     `note` field explains how to populate it. When the session's underlying
     DEAP data is missing on disk, the payload contains an `error` field
     that the agent should relay verbatim to the user.
+
+    The `DeapFileMissingError` catch below is the one sanctioned deviation from
+    the propagate-to-hooks convention; see
+    docs/adr/0003-two-layer-tool-error-convention.md. Do not add a second one.
     """
     try:
         hits = await retrieval_service.retrieve_similar_tracks(ctx.deps.db, session_id, k=k)

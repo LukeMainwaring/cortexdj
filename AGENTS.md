@@ -68,6 +68,7 @@ FastAPI Python backend using async patterns throughout.
   - **Contrastive EEG↔CLAP**: `contrastive.py` (EegCLAPEncoder with CBraMod backbone + SimCLR projection head, symmetric soft-target InfoNCE, encode_session), `contrastive_dataset.py` (DeapClapPairDataset + host-portable audio cache + `trial_to_eeg_windows` shared slicer), `contrastive_train.py` (SequentialLR warmup+cosine, TensorBoard scalars + val embedding projector, grad accumulation).
 - **`src/cortexdj/core/config.py`**: Settings via pydantic-settings
 - **`src/cortexdj/migrations/`**: Alembic migrations for PostgreSQL
+- **`tests/`**: Three tiers — `unit/` (default run), `integration/` (real Postgres, `-m integration`), `evals/` (real LLM, `-m eval`). See `DEVELOPMENT.md` and `.claude/rules/backend/code-conventions.md`.
 
 ### Frontend (`frontend/`)
 
@@ -77,9 +78,10 @@ Next.js 16 with App Router.
 - **`app/(chat)/api/chat/route.ts`**: Proxy route to backend agent
 - **`components/chat.tsx`**: Chat orchestrator using `@ai-sdk/react` useChat hook
 - **`components/brain-context-badge.tsx`**: Displays active brain context (mood/arousal/valence)
-- **`components/session-visualization.tsx`**: Tabbed session viewer — wraps `components/emotion-trajectory.tsx` (default, animated SVG trajectory through Russell's affect space) and a recharts arousal/valence timeline in Radix Tabs, with the band-power chart shared below. Auto-rendered by `components/message.tsx` when an `analyze_session` tool call is detected
-- **`components/emotion-trajectory.tsx`**: Custom SVG + `motion/react` chart that plots each 4-second segment as a point in the valence/arousal plane, draws a smoothed rolling-mean path via an animated `motion.path` (`style={{ pathLength: progress }}`), and exposes a play/pause + scrubber driven by a `requestAnimationFrame` loop
-- **`components/retrieved-tracks-panel.tsx`**: Ranked tracks rendered beneath `retrieve_tracks_from_brain_state` tool calls — similarity bars, inline 30s preview playback via a shared `<audio>` ref, Spotify deep-links, branched 404/503/500 error states
+- **`features/tool-panel-registry.ts`**: Composition root mapping tool name → panel; the only file that imports across slices. `components/message.tsx` looks up `TOOL_PANELS` — a new tool panel is a slice component plus one map entry, never a renderer branch. See `.claude/rules/frontend/code-conventions.md` for the slice boundaries.
+- **`features/sessions/session-visualization.tsx`**: Tabbed session viewer — wraps `features/sessions/emotion-trajectory.tsx` (default, animated SVG trajectory through Russell's affect space) and a recharts arousal/valence timeline in Radix Tabs, with the band-power chart shared below. Registered for `analyze_session`
+- **`features/sessions/emotion-trajectory.tsx`**: Custom SVG + `motion/react` chart that plots each 4-second segment as a point in the valence/arousal plane, draws a smoothed rolling-mean path via an animated `motion.path` (`style={{ pathLength: progress }}`), and exposes a play/pause + scrubber driven by a `requestAnimationFrame` loop
+- **`features/retrieval/retrieved-tracks-panel.tsx`**: Ranked tracks rendered beneath `retrieve_tracks_from_brain_state` tool calls — similarity bars, inline 30s preview playback via a shared `<audio>` ref, Spotify deep-links, branched 404/503/500 error states
 - **`api/hooks/sessions.ts`**: TanStack Query wrappers around the generated sessions client — `useSessionSegments` and `useSimilarTracks`; follow this pattern when wrapping new generated endpoints. Retries skip 404 (missing session) and 503 (missing contrastive checkpoint)
 
 ### Data Flow
@@ -90,11 +92,12 @@ Next.js 16 with App Router.
 4. The `ProcessHistory` capability (`summarize_tool_results`) compacts large tool results from prior turns to prevent token bloat
 5. Pydantic AI agent decides which tools to call
 6. Agent streams response back as SSE (Vercel AI SDK format)
-7. Frontend renders with tool-call transparency, brain context badge, and inline panels: `<SessionVisualization>` on `analyze_session`, `<RetrievedTracksPanel>` on `retrieve_tracks_from_brain_state` (component-level details in the Frontend section above)
+7. Frontend renders with tool-call transparency, brain context badge, and inline panels — `message.tsx` resolves each tool part against `features/tool-panel-registry.ts`: `<SessionVisualization>` on `analyze_session`, `<RetrievedTracksPanel>` on `retrieve_tracks_from_brain_state` (component-level details in the Frontend section above)
 
 ## Additional Instructions
 
 - Backend port: 8003, Frontend port: 3003, PostgreSQL port: 5433
+- Why is this code like this? Check `docs/adr/` before "fixing" a non-obvious choice — it records the decisions that look wrong without context, and the implementing docstring cites its ADR.
 - Model checkpoints are gitignored -- use `uv run train-model` to train.
 - After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`.
 - Do not manually edit files in `frontend/api/generated/`.

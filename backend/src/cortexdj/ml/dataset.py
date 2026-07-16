@@ -42,6 +42,8 @@ VALENCE_THRESHOLD = 5.0
 CBRAMOD_SCALE_FACTOR = 0.01
 
 # Label binarization strategy for DEAP's 1-9 Likert self-reports.
+# See docs/adr/0004-subject-median-label-binarization.md for why the default
+# deviates from the >= 5 threshold the DEAP literature uses.
 #
 # `median_per_subject` (default): splits each axis at that subject's own
 # median. Balanced within each subject, removes per-subject rating-scale bias.

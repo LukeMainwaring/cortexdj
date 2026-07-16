@@ -64,9 +64,8 @@ keep it lean (ceiling ~200 lines). The *why* behind a non-obvious choice belongs
 in `docs/adr/` — and the docstring that implements it cites the ADR, so an agent
 meets the rationale before it "simplifies" the choice away.
 
-`docs/adr/` doesn't exist yet; it lands via a `grill-with-docs` pass that will
-promote today's scattered rationale (HNSW-over-IVFFlat in the pgvector
-migration, iTunes-over-`preview_url` in `services/audio_catalog.py`, the
-two-layer tool-error convention, label binarization at the subject median) into
-numbered records. Until then, cite the existing home and keep new rationale out
-of `AGENTS.md`.
+`docs/adr/` now holds four numbered records — HNSW-over-IVFFlat (0001),
+iTunes-over-`preview_url` (0002), the two-layer tool-error convention (0003),
+and subject-median label binarization (0004). A new non-obvious choice gets a
+new ADR (next number, format per `.agents/skills/domain-modeling/ADR-FORMAT.md`),
+and the docstring implementing it cites the file by path.
