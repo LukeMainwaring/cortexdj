@@ -209,6 +209,8 @@ async def _main_async() -> int:
 
     MISS_LOG_PATH.unlink(missing_ok=True)
 
+    # Raw script-owned session (not the commit-owning dependency), so the
+    # explicit commits below are intentional.
     async with AsyncSessionMaker() as db:
         from cortexdj.services.spotify import get_user_spotify_client
 

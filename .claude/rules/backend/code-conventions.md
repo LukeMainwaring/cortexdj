@@ -56,8 +56,11 @@ Python/FastAPI conventions for the CortexDJ backend.
 
 ## Testing
 
-- Tests live flat under `backend/tests/` — fast, DB-free, provider-free. `conftest.py` sets a dummy `OPENAI_API_KEY` so importing `brain_agent` never needs a real key; tests that invoke the agent use `agent.override` with pydantic-ai `TestModel`.
-- Real-LLM evals live in `tests/evals/`, marked `@pytest.mark.eval` and opt-in via `pytest -m eval`; the default run excludes them through `addopts = "-m 'not eval'"`.
+- Three tiers under `backend/tests/`: `unit/<area>/` (fast, DB-free, provider-free — the default `pytest` run), `integration/` (real Postgres + HTTP, opt-in via `-m integration`), and `evals/` (real-LLM, `@pytest.mark.eval`, opt-in via `-m eval`). The default run excludes both opt-in tiers through `addopts = "-m 'not eval and not integration'"`; test dirs are packages so basenames can repeat across tiers.
+- Async tests use anyio's pytest plugin: `@pytest.mark.anyio` plus the `anyio_backend` fixture in the root conftest. No pytest-asyncio, no raw `asyncio.run()` wrappers.
+- The integration tier builds schema from the shipped Alembic migrations and rolls back an outer transaction per test. Isolation holds only because the app's sole commit point is the session dependency (`dependencies/db.py`) — services and model classmethods `flush()`, never `commit()`. The tier refuses database names not ending in `_test` and applies its markers structurally in `tests/integration/conftest.py` (don't add per-file `pytestmark`). Local setup: `backend/scripts/create-test-db.sh`, then `POSTGRES_DB=cortexdj_test uv run --directory backend pytest -m integration`.
+- Shared builders live in `tests/factories.py` (`make_*` = unpersisted, `create_*` = persisted via flush); agent-deps mocks in `tests/fakes.py`.
+- Root `conftest.py` sets a dummy `OPENAI_API_KEY` so importing `brain_agent` never needs a real key; tests that invoke the agent use `agent.override` with pydantic-ai `TestModel`.
 - CI's test job enforces the coverage floor; don't run coverage locally unless you're investigating a CI failure.
 
 ## Dependencies

@@ -21,7 +21,6 @@ in the agent's message history, not that it was the only one — the
 agent is allowed to chain tools as long as the critical one fires.
 """
 
-import asyncio
 from dataclasses import dataclass, field
 
 import pytest
@@ -29,7 +28,7 @@ from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from cortexdj.agents.brain_agent import brain_agent
-from tests.evals.conftest import fake_spotify_client, make_fake_deps
+from tests.fakes import fake_spotify_client, make_fake_deps
 
 
 @dataclass
@@ -159,8 +158,9 @@ _dataset: Dataset[BrainAgentInput, BrainAgentOutput, None] = Dataset(
 
 
 @pytest.mark.eval
-def test_brain_agent_tool_routing() -> None:
-    report = asyncio.run(_dataset.evaluate(_run_brain_agent))
+@pytest.mark.anyio
+async def test_brain_agent_tool_routing() -> None:
+    report = await _dataset.evaluate(_run_brain_agent)
 
     execution_failures = [f.name for f in report.failures]
     assert not execution_failures, f"Eval execution errors: {execution_failures}"

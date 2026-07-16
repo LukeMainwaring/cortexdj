@@ -35,6 +35,14 @@ AsyncSessionMaker = async_sessionmaker(bind=async_engine, class_=AsyncSession, e
 
 
 async def _get_async_sqlalchemy_session_dependency() -> AsyncGenerator[AsyncSession, None]:
+    """Yield a session that owns its transaction: commit on success, rollback on error.
+
+    This is the single commit point for request-scoped sessions (and for
+    background work via ``get_async_sqlalchemy_session``). Services and model
+    classmethods must only ``flush()``, never ``commit()`` — the integration
+    test tier overrides this dependency and rolls back an outer transaction
+    per test, which only isolates tests if no other code commits.
+    """
     async with AsyncSessionMaker() as session:
         try:
             yield session

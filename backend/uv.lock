@@ -526,6 +526,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "anyio" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pydantic-evals" },
@@ -561,6 +562,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "anyio", specifier = ">=4.14.2" },
     { name = "mypy", specifier = ">=2.3.0" },
     { name = "pre-commit", specifier = ">=4.6.0" },
     { name = "pydantic-evals", specifier = ">=2.11.0" },

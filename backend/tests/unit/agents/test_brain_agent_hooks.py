@@ -6,8 +6,7 @@ instances. End-to-end validation (fake failing tool → agent responds
 conversationally) lives in ``tests/evals/``.
 """
 
-import asyncio
-
+import pytest
 from pydantic_ai import ToolDefinition
 from pydantic_ai.capabilities import Hooks
 from pydantic_ai.messages import ToolCallPart
@@ -36,20 +35,18 @@ class TestRecoveryPayload:
 
 
 class TestRecoverToolErrorHandler:
-    def test_returns_recovery_payload_for_unexpected_exception(self) -> None:
+    @pytest.mark.anyio
+    async def test_returns_recovery_payload_for_unexpected_exception(self) -> None:
         call = ToolCallPart(tool_name="search_tracks", tool_call_id="call-1")
         tool_def = ToolDefinition(name="search_tracks")
 
-        async def _invoke() -> dict[str, object]:
-            return await _recover_tool_error(
-                None,  # type: ignore[arg-type]  # handler doesn't touch ctx
-                call=call,
-                tool_def=tool_def,
-                args={},
-                error=RuntimeError("spotify 500"),
-            )
-
-        result = asyncio.run(_invoke())
+        result = await _recover_tool_error(
+            None,  # type: ignore[arg-type]  # handler doesn't touch ctx
+            call=call,
+            tool_def=tool_def,
+            args={},
+            error=RuntimeError("spotify 500"),
+        )
         assert result["error"] == "tool_failed"
         assert result["tool"] == "search_tracks"
         assert result["exception_type"] == "RuntimeError"
