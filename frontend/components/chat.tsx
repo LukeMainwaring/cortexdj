@@ -41,7 +41,7 @@ export function Chat({
       id,
       transport,
       messages: initialMessages,
-      experimental_throttle: 100,
+      throttle: 100,
       onFinish: () => {
         setThreadExists(true);
         queryClient.invalidateQueries({ queryKey: listThreadsQueryKey() });

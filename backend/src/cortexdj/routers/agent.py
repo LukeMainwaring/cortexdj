@@ -86,5 +86,5 @@ async def stream_chat(
         deps=deps,
         conversation_id=thread_id,
         on_complete=on_complete,
-        sdk_version=6,
+        sdk_version=7,
     )

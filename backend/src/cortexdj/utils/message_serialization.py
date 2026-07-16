@@ -18,7 +18,7 @@ def deserialize_messages(message_data: list[dict[str, Any]]) -> list[ModelMessag
 
 def dump_messages_for_frontend(message_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     model_messages = deserialize_messages(message_data)
-    ui_messages = VercelAIAdapter.dump_messages(model_messages, sdk_version=6)
+    ui_messages = VercelAIAdapter.dump_messages(model_messages, sdk_version=7)
     return [msg.model_dump(mode="json", by_alias=True) for msg in ui_messages]
 
 
