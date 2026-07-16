@@ -18,7 +18,7 @@ from pydantic_ai.models.test import TestModel
 
 from cortexdj.agents.brain_agent import brain_agent
 from cortexdj.ml.predict import EEGModel
-from tests.evals.conftest import make_fake_deps
+from tests.fakes import make_fake_deps
 
 
 def _offered_tool_names(model: TestModel) -> set[str]:
@@ -72,7 +72,7 @@ class TestPlaylistCapabilityPrepareTools:
         assert "build_mood_playlist" in offered
 
     async def test_shows_user_spotify_tools_when_connected(self) -> None:
-        from tests.evals.conftest import fake_spotify_client
+        from tests.fakes import fake_spotify_client
 
         model = await _run_agent_with_test_model(spotify_client=fake_spotify_client(), eeg_model=None)
         offered = _offered_tool_names(model)
@@ -95,7 +95,7 @@ class TestClassificationCapabilityPrepareTools:
         assert "set_brain_context" in offered
 
     async def test_shows_model_tools_when_eeg_model_loaded(self) -> None:
-        from tests.evals.conftest import fake_eeg_model
+        from tests.fakes import fake_eeg_model
 
         model = await _run_agent_with_test_model(spotify_client=None, eeg_model=fake_eeg_model())
         offered = _offered_tool_names(model)

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Create the integration-test database (idempotent). The integration tier
-# refuses to run unless POSTGRES_DB contains "test", because it runs
+# refuses to run unless POSTGRES_DB ends with "_test", because it runs
 # `alembic upgrade`/`downgrade` against whatever database the env points at.
 set -euo pipefail
 

@@ -21,8 +21,6 @@ from cortexdj.schemas.agent_type import AgentType
 from cortexdj.schemas.thread import BrainContext
 from tests.factories import create_session, create_track_audio_embedding
 
-pytestmark = [pytest.mark.integration, pytest.mark.anyio]
-
 _CHAT = AgentType.CHAT.value
 
 

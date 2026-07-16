@@ -1,16 +1,13 @@
 """Prove the shipped migrations round-trip cleanly (downgrade base → head).
 
 Safe only because the integration tier refuses to run against a database
-whose name lacks "test" (see conftest ``_require_test_db``).
+whose name doesn't end with "_test" (see conftest ``_require_test_db``).
 """
 
-import pytest
 from alembic import command
 from alembic.config import Config
 
-pytestmark = pytest.mark.integration
-
-_ALEMBIC_INI = "src/cortexdj/alembic.ini"
+from tests.integration.conftest import _ALEMBIC_INI
 
 
 def test_migrations_round_trip(_migrated: None) -> None:

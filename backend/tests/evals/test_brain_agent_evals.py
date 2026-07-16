@@ -28,7 +28,7 @@ from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from cortexdj.agents.brain_agent import brain_agent
-from tests.evals.conftest import fake_spotify_client, make_fake_deps
+from tests.fakes import fake_spotify_client, make_fake_deps
 
 
 @dataclass

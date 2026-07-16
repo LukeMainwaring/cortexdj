@@ -1,6 +1,5 @@
 """Route-level tests for the thread endpoints, asserted through HTTP."""
 
-import pytest
 from httpx import AsyncClient
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,8 +8,6 @@ from cortexdj.models.message import Message
 from cortexdj.schemas.agent_type import AgentType
 from cortexdj.utils.message_serialization import prepare_messages_for_storage
 from tests.factories import create_thread
-
-pytestmark = [pytest.mark.integration, pytest.mark.anyio]
 
 _CHAT = AgentType.CHAT.value
 

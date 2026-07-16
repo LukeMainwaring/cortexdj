@@ -1,9 +1,8 @@
-"""Fixtures for brain_agent evals.
+"""Fake dependency builders for agent tests (unit tier and evals).
 
-Provides ``make_fake_deps`` — a constructor for ``AgentDeps`` instances
-that don't hit the real database, Spotify, or EEG model. Used by both
-the deterministic ``prepare_tools`` tests (TestModel-backed) and the
-real-model ``@pytest.mark.eval`` tests.
+``make_fake_deps`` constructs ``AgentDeps`` that never hit the real
+database, Spotify, or EEG model. Kept separate from ``factories.py``:
+these build mocks around agent wiring, not persistable ORM rows.
 """
 
 from typing import Any

@@ -7,10 +7,7 @@ at the unit tier in ``tests/unit/services/test_retrieval_service.py`` and
 ``tests/unit/agents/test_retrieval_tool.py``.
 """
 
-import pytest
 from httpx import AsyncClient
-
-pytestmark = [pytest.mark.integration, pytest.mark.anyio]
 
 
 async def test_similar_tracks_for_unknown_session_returns_404(client: AsyncClient) -> None:

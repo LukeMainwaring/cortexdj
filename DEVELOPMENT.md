@@ -67,7 +67,7 @@ To run the integration tier locally, create the test database once, then point `
 POSTGRES_DB=cortexdj_test uv run --directory backend pytest -m integration
 ```
 
-The tier refuses to run unless the database name contains `test`, because it runs `alembic upgrade`/`downgrade` against whatever database the env points at. Shared test-data builders live in `backend/tests/factories.py` (`make_*` = unpersisted, `create_*` = persisted via flush).
+The tier refuses to run unless the database name ends with `_test`, because it runs `alembic upgrade`/`downgrade` against whatever database the env points at. Shared test-data builders live in `backend/tests/factories.py` (`make_*` = unpersisted, `create_*` = persisted via flush).
 
 ## Database migrations
 

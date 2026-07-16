@@ -2,13 +2,10 @@
 
 from datetime import UTC, datetime
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.factories import create_eeg_segment, create_session
-
-pytestmark = [pytest.mark.integration, pytest.mark.anyio]
 
 
 async def test_list_sessions_empty(client: AsyncClient) -> None:

@@ -20,6 +20,7 @@ Caveats:
   ``POSTGRES_DB=cortexdj_test`` to override the ``.env`` database name.
 """
 
+import os
 import socket
 from collections.abc import AsyncGenerator
 
@@ -44,6 +45,19 @@ from cortexdj.dependencies.db import (
 _ALEMBIC_INI = "src/cortexdj/alembic.ini"  # relative to backend/, where pytest runs
 
 
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Apply tier markers structurally, by path.
+
+    A forgotten per-file ``pytestmark`` would otherwise promote a DB test
+    into the default (unit) tier — green in CI where Postgres exists,
+    confusing failures locally.
+    """
+    for item in items:
+        if "tests/integration" in str(item.path):
+            item.add_marker(pytest.mark.integration)
+            item.add_marker(pytest.mark.anyio)
+
+
 def _db_reachable() -> bool:
     settings = get_settings()
     try:
@@ -54,24 +68,35 @@ def _db_reachable() -> bool:
 
 
 def _is_test_db() -> bool:
-    return "test" in get_settings().POSTGRES_DB
+    # endswith, not substring: "cortexdj_latest" must not pass as a test DB —
+    # this tier runs `alembic downgrade base`, which drops every table.
+    return get_settings().POSTGRES_DB.endswith("_test")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _require_test_db() -> None:
+    # In CI a misconfigured tier must fail the job, not skip silently —
+    # the coverage floor alone wouldn't catch 28 skipped tests.
+    in_ci = bool(os.environ.get("CI"))
     if not _db_reachable():
-        pytest.skip("integration tier needs Postgres (`docker compose up -d postgres`)")
+        message = "integration tier needs Postgres (`docker compose up -d postgres`)"
+        pytest.fail(f"{message} — refusing to skip in CI") if in_ci else pytest.skip(message)
     if not _is_test_db():
-        pytest.skip(
+        message = (
             "refusing to run against a non-test database — this tier runs alembic "
             "upgrade/downgrade; set POSTGRES_DB=cortexdj_test "
             "(see backend/scripts/create-test-db.sh)"
         )
+        pytest.fail(message) if in_ci else pytest.skip(message)
 
 
 @pytest.fixture(scope="session")
 def _migrated(_require_test_db: None) -> None:
-    command.upgrade(Config(_ALEMBIC_INI), "head")
+    cfg = Config(_ALEMBIC_INI)
+    # Start pristine: wipes anything a stray seed run left in the test DB, so
+    # empty-state assertions (`total == 0`) hold across runs, not just within one.
+    command.downgrade(cfg, "base")
+    command.upgrade(cfg, "head")
 
 
 @pytest.fixture

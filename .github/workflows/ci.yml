@@ -102,7 +102,8 @@ jobs:
 
       - name: Run tests + coverage
         working-directory: ./backend
-        # Coverage floor at 40% (baseline ~43%); ratchet up as coverage grows.
+        # Coverage floor at 40% (unit tier alone measures ~43%; combined with
+        # the integration tier, ~53%); ratchet up as coverage grows.
         # The explicit -m "not eval" OVERRIDES addopts' 'not integration'
         # (the last -m wins), which is what selects the integration tier
         # here — don't remove it as "redundant" or the tier silently
