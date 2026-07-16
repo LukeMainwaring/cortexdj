@@ -7,6 +7,10 @@ that bubbles out of a tool body would otherwise crash the Vercel AI SDK
 stream mid-response. ``on_tool_execute_error`` intercepts those, logs the
 traceback, and returns a structured recovery payload so the agent can
 explain the failure to the user conversationally.
+
+This is layer 2 of the two-layer tool-error convention; see
+docs/adr/0003-two-layer-tool-error-convention.md for why tools propagate
+rather than wrap, and for the one sanctioned inline catch.
 """
 
 import logging

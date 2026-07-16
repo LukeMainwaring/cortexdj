@@ -4,6 +4,8 @@ Spotify's `preview_url` field was deprecated for standard-mode apps on
 2024-11-27 — empirically verified 0/10 hits against this project's 2018
 Spotify app. iTunes Search API is the audio-bytes source; Spotify stays
 as the source of truth for track identity.
+
+See docs/adr/0002-itunes-previews-over-spotify-preview-url.md.
 """
 
 import asyncio

@@ -16,6 +16,13 @@ EMBEDDING_DIM = 512
 
 
 class TrackAudioEmbedding(Base):
+    """CLAP audio embeddings for tracks, searched by cosine distance.
+
+    `get_top_k_similar`'s ordering is served by an HNSW index (built in
+    migration 77c744e4b096) — keep the order-by on `cosine_distance` so the
+    index applies; see docs/adr/0001-hnsw-over-ivfflat.md.
+    """
+
     __tablename__ = "track_audio_embeddings"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
