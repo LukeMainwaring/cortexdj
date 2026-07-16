@@ -10,9 +10,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { WaveformViz } from "@/components/waveform-viz";
 import { BACKEND_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { WaveformViz } from "./waveform-viz";
 
 // Backend serves the cached m4a under its own CORS policy so wavesurfer can
 // fetch + decodeAudioData; Apple's preview CDN does not reliably set CORS

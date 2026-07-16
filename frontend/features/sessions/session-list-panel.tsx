@@ -3,6 +3,7 @@
 import { memo } from "react";
 import type { SessionSummarySchema } from "@/api/generated/types.gen";
 import { useEnrichedSessions } from "@/api/hooks/sessions";
+import { useChatActions } from "@/components/chat-actions-provider";
 import {
   Tooltip,
   TooltipContent,
@@ -10,7 +11,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useChatActions } from "./chat-actions-provider";
 
 const QUADRANT_ORDER = ["relaxed", "calm", "excited", "stressed"] as const;
 type Quadrant = (typeof QUADRANT_ORDER)[number];

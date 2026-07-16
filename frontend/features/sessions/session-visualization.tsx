@@ -17,8 +17,8 @@ import type {
   TrajectorySummary,
 } from "@/api/generated/types.gen";
 import { useSessionSegments } from "@/api/hooks/sessions";
-import { EmotionTrajectory } from "@/components/emotion-trajectory";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmotionTrajectory } from "./emotion-trajectory";
 
 type Props = {
   sessionId: string;
