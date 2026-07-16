@@ -161,7 +161,7 @@ WALL_CLOCK_BUDGET_SECONDS=30 AUTORESEARCH_RUN_DIR=/tmp/ar_local \
   uv run --directory backend python -m autoresearch.train
 ```
 
-To run the agent loop, point any coding agent (Claude Code, Codex) at `backend/autoresearch/program.md` in a fresh session. The agent reads that file, forms a hypothesis, edits `train.py`, invokes the wrapper, and tails `experiments/experiments.jsonl` to decide keep-or-revert. Overnight (8h) budgets roughly 12–16 experiments.
+To run the agent loop: `/autoresearch 10` in a Claude Code session stages a batch and prints a `/goal` line; run that line and the session iterates — hypothesis, edit `train.py`, experiment, keep-or-revert — until 10 new rows land in `experiments/experiments.jsonl` (Codex: same condition via its `/goal`). Nothing runs until the goal is set. Overnight (8h) budgets roughly 12–16 experiments.
 
 Results land in `backend/autoresearch/experiments/` (gitignored): one JSONL row per run, a `best.json` pointer to the current champion, and per-run artifacts (`train.py` snapshot, `stdout.log`, `metrics.json`). See `backend/autoresearch/README.md` for the full workflow, the four contracts the agent must preserve, and design rationale.
 

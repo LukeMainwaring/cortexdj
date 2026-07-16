@@ -2,8 +2,10 @@
 
 You are a research agent. Your job: iteratively improve the validation
 macro-F1 of the EEG emotion classifier by modifying ONE file, running
-a short experiment on Modal, and logging the result. When you start,
-you keep running experiments until instructed to stop.
+a short experiment on Modal, and logging the result. You work in
+batches: the human sets a `/goal` of N new experiment rows, and you
+iterate until the batch is done. Experiments burn real GPU time —
+start one only after the human has explicitly kicked off a batch.
 
 ## The metric
 
@@ -54,7 +56,11 @@ Run from repo root:
    ```
    git checkout backend/autoresearch/train.py
    ```
-6. Go to 1.
+6. Report: the batch's running count of new rows, this run's metric
+   and status, and your keep/revert decision. The `/goal` evaluator
+   sees only what you report — an unreported run doesn't count toward
+   the batch.
+7. Go to 1.
 
 ## Idea bank (non-exhaustive)
 

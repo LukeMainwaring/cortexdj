@@ -43,14 +43,20 @@ GPU defaults to A10G. Override with `--gpu A100` (or T4/H100).
 
 ## Run the agent loop
 
-Start a fresh Claude Code (or Codex) session in this repo:
+In a Claude Code session:
 
-> Have a look at `backend/autoresearch/program.md` and start running
-> experiments. Keep iterating until I come back.
+```
+/autoresearch 10        # stage a batch of 10 experiments
+```
 
-The agent reads the program, forms a hypothesis, edits `train.py`,
-invokes the wrapper, reads the JSONL tail, decides keep-or-revert,
-and repeats.
+The skill reports the current champion and prints a `/goal` line;
+run that line to start the loop. The session then auto-continues —
+hypothesis, edit `train.py`, experiment, keep-or-revert, report —
+until N new rows have landed in `experiments/experiments.jsonl`.
+Stop early with `/goal clear`.
+
+Codex: set the same condition with Codex's `/goal`; the agent
+follows `program.md` identically.
 
 ## Local dry-run (no GPU, no Modal)
 
@@ -94,7 +100,6 @@ Label strategy: `median_per_subject` (matches production default).
 
 ## What's NOT wired up yet
 
-- `/schedule` or `/loop` orchestration for overnight runs.
 - Auto-PR with a summary of top-K experiments + suggested baseline
   update.
 - Warm HF cache / preprocessing-preloaded image to cut cold-start.
