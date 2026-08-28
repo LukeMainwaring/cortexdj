@@ -110,6 +110,7 @@
   - [Model Context Protocol (MCP)](/docs/ai-sdk-core/mcp-tools)
   - [MCP Apps](/docs/ai-sdk-core/mcp-apps)
   - [Runtime and Tool Context](/docs/ai-sdk-core/runtime-and-tool-context)
+  - [Code Mode](/docs/ai-sdk-core/code-mode)
   - [Prompt Engineering](/docs/ai-sdk-core/prompt-engineering)
   - [Settings](/docs/ai-sdk-core/settings)
   - [Reasoning](/docs/ai-sdk-core/reasoning)
@@ -118,6 +119,7 @@
   - [Image Generation](/docs/ai-sdk-core/image-generation)
   - [Realtime](/docs/ai-sdk-core/realtime)
   - [Transcription](/docs/ai-sdk-core/transcription)
+  - [Translation](/docs/ai-sdk-core/translation)
   - [Speech](/docs/ai-sdk-core/speech)
   - [Video Generation](/docs/ai-sdk-core/video-generation)
   - [File Uploads](/docs/ai-sdk-core/file-uploads)
@@ -186,6 +188,7 @@
     - [rerank](/docs/reference/ai-sdk-core/rerank)
     - [generateImage](/docs/reference/ai-sdk-core/generate-image)
     - [experimental_streamTranscribe](/docs/reference/ai-sdk-core/stream-transcribe)
+    - [experimental_streamTranslate](/docs/reference/ai-sdk-core/stream-translate)
     - [transcribe](/docs/reference/ai-sdk-core/transcribe)
     - [generateSpeech](/docs/reference/ai-sdk-core/generate-speech)
     - [experimental_generateVideo](/docs/reference/ai-sdk-core/generate-video)
@@ -220,6 +223,7 @@
     - [LanguageModelV4Middleware](/docs/reference/ai-sdk-core/language-model-v2-middleware)
     - [extractReasoningMiddleware](/docs/reference/ai-sdk-core/extract-reasoning-middleware)
     - [simulateStreamingMiddleware](/docs/reference/ai-sdk-core/simulate-streaming-middleware)
+    - [defaultInstructionsMiddleware](/docs/reference/ai-sdk-core/default-instructions-middleware)
     - [defaultSettingsMiddleware](/docs/reference/ai-sdk-core/default-settings-middleware)
     - [addToolInputExamplesMiddleware](/docs/reference/ai-sdk-core/add-tool-input-examples-middleware)
     - [extractJsonMiddleware](/docs/reference/ai-sdk-core/extract-json-middleware)
@@ -262,6 +266,7 @@
   - [AI SDK Workflow](/docs/reference/ai-sdk-workflow)
     - [WorkflowAgent](/docs/reference/ai-sdk-workflow/workflow-agent)
     - [WorkflowChatTransport](/docs/reference/ai-sdk-workflow/workflow-chat-transport)
+    - [generateVideo](/docs/reference/ai-sdk-workflow/generate-video)
   - [AI SDK Errors](/docs/reference/ai-sdk-errors)
     - [AI_APICallError](/docs/reference/ai-sdk-errors/ai-api-call-error)
     - [AI_DownloadError](/docs/reference/ai-sdk-errors/ai-download-error)
@@ -288,8 +293,10 @@
     - [AI_NoSuchProviderReferenceError](/docs/reference/ai-sdk-errors/ai-no-such-provider-reference-error)
     - [AI_NoSuchToolError](/docs/reference/ai-sdk-errors/ai-no-such-tool-error)
     - [AI_NoTranscriptGeneratedError](/docs/reference/ai-sdk-errors/ai-no-transcript-generated-error)
+    - [AI_NoTranslationGeneratedError](/docs/reference/ai-sdk-errors/ai-no-translation-generated-error)
     - [AI_NoVideoGeneratedError](/docs/reference/ai-sdk-errors/ai-no-video-generated-error)
     - [AI_RetryError](/docs/reference/ai-sdk-errors/ai-retry-error)
+    - [AI_StreamProviderError](/docs/reference/ai-sdk-errors/ai-stream-provider-error)
     - [AI_TooManyEmbeddingValuesForCallError](/docs/reference/ai-sdk-errors/ai-too-many-embedding-values-for-call-error)
     - [AI_ToolCallNotFoundForApprovalError](/docs/reference/ai-sdk-errors/ai-tool-call-not-found-for-approval-error)
     - [ToolCallRepairError](/docs/reference/ai-sdk-errors/ai-tool-call-repair-error)
@@ -1848,7 +1855,7 @@ import { dataPartsSchema, metadataSchema } from '@util/schemas';
 const tools = {
   weather: tool({
     description: 'Get weather information',
-    parameters: z.object({
+    inputSchema: z.object({
       location: z.string(),
       units: z.enum(['celsius', 'fahrenheit']),
     }),
@@ -2912,6 +2919,11 @@ There are three things worth mentioning:
    It asks the user for confirmation and displays the result once the user confirms or denies the execution.
    The result is added to the chat using `addToolOutput` with the `tool` parameter for type safety.
 
+Typed tool parts also include the `approval-requested`, `approval-responded`,
+and `output-denied` states. Include these states when handling `part.state`
+exhaustively, even when a tool does not require approval. See
+[Tool execution approval](#tool-execution-approval) for a complete approval UI.
+
 ```tsx filename='app/page.tsx' highlight="6,11,16,19-23,25-26,28-33,51,66-70,77-81"
 'use client';
 
@@ -3001,6 +3013,10 @@ export default function Chat() {
                         </div>
                       </div>
                     );
+                  case 'approval-requested':
+                    return <div key={callId}>Approval requested.</div>;
+                  case 'approval-responded':
+                    return <div key={callId}>Approval response received.</div>;
                   case 'output-available':
                     return (
                       <div key={callId}>
@@ -3009,6 +3025,8 @@ export default function Chat() {
                     );
                   case 'output-error':
                     return <div key={callId}>Error: {part.errorText}</div>;
+                  case 'output-denied':
+                    return <div key={callId}>Tool call denied.</div>;
                 }
                 break;
               }
@@ -3023,6 +3041,10 @@ export default function Chat() {
                     );
                   case 'input-available':
                     return <div key={callId}>Getting location...</div>;
+                  case 'approval-requested':
+                    return <div key={callId}>Approval requested.</div>;
+                  case 'approval-responded':
+                    return <div key={callId}>Approval response received.</div>;
                   case 'output-available':
                     return <div key={callId}>Location: {part.output}</div>;
                   case 'output-error':
@@ -3031,6 +3053,8 @@ export default function Chat() {
                         Error getting location: {part.errorText}
                       </div>
                     );
+                  case 'output-denied':
+                    return <div key={callId}>Location request denied.</div>;
                 }
                 break;
               }
@@ -3050,6 +3074,10 @@ export default function Chat() {
                         Getting weather information for {part.input.city}...
                       </div>
                     );
+                  case 'approval-requested':
+                    return <div key={callId}>Approval requested.</div>;
+                  case 'approval-responded':
+                    return <div key={callId}>Approval response received.</div>;
                   case 'output-available':
                     return (
                       <div key={callId}>
@@ -3063,6 +3091,8 @@ export default function Chat() {
                         {part.errorText}
                       </div>
                     );
+                  case 'output-denied':
+                    return <div key={callId}>Weather request denied.</div>;
                 }
                 break;
               }
@@ -3232,6 +3262,9 @@ export default function Chat() {
                   return (
                     <div key={part.toolCallId}>
                       <p>Get weather for {part.input.city}?</p>
+                      {part.approval.requestReason && (
+                        <p>{part.approval.requestReason}</p>
+                      )}
                       <button
                         onClick={() =>
                           addToolApprovalResponse({
@@ -3297,6 +3330,9 @@ decisions already arrive in the UI stream as `approval-requested` and
 `approval-responded` states, and denied executions continue to `output-denied`.
 If you return a `reason` from an automatic approval or denial, it is available
 as `part.approval.reason`.
+For manual approval requests, the reason for requiring approval is available as
+`part.approval.requestReason`. It remains separate from an optional response
+reason supplied to `addToolApprovalResponse`.
 
 ### Securing Approvals for Sensitive Tools
 
@@ -3415,10 +3451,16 @@ export default function Chat() {
                     return <pre>{JSON.stringify(part.input, null, 2)}</pre>;
                   case 'input-available':
                     return <pre>{JSON.stringify(part.input, null, 2)}</pre>;
+                  case 'approval-requested':
+                    return <div>Approval requested.</div>;
+                  case 'approval-responded':
+                    return <div>Approval response received.</div>;
                   case 'output-available':
                     return <pre>{JSON.stringify(part.output, null, 2)}</pre>;
                   case 'output-error':
                     return <div>Error: {part.errorText}</div>;
+                  case 'output-denied':
+                    return <div>Tool call denied.</div>;
                 }
             }
           })}
@@ -3759,6 +3801,27 @@ const { messages, input, handleInputChange, handleSubmit } = useCompletion({
 
 In this example, the `useCompletion` hook sends a POST request to the `/api/completion` endpoint with the specified headers, additional body fields, and credentials for that fetch request. On your server side, you can handle the request with these additional information.
 
+You can provide a type for the additional body fields. The type applies to
+both the body configured on the hook and the body passed to `complete`:
+
+```tsx
+type CompletionBody = {
+  model: 'fast' | 'smart';
+};
+
+const { complete } = useCompletion<CompletionBody>({
+  body: {
+    model: 'fast',
+  },
+});
+
+await complete('What is a completion?', {
+  body: {
+    model: 'smart',
+  },
+});
+```
+
 
 ## Navigation
 
@@ -3891,11 +3954,13 @@ export default function Chat() {
 }
 ```
 
-#### Alternative: replace last message
+#### Alternative: replace the failed message
 
-Alternatively you can write a custom submit handler that replaces the last message when an error is present.
+Alternatively, you can write a custom submit handler that replaces the failed
+user message with new input. If the assistant response started streaming before
+the error, remove both the partial assistant response and its user message.
 
-```tsx file="app/page.tsx" highlight="13-15,17-18,35"
+```tsx file="app/page.tsx" highlight="13-19,21-22,39"
 'use client';
 
 import { useChat } from '@ai-sdk/react';
@@ -3909,7 +3974,11 @@ export default function Chat() {
     event.preventDefault();
 
     if (error != null) {
-      setMessages(messages.slice(0, -1)); // remove last message
+      setMessages(messages =>
+        messages.at(-1)?.role === 'assistant'
+          ? messages.slice(0, -2)
+          : messages.slice(0, -1),
+      );
     }
 
     sendMessage({ text: input });
@@ -5517,11 +5586,11 @@ Format: Server-Sent Event with JSON object
 Example:
 
 ```
-data: {"type":"tool-approval-request","toolCallId":"call_fJdQDqnXeGxTmr4E3YPSR7Ar","approvalId":"approval_123","isAutomatic":true}
+data: {"type":"tool-approval-request","toolCallId":"call_fJdQDqnXeGxTmr4E3YPSR7Ar","approvalId":"approval_123","reason":"Requires operator review"}
 
 ```
 
-When `isAutomatic` is omitted, the request expects an explicit approval response from the client.
+When `isAutomatic` is omitted, the request expects an explicit approval response from the client. `reason` is optional and explains why the tool call requires approval.
 
 ### Tool Approval Response Part
 
@@ -5589,6 +5658,22 @@ Example:
 
 ```
 data: {"type":"finish-step"}
+
+```
+
+### Reset Step Part
+
+Removes all message parts received since the most recent `start-step` part. If
+there is no step boundary, it removes all parts from the current message. This
+is useful when a streamed step is retried and partial output from the failed
+attempt must be invalidated before replacement output is sent.
+
+Format: Server-Sent Event with JSON object
+
+Example:
+
+```
+data: {"type":"reset-step"}
 
 ```
 
@@ -6324,7 +6409,6 @@ export default function Chat() {
       new WorkflowChatTransport({
         api: '/api/chat',
         maxConsecutiveErrors: 5,
-        initialStartIndex: -50, // On page refresh, fetch last 50 chunks
         onChatEnd: ({ chatId, chunkIndex }) => {
           console.log(`Chat complete: ${chunkIndex} chunks`);
         },
@@ -6341,9 +6425,14 @@ export default function Chat() {
 Key features:
 
 - **Automatic reconnection**: Detects interrupted streams (no `finish` event) and reconnects via GET to `{api}/{runId}/stream`
-- **Page refresh recovery**: `initialStartIndex` with negative values (e.g., `-50`) fetches only the tail of the stream instead of replaying everything
+- **Page refresh recovery**: `initialStartIndex` controls where the initial reconnection begins
 - **Configurable retries**: `maxConsecutiveErrors` controls how many consecutive reconnection failures to tolerate
 - **Lifecycle callbacks**: `onChatSendMessage` and `onChatEnd` for tracking chat state
+
+Negative `initialStartIndex` values can fetch only the tail when the durable
+server stream already stores `UIMessageChunk` objects. For raw `WorkflowAgent`
+streams, use a non-negative cursor and follow the server-side conversion in the
+WorkflowAgent guide.
 
 For the full API reference, see [`WorkflowChatTransport`](/docs/reference/ai-sdk-workflow/workflow-chat-transport). For server-side endpoint setup, see the [WorkflowAgent guide](/docs/agents/workflow-agent#resumable-streaming-with-workflowchattransport).
 
@@ -6493,6 +6582,7 @@ Here is a comparison of the supported functions across these frameworks:
   - [rerank](/docs/reference/ai-sdk-core/rerank)
   - [generateImage](/docs/reference/ai-sdk-core/generate-image)
   - [experimental_streamTranscribe](/docs/reference/ai-sdk-core/stream-transcribe)
+  - [experimental_streamTranslate](/docs/reference/ai-sdk-core/stream-translate)
   - [transcribe](/docs/reference/ai-sdk-core/transcribe)
   - [generateSpeech](/docs/reference/ai-sdk-core/generate-speech)
   - [experimental_generateVideo](/docs/reference/ai-sdk-core/generate-video)
@@ -6527,6 +6617,7 @@ Here is a comparison of the supported functions across these frameworks:
   - [LanguageModelV4Middleware](/docs/reference/ai-sdk-core/language-model-v2-middleware)
   - [extractReasoningMiddleware](/docs/reference/ai-sdk-core/extract-reasoning-middleware)
   - [simulateStreamingMiddleware](/docs/reference/ai-sdk-core/simulate-streaming-middleware)
+  - [defaultInstructionsMiddleware](/docs/reference/ai-sdk-core/default-instructions-middleware)
   - [defaultSettingsMiddleware](/docs/reference/ai-sdk-core/default-settings-middleware)
   - [addToolInputExamplesMiddleware](/docs/reference/ai-sdk-core/add-tool-input-examples-middleware)
   - [extractJsonMiddleware](/docs/reference/ai-sdk-core/extract-json-middleware)
@@ -6569,6 +6660,7 @@ Here is a comparison of the supported functions across these frameworks:
 - [AI SDK Workflow](/docs/reference/ai-sdk-workflow)
   - [WorkflowAgent](/docs/reference/ai-sdk-workflow/workflow-agent)
   - [WorkflowChatTransport](/docs/reference/ai-sdk-workflow/workflow-chat-transport)
+  - [generateVideo](/docs/reference/ai-sdk-workflow/generate-video)
 - [AI SDK Errors](/docs/reference/ai-sdk-errors)
   - [AI_APICallError](/docs/reference/ai-sdk-errors/ai-api-call-error)
   - [AI_DownloadError](/docs/reference/ai-sdk-errors/ai-download-error)
@@ -6595,8 +6687,10 @@ Here is a comparison of the supported functions across these frameworks:
   - [AI_NoSuchProviderReferenceError](/docs/reference/ai-sdk-errors/ai-no-such-provider-reference-error)
   - [AI_NoSuchToolError](/docs/reference/ai-sdk-errors/ai-no-such-tool-error)
   - [AI_NoTranscriptGeneratedError](/docs/reference/ai-sdk-errors/ai-no-transcript-generated-error)
+  - [AI_NoTranslationGeneratedError](/docs/reference/ai-sdk-errors/ai-no-translation-generated-error)
   - [AI_NoVideoGeneratedError](/docs/reference/ai-sdk-errors/ai-no-video-generated-error)
   - [AI_RetryError](/docs/reference/ai-sdk-errors/ai-retry-error)
+  - [AI_StreamProviderError](/docs/reference/ai-sdk-errors/ai-stream-provider-error)
   - [AI_TooManyEmbeddingValuesForCallError](/docs/reference/ai-sdk-errors/ai-too-many-embedding-values-for-call-error)
   - [AI_ToolCallNotFoundForApprovalError](/docs/reference/ai-sdk-errors/ai-tool-call-not-found-for-approval-error)
   - [ToolCallRepairError](/docs/reference/ai-sdk-errors/ai-tool-call-repair-error)
@@ -6683,8 +6777,8 @@ A Promise that resolves to an array of [`ModelMessage`](/docs/reference/ai-sdk-c
 
 `convertToModelMessages` preserves tool approval state from UI messages when converting them back into `ModelMessage`s for a follow-up `generateText` or `streamText` call.
 
-- Tool parts in `approval-requested` state become `tool-approval-request` content parts.
-- Tool parts in `approval-responded` state become `tool-approval-response` content parts, including `reason` when present.
+- Tool parts with approval metadata produce `tool-approval-request` content parts. `approval.requestReason` is forwarded as the request `reason` when present.
+- Tool parts in `approval-responded` state also become `tool-approval-response` content parts. The separate response `reason` is forwarded when present.
 - Automatic approval metadata is preserved by forwarding `approval.isAutomatic` to the `tool-approval-request` part.
 - Denied tool approvals also produce a synthetic `tool-result` with `output: { type: 'execution-denied', reason?: string }`, so the model receives a complete tool lifecycle and can respond to the denial in the next step.
 
@@ -6932,15 +7026,32 @@ const stream = createUIMessageStream({
       prompt: 'Write a haiku about AI',
     });
 
-    writer.merge(toUIMessageStream({ stream: result.stream }));
+    writer.merge(
+      toUIMessageStream({
+        stream: result.stream,
+        onEnd: ({ outcome }) => {
+          // The composer decides that the model stream outcome is also the
+          // aggregate stream outcome.
+          writer.setOutcome(outcome);
+        },
+      }),
+    );
   },
   onError: error => `Custom error: ${error.message}`,
   originalMessages: existingMessages,
-  onEnd: ({ messages, isContinuation, responseMessage }) => {
+  onEnd: ({ messages, isContinuation, outcome, responseMessage }) => {
     console.log('Stream ended with messages:', messages);
+    console.log('Stream outcome:', outcome.status);
   },
 });
 ```
+
+`setOutcome` records the composer's policy without writing a chunk or closing
+the stream. The first outcome declared through `setOutcome` is retained, but a
+fatal execution, merge, error-handling, or downstream processing failure makes
+the final `onEnd` outcome `failed`. Individual `error` chunks do not change the
+outcome by themselves. When merging multiple child streams, aggregate their
+outcomes and call `setOutcome` once.
 
 ## API Signature
 
@@ -6950,12 +7061,12 @@ const stream = createUIMessageStream({
   content={[
     {
       name: 'execute',
-      type: '(options: { writer: UIMessageStreamWriter }) => Promise<void> | void',
+      type: '(options: { writer: UIMessageStreamWriterWithOutcome }) => Promise<void> | void',
       description:
         'A function that receives a writer instance and can use it to write UI message chunks to the stream.',
       properties: [
         {
-          type: 'UIMessageStreamWriter',
+          type: 'UIMessageStreamWriterWithOutcome',
           parameters: [
             {
               name: 'write',
@@ -6967,6 +7078,12 @@ const stream = createUIMessageStream({
               type: '(stream: ReadableStream<UIMessageChunk>) => void',
               description:
                 'Merges the contents of another UI message stream into this stream.',
+            },
+            {
+              name: 'setOutcome',
+              type: '(outcome: UIMessageStreamOutcome) => void',
+              description:
+                "Declares the operation-level outcome of the composed stream. The first outcome declared through this method is retained, while fatal execution, merge, error-handling, or downstream processing failures override declarations. Supported statuses are 'completed', 'failed', 'aborted', and 'unknown'. Declaring an outcome does not write a chunk or close the stream.",
             },
             {
               name: 'onError',
@@ -6992,7 +7109,7 @@ const stream = createUIMessageStream({
     },
     {
       name: 'onEnd',
-      type: '(options: { messages: UIMessage[]; isContinuation: boolean; isAborted: boolean; responseMessage: UIMessage; finishReason?: FinishReason }) => PromiseLike<void> | void',
+      type: '(options: { messages: UIMessage[]; isContinuation: boolean; isAborted: boolean; outcome: UIMessageStreamOutcome; responseMessage: UIMessage; finishReason?: FinishReason }) => PromiseLike<void> | void',
       description: 'A callback function that is called when the stream ends.',
       properties: [
         {
@@ -7015,6 +7132,12 @@ const stream = createUIMessageStream({
               description: 'Indicates whether the stream was aborted.',
             },
             {
+              name: 'outcome',
+              type: "UIMessageStreamOutcome = { status: 'completed' } | { status: 'failed'; error?: unknown } | { status: 'aborted' } | { status: 'unknown' }",
+              description:
+                'The operation-level outcome of the stream. It reflects the stream owner declaration unless a fatal stream-processing failure occurs, and is separate from model finish reasons and individual error chunks.',
+            },
+            {
               name: 'responseMessage',
               type: 'UIMessage',
               description:
@@ -7032,7 +7155,7 @@ const stream = createUIMessageStream({
     },
     {
       name: 'onFinish',
-      type: '(options: { messages: UIMessage[]; isContinuation: boolean; isAborted: boolean; responseMessage: UIMessage; finishReason?: FinishReason }) => PromiseLike<void> | void',
+      type: '(options: { messages: UIMessage[]; isContinuation: boolean; isAborted: boolean; outcome: UIMessageStreamOutcome; responseMessage: UIMessage; finishReason?: FinishReason }) => PromiseLike<void> | void',
       description: 'Deprecated alias for `onEnd`.',
     },
     {
@@ -7448,7 +7571,7 @@ import { z } from 'zod';
 
 const weatherTool = tool({
   description: 'Get the current weather',
-  parameters: z.object({
+  inputSchema: z.object({
     location: z.string().describe('The city and state'),
   }),
   execute: async ({ location }) => {
@@ -8116,7 +8239,7 @@ The `pipeUIMessageStreamToResponse` function pipes streaming data to a Node.js S
 ## Example
 
 ```tsx
-pipeUIMessageStreamToResponse({
+await pipeUIMessageStreamToResponse({
   response: serverResponse,
   status: 200,
   statusText: 'OK',
@@ -8174,6 +8297,11 @@ pipeUIMessageStreamToResponse({
     },
   ]}
 />
+
+### Returns
+
+A `Promise<void>` that resolves when the stream has been written to the response
+and rejects when reading or writing the stream fails.
 
 
 ## Navigation
@@ -8963,6 +9091,19 @@ Allows you to create text completion based capabilities for your application. It
 
 ## API Signature
 
+### Type Parameters
+
+<PropertiesTable
+  content={[
+    {
+      name: 'BODY',
+      type: 'object',
+      description:
+        'The type of the additional request body passed through the hook options or the complete function. Defaults to object.',
+    },
+  ]}
+/>
+
 ### Parameters
 
 <PropertiesTable
@@ -9009,7 +9150,7 @@ Allows you to create text completion based capabilities for your application. It
     },
     {
       name: 'body',
-      type: 'object',
+      type: 'BODY',
       description:
         'An optional, additional body object to be passed to the API endpoint.',
     },
@@ -9055,7 +9196,7 @@ Allows you to create text completion based capabilities for your application. It
     },
     {
       name: 'complete',
-      type: '(prompt: string, options?: { headers?: Record<string, string> | Headers, body?: object }) => Promise<string | null | undefined>',
+      type: '(prompt: string, options?: { headers?: Record<string, string> | Headers, body?: BODY }) => Promise<string | null | undefined>',
       description:
         'Function to execute text completion based on the provided prompt. Returns the completion result when finished.',
     },
