@@ -27,6 +27,11 @@ docs site. Use WebFetch before giving up.
 
 When adding a tool that makes external calls, prefer letting exceptions
 propagate so `backend/src/cortexdj/agents/hooks.py::on_tool_execute_error`
-catches them and returns a structured recovery payload. Don't wrap the whole
-tool body in try/except unless you have a specific reason to handle a known
-error shape differently (e.g., token-expired → reconnect prompt).
+catches them, logs the traceback, and raises `ToolFailed` — a native failed
+tool outcome the model sees and adapts to, without spending the retry budget.
+Don't wrap the whole tool body in try/except unless you have a specific reason
+to handle a known error shape differently (e.g., token-expired → reconnect
+prompt); those *expected* failures still return `{"error": ...}` dicts from the
+tool body, which are ordinary results, not failures. Only the tool name and
+exception class reach the model — never the exception's message. See
+`docs/adr/0003-two-layer-tool-error-convention.md`.

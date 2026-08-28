@@ -3,10 +3,18 @@
 Prevents token bloat from large Spotify and EEG tool responses by summarizing
 tool results in historical messages. The current turn sees full results for
 accurate reasoning, while subsequent turns see compact summaries.
+
+Invariant: this rewrites *only* the ``content`` of an oversized tool result. It
+never adds or removes messages, and every rebuild goes through
+``dataclasses.replace`` so timestamps, metadata, outcome, run/conversation ids
+— and any field a newer Pydantic AI adds — survive untouched. Do not rebuild
+parts or requests with a constructor call; see the tests in
+``tests/unit/agents/test_history_processor.py`` for what that silently loses.
 """
 
 import json
 import logging
+from dataclasses import replace
 from typing import Any
 
 from pydantic_ai.messages import (
@@ -105,12 +113,11 @@ def _process_tool_return_part(part: ToolReturnPart) -> ToolReturnPart:
     if isinstance(content, dict):
         summarized = _summarize_list_result(part.tool_name, content)
         logger.info(f"Summarized {part.tool_name} result: {size} chars -> {_get_content_size(summarized)} chars")
-        return ToolReturnPart(
-            tool_name=part.tool_name,
-            content=summarized,
-            tool_call_id=part.tool_call_id,
-            timestamp=part.timestamp,
-        )
+        # `replace` and not a fresh `ToolReturnPart(...)`: only `content` is ours to
+        # change. Rebuilding by hand silently drops every field this code doesn't name
+        # — timestamp, metadata, outcome, and whatever the installed Pydantic AI added
+        # since. Do not "simplify" this back into a constructor call.
+        return replace(part, content=summarized)
 
     return part
 
@@ -142,15 +149,9 @@ def summarize_tool_results(messages: list[ModelMessage]) -> list[ModelMessage]:
                 else:
                     new_parts.append(part)
 
-            if modified:
-                processed_messages.append(
-                    ModelRequest(
-                        parts=new_parts,
-                        instructions=message.instructions,
-                    )
-                )
-            else:
-                processed_messages.append(message)
+            # Same reasoning as `_process_tool_return_part`: `replace` keeps run_id,
+            # conversation_id, timestamp, instructions and the rest of the request intact.
+            processed_messages.append(replace(message, parts=new_parts) if modified else message)
         else:
             processed_messages.append(message)
 

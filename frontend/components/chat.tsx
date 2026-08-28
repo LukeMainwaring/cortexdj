@@ -32,6 +32,21 @@ export function Chat({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
+        // History is stored server-side keyed by thread id, so the browser sends
+        // only the newest turn instead of replaying the whole conversation. The
+        // backend loads the rest from the database (see backend routers/agent.py).
+        prepareSendMessagesRequest: ({ id: chatId, messages, trigger }) => {
+          if (trigger !== "submit-message") {
+            // The UI exposes no regenerate action today, and a regenerate body
+            // needs the server to drop the turn being replaced. Fail loudly
+            // rather than posting a request the backend would misread as a
+            // brand-new turn and store twice.
+            throw new Error(`Unsupported chat trigger: ${trigger}`);
+          }
+          return {
+            body: { id: chatId, trigger, messages: messages.slice(-1) },
+          };
+        },
       }),
     [],
   );

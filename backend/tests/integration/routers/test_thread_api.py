@@ -29,7 +29,7 @@ async def test_list_threads_empty(client: AsyncClient) -> None:
 
 async def test_thread_messages_round_trip(client: AsyncClient, db_session: AsyncSession) -> None:
     thread = await create_thread(db_session)
-    await Message.save_history(db_session, thread.thread_id, _CHAT, _history_payload())
+    await Message.append_messages(db_session, thread.thread_id, _CHAT, _history_payload())
 
     response = await client.get(f"/api/threads/{thread.thread_id}/messages")
     assert response.status_code == 200
@@ -63,7 +63,7 @@ async def test_rename_unknown_thread_returns_404(client: AsyncClient) -> None:
 
 async def test_delete_thread_cascades_messages(client: AsyncClient, db_session: AsyncSession) -> None:
     thread = await create_thread(db_session)
-    await Message.save_history(db_session, thread.thread_id, _CHAT, _history_payload())
+    await Message.append_messages(db_session, thread.thread_id, _CHAT, _history_payload())
 
     response = await client.delete(f"/api/threads/{thread.thread_id}")
     assert response.status_code == 200

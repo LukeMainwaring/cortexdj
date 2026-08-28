@@ -11,9 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from cortexdj.core.config import get_settings
+from cortexdj.core.observability import configure_observability, instrument_app
 from cortexdj.utils.logging import RequestLogContext, setup_logging
 
 log_context_var = setup_logging()
+configure_observability()
 
 from cortexdj.routers.main import api_router  # noqa: E402
 
@@ -54,6 +56,7 @@ app = FastAPI(
     generate_unique_id_function=generate_operation_id,
     lifespan=lifespan,
 )
+instrument_app(app)
 
 
 def _get_allowed_origins() -> list[str]:
