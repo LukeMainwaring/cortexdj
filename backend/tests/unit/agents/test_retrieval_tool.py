@@ -77,8 +77,8 @@ class TestRetrieveTracksFromBrainState:
 
     async def test_lookup_error_propagates_to_hooks(self) -> None:
         # Per .claude/rules/backend/pydantic-ai.md: tools let exceptions
-        # propagate so on_tool_execute_error can produce a structured
-        # recovery payload. The tool must NOT catch LookupError.
+        # propagate so on_tool_execute_error can turn them into a native
+        # `ToolFailed` outcome. The tool must NOT catch LookupError.
         with patch(
             "cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks",
             new=AsyncMock(side_effect=LookupError("session sess-bogus not found")),
@@ -87,9 +87,9 @@ class TestRetrieveTracksFromBrainState:
                 await retrieve_tracks_from_brain_state(_make_ctx(), "sess-bogus", k=5)
 
     async def test_deap_file_missing_returns_structured_error(self) -> None:
-        # `DeapFileMissingError` is server misconfig — the hooks recovery
-        # template strips the exception message, so we catch it specifically
-        # and return an actionable JSON payload the agent can relay verbatim.
+        # `DeapFileMissingError` is server misconfig — the hooks' `ToolFailed`
+        # message deliberately omits the exception text, so we catch this one
+        # specifically and return an actionable JSON payload the agent relays verbatim.
         with patch(
             "cortexdj.agents.tools.retrieval_tools.retrieval_service.retrieve_similar_tracks",
             new=AsyncMock(side_effect=DeapFileMissingError("DEAP file for P99 not found at /x/s99.dat")),

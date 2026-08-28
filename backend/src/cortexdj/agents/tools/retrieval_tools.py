@@ -43,10 +43,10 @@ async def retrieve_tracks_from_brain_state(
         hits = await retrieval_service.retrieve_similar_tracks(ctx.deps.db, session_id, k=k)
     except DeapFileMissingError as exc:
         # Server misconfig — the session row exists but its underlying DEAP
-        # .dat file isn't on disk. The agent's default recovery template via
-        # hooks.on_tool_execute_error only includes the exception class name,
-        # which is useless to the user. Return a structured error so the
-        # agent can relay an actionable message.
+        # .dat file isn't on disk. Letting this propagate would reach
+        # hooks.on_tool_execute_error, which raises ToolFailed carrying only the
+        # exception class name — useless to the user. Return a structured error
+        # so the agent can relay an actionable message.
         return json.dumps(
             {
                 "session_id": session_id,

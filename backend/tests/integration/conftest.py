@@ -5,19 +5,29 @@ pgvector extension and the HNSW index exist only in the migrations, so this
 tier exercises the real schema. Each test runs inside an outer transaction
 on a single connection that is rolled back at teardown, so tests never see
 each other's writes. The ``client`` fixture overrides the app's session
-dependency with that transactional session and never commits — isolation
-holds only because the app's sole commit point is the overridden dependency
-itself (services and model classmethods flush, never commit).
+dependency with that transactional session and drops its commit.
+
+Route code *may* commit mid-request: ``/agent/chat`` commits the user's turn
+before the run starts so a broken stream can't lose it. A plain session bound
+to the outer connection would commit the outer transaction itself and leak the
+rows past teardown, so the session is built with
+``join_transaction_mode="create_savepoint"`` — each commit then releases a
+SAVEPOINT *inside* the outer transaction, which the teardown rollback still
+covers.
 
 Caveats:
-- ``ASGITransport`` skips lifespan, so ``app.state.eeg_model`` is never set.
-  Don't integration-test ``/agent/chat``; its behavior is covered at the
-  unit tier with pydantic-ai's ``TestModel``.
+- ``ASGITransport`` skips lifespan, so ``app.state.eeg_model`` is never set;
+  the ``client`` fixture overrides ``get_eeg_model`` to say so explicitly
+  rather than leaning on the dependency's ``getattr`` fallback. Tests that
+  exercise ``/agent/chat`` must override the agent's model (``TestModel`` or a
+  streaming ``FunctionModel``) — this tier never calls a real LLM.
 - ``/api/health/db`` uses the raw psycopg dependency, which is not
   overridden; it opens a real (read-only) connection to the test database.
 - Guards read ``get_settings()`` rather than ``os.environ`` because settings
   may come from the repo-root ``.env``; run locally with
   ``POSTGRES_DB=cortexdj_test`` to override the ``.env`` database name.
+- Thread-title generation runs in a detached task on its OWN session, outside
+  this rollback; ``/agent/chat`` tests patch it out and assert on messages.
 """
 
 import os
@@ -115,7 +125,14 @@ async def engine(_migrated: None) -> AsyncGenerator[AsyncEngine, None]:
 async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
     conn = await engine.connect()
     outer = await conn.begin()  # rolled back at teardown → no cross-test pollution
-    session = async_sessionmaker(bind=conn, expire_on_commit=False, class_=AsyncSession)()
+    session = async_sessionmaker(
+        bind=conn,
+        expire_on_commit=False,
+        class_=AsyncSession,
+        # A route that commits (see the module docstring) releases a SAVEPOINT
+        # instead of the outer transaction, so teardown still undoes everything.
+        join_transaction_mode="create_savepoint",
+    )()
     try:
         yield session
     finally:
@@ -128,15 +145,21 @@ async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Imported lazily so collecting the unit tier never pulls in the app.
     from cortexdj.app import app
+    from cortexdj.dependencies.eeg_model import get_eeg_model
 
     async def _override() -> AsyncGenerator[AsyncSession, None]:
-        # Deliberately no commit: the outer transaction owns the data.
+        # Deliberately no commit here: the outer transaction owns the data. A route
+        # that commits itself lands in a savepoint (see the module docstring).
         yield db_session
 
     app.dependency_overrides[_get_async_sqlalchemy_session_dependency] = _override
+    # Lifespan never runs under ASGITransport, so state the app's EEG model explicitly:
+    # no checkpoint in the test tier, and EEG tools report that rather than crashing.
+    app.dependency_overrides[get_eeg_model] = lambda: None
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
     finally:
         app.dependency_overrides.pop(_get_async_sqlalchemy_session_dependency, None)
+        app.dependency_overrides.pop(get_eeg_model, None)

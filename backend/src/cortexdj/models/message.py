@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKeyConstraint, func, select
+from sqlalchemy import DateTime, ForeignKeyConstraint, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
@@ -36,25 +36,18 @@ class Message(Base):
         return [row[0] for row in result.all()]
 
     @classmethod
-    async def save_history(
+    async def append_messages(
         cls, db: AsyncSession, thread_id: str, agent_type: str, messages: list[dict[str, Any]]
     ) -> None:
-        """Append new messages to thread history.
+        """Append messages to the thread history; the caller decides what is new.
 
-        Uses an append-only approach that only inserts messages beyond the
-        existing count, preserving original timestamps and IDs.
+        Deliberately dumb: it inserts exactly what it is given. The predecessor
+        inferred "new" from the stored row count, which only held while a single
+        request wrote the whole conversation at once. ``routers/agent.py`` now
+        writes the user's turn before the run and the run's own messages after
+        it, so the count is stale by the time the second write happens.
         """
-        result = await db.execute(
-            select(func.count(cls.id)).where(cls.thread_id == thread_id, cls.agent_type == agent_type)
-        )
-        existing_count = result.scalar() or 0
-        new_messages = messages[existing_count:]
-        if new_messages:
-            for msg_data in new_messages:
-                message = cls(
-                    thread_id=thread_id,
-                    agent_type=agent_type,
-                    message_data=msg_data,
-                )
-                db.add(message)
+        for msg_data in messages:
+            db.add(cls(thread_id=thread_id, agent_type=agent_type, message_data=msg_data))
+        if messages:
             await db.flush()

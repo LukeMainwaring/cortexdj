@@ -75,17 +75,23 @@ class TestThread:
 
 
 class TestMessage:
-    async def test_save_history_is_append_only(self, db_session: AsyncSession) -> None:
+    async def test_append_messages_inserts_exactly_what_it_is_given(self, db_session: AsyncSession) -> None:
         await Thread.get_or_create(db_session, "t-msg", _CHAT)
-        first_batch: list[dict[str, object]] = [{"kind": "request", "n": 1}, {"kind": "response", "n": 2}]
-        await Message.save_history(db_session, "t-msg", _CHAT, first_batch)
+        await Message.append_messages(
+            db_session, "t-msg", _CHAT, [{"kind": "request", "n": 1}, {"kind": "response", "n": 2}]
+        )
 
-        # Re-saving the full history plus one new message must insert only
-        # the new one — existing rows keep their ids and timestamps.
-        await Message.save_history(db_session, "t-msg", _CHAT, [*first_batch, {"kind": "request", "n": 3}])
+        # The caller decides what is new — a second call appends only its own batch,
+        # in call order, without re-reading or de-duplicating against what is stored.
+        await Message.append_messages(db_session, "t-msg", _CHAT, [{"kind": "request", "n": 3}])
 
         history = await Message.get_history(db_session, "t-msg", _CHAT)
         assert [m["n"] for m in history] == [1, 2, 3]
+
+    async def test_append_messages_with_nothing_new_is_a_no_op(self, db_session: AsyncSession) -> None:
+        await Thread.get_or_create(db_session, "t-empty", _CHAT)
+        await Message.append_messages(db_session, "t-empty", _CHAT, [])
+        assert await Message.get_history(db_session, "t-empty", _CHAT) == []
 
 
 class TestSpotifyToken:
