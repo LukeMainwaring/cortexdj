@@ -9,7 +9,7 @@
       "!api/scripts",
       "!components/ui",
       "!lib/utils.ts",
-      "!hooks/use-mobile.ts"
+      "!hooks/use-mobile.tsx"
     ]
   },
   "formatter": {

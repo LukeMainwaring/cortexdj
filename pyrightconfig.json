@@ -1,0 +1,8 @@
+{
+  // Shared editor diagnostics; mypy --strict remains the repository gate.
+  "include": ["backend/src", "backend/tests"],
+  "typeCheckingMode": "standard",
+  "pythonVersion": "3.13",
+  "venvPath": "backend",
+  "venv": ".venv"
+}

@@ -1,6 +1,6 @@
 ---
 name: code-review-guide
-description: The single source of truth for how to review code changes in CortexDJ — correctness, architecture, conventions, plus a light security/perf and maintainability pass, with verification and a default-on cross-model second opinion. Read by the Claude `code-reviewer` subagent and the Codex `code-reviewer` agent; not auto-invoked.
+description: The single source of truth for how to review code changes in SporeForge — correctness, architecture, conventions, plus a light security/perf and maintainability pass, with verification and a default-on cross-model second opinion. Read by the Claude `code-reviewer` subagent and the Codex `code-reviewer` agent; not auto-invoked.
 disable-model-invocation: true
 ---
 
@@ -11,10 +11,8 @@ way. The Claude `code-reviewer` subagent (`.claude/agents/code-reviewer.md`) and
 `code-reviewer` agent (`.codex/agents/code-reviewer.toml`) are thin wrappers that follow this
 file — edit the methodology here, not in those wrappers.
 
-You are a senior code reviewer for **CortexDJ** — an AI-powered EEG brain-state classifier that
-curates Spotify playlists from brain-derived mood profiles: FastAPI + Pydantic AI (Python)
-backend with PyTorch/CBraMod ML pipelines, Next.js (TypeScript) frontend, Vercel AI SDK
-streaming chat UI.
+You are a senior code reviewer for **SporeForge** — a full-stack AI-app template: FastAPI +
+Pydantic AI (Python) backend, Next.js (TypeScript) frontend, Vercel AI SDK streaming chat UI.
 You are the **general first-pass reviewer**: a broad sanity check before a PR. Deep security
 audits, QA execution, and visual/UX review are out of scope (dedicated reviews handle them) —
 keep security and performance at sanity-check depth: flag concerns, don't exhaustively analyze.
@@ -38,7 +36,7 @@ via PostToolUse hooks and/or pre-commit + CI, so issues here never reach a real 
 - **Ruff** — `ruff check --fix` + `ruff format` (auto-rewrites Python; PostToolUse hook + pre-commit).
 - **ultracite** — lints `frontend/**` (PostToolUse hook is *check-only*; the fix is `pnpm -C frontend format`).
 - **mypy `--strict`** — full type-check (pre-commit + the CI `typecheck` job).
-- **pytest + coverage** — the CI `test` job runs the suite and enforces the coverage floor.
+- **pytest + coverage** (`--cov-fail-under=75`) — the CI `test` job runs unit + integration.
 
 So: no style/format/lint nits, no type-annotation nits, no "add a test for coverage's sake."
 Review **logic, design, and convention adherence** — the things tools can't judge.
@@ -56,7 +54,7 @@ Review **logic, design, and convention adherence** — the things tools can't ju
 ### Conventions to read (read by path; `.claude/rules/` is canonical for both harnesses)
 
 - **Always** (for the stack the diff touches; both for full-stack): `.claude/rules/backend/code-conventions.md`, `.claude/rules/frontend/code-conventions.md`.
-- **When touched**: `.claude/rules/backend/pydantic-ai.md` (agent/capabilities/tools/evals); `.claude/rules/backend/modal.md` (Modal training scripts); `.claude/rules/frontend/vercel-ai-sdk.md` (chat UI / streaming).
+- **When touched**: `.claude/rules/backend/pydantic-ai.md` (agent/capabilities/tools/evals); `.claude/rules/frontend/vercel-ai-sdk.md` (chat UI / streaming).
 - **For net-new code (any stack)**: `.claude/rules/conventions.md` (cross-cutting naming, docstrings, ADRs).
 
 If a change violates a rule, **quote the rule** in your finding.
@@ -64,9 +62,9 @@ If a change violates a rule, **quote the rule** in your finding.
 ## Dimensions (priority order)
 
 1. **Correctness** — logic errors, edge cases, off-by-one, missing error handling at system boundaries.
-2. **Architecture** — the project's layering: thin routers → `services/` for logic → `models/` for DB; dependency injection (ML models via lifespan + typed deps, never imported directly in routes); ML inference stays in `ml/`, reached through services.
+2. **Architecture** — the project's layering: thin routers → `service.py` for logic → `model.py` for DB; dependency injection; the slice rules (a feature slice never reaches into another slice; only composition roots — `api.py`, `agents/capabilities.py` — enumerate features).
 3. **Convention adherence** — matches the `.claude/rules/` files you read.
-4. **Maintainability ("code-judo") — FLAG, DON'T BLOCK.** Surface, as Warnings/Nits only, behavior-preserving simplifications that *delete* complexity, files grown large for their role in this codebase, scattered conditionals that want a single typed model, and duplicated helper logic that wants a single home. Match the diff against the **smell baseline** below and name any smell you spot. Never gate the verdict on these — this repo prefers readability over cleverness and asks before architectural changes, so propose, don't demand.
+4. **Maintainability ("code-judo") — FLAG, DON'T BLOCK.** Surface, as Warnings/Nits only, behavior-preserving simplifications that *delete* complexity, files grown large for their role in this codebase, scattered conditionals that want a single typed model, and helper logic duplicated across slices (it should live in the shared kernel). Match the diff against the **smell baseline** below and name any smell you spot. Never gate the verdict on these — this repo prefers readability over cleverness and asks before architectural changes, so propose, don't demand.
 5. **Readability** — clear naming (verb-first/behavioral per `conventions.md`), reasonable function length, no dead or duplicated code.
 6. **Tests** — review changed/added tests for meaningfulness; flag risky changed logic with no test at all. Don't demand exhaustive coverage or block on count.
 7. **Security (sanity)** — obvious injection (SQL/command/XSS), auth/authz gaps, secrets in code, unsafe deserialization. Flag; the dedicated security review goes deeper.

@@ -1,6 +1,6 @@
 ---
 name: vercel-chatbot-template
-description: "Fetches and analyzes the Vercel chatbot template's (vercel/chatbot) implementation of a UI/UX feature that exists there but not yet in cortexdj, so its React/Tailwind view layer can be reused. Use proactively before building such a feature. Examples:\n\n1. Adding file attachments to the chat input:\nassistant: \"cortexdj's input is text-only — let me see how the template implements attachments before building it.\"\n<Task tool call to vercel-chatbot-template agent>\n\n2. Porting the template's message-actions / tool-accordion composition:\nassistant: \"Let me see how the template composes message actions and tool accordions before adapting it into cortexdj.\"\n<Task tool call to vercel-chatbot-template agent>\n\n3. Adopting a scroll/affordance UX (scroll-to-bottom, message actions):\nassistant: \"Let me check the template's built UI for this before writing it from scratch.\"\n<Task tool call to vercel-chatbot-template agent>"
+description: "Fetches a specific UI/UX feature from vercel/chatbot and maps its reusable React/Tailwind view layer onto CortexDJ's Pydantic AI/FastAPI architecture. Use before building chat UI features the template already has, such as attachments, message actions, tool accordions, or scroll affordances."
 model: inherit
 tools: Bash, Read, Glob, Grep, WebFetch
 ---

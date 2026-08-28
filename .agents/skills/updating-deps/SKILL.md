@@ -1,8 +1,7 @@
 ---
 name: updating-deps
 description: "Update all dependencies to latest versions, re-download library docs, and review changelogs for refactoring opportunities."
-model: opus
-effort: xhigh
+disable-model-invocation: true
 ---
 
 # Update Dependencies
@@ -84,7 +83,14 @@ Update everything — no exclusions.
 Download fresh copies of the key AI library documentation used by this project:
 
 ```bash
-curl -o docs/pydantic-ai-llms-full.txt https://ai.pydantic.dev/llms-full.txt
+curl -o docs/pydantic-ai-llms-full.txt https://pydantic.dev/docs/ai/llms-full.txt
+```
+
+Pydantic AI, Logfire, and FastAPI also ship coding-agent skills inside their wheels. They are symlinked into `.agents/skills/` from `backend/.venv`, so they track the installed version automatically — but the symlink embeds the Python minor (`lib/python3.X`), so re-run the install after a Python bump or if `ls -la .agents/skills/` shows a dangling link:
+
+```bash
+UV_PROJECT_ENVIRONMENT=backend/.venv uvx library-skills --no-tool-skill install -y \
+  -s building-pydantic-ai-agents -s logfire-instrumentation -s fastapi
 ```
 
 Vercel AI SDK docs are pulled from the per-page raw-markdown variant (`.md` suffix). The upstream `llms.txt` was restructured around guides and no longer carries the UI reference content, so we discover the doc pages from `sitemap.xml` and pull each one. The response header `x-matched-path: /[variants]/llms.mdx/[type]/[...slug]` confirms `.md` is the documented Fumadocs LLM-markdown route. Sanity assertions trip if upstream changes shape again.
@@ -120,10 +126,16 @@ Run linting, type checking, and tests to catch any issues from the version bumps
 uv run --directory backend pre-commit run --all-files
 ```
 
-`pre-commit` covers lint, format, and `mypy --strict`, but not behaviour. Run the test suite too (DB-free and provider-free; real-LLM evals stay excluded by the default marker):
+`pre-commit` covers lint, format, and `mypy --strict`, but not behaviour. Run the unit suite too:
 
 ```bash
-uv run --directory backend pytest -m "not eval"
+uv run --directory backend pytest tests/unit -m "not eval"
+```
+
+If Postgres is up (`docker compose up -d`), also run the integration tier to match the CI gate:
+
+```bash
+uv run --directory backend pytest tests/unit tests/integration -m "not eval"
 ```
 
 ### Frontend

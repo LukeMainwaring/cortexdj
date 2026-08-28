@@ -5,6 +5,11 @@ Mirrors the ruff steps in .pre-commit-config.yaml (same file scope:
 backend/(src|tests)/**.py). mypy --strict is deliberately left to
 pre-commit / CI -- it's too slow to run inline on every edit. ruff --fix
 rewrites the changed file; unfixable violations exit 2 back to the agent.
+
+F401 (unused import) is deliberately report-only here (--unfixable F401):
+an agent often adds an import in one Edit and its usage in the next, and
+auto-removing the import in between breaks the file silently. Pre-commit
+still auto-fixes F401 at commit time, when no edit is in flight.
 """
 
 import json
@@ -36,7 +41,7 @@ def main() -> int:
 
     base = ["uv", "run", "--directory", "backend", "ruff"]
     fix = subprocess.run(  # noqa: S603
-        [*base, "check", "--fix", rel_in_backend],
+        [*base, "check", "--fix", "--unfixable", "F401", rel_in_backend],
         capture_output=True,
         text=True,
         cwd=project_dir,

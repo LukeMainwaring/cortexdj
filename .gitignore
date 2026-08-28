@@ -16,6 +16,10 @@ node_modules/
 .next/
 out/
 *.tsbuildinfo
+next-env.d.ts
+
+# Generated API client scratch output
+frontend/api/scripts/outputs/
 
 # Data & models
 backend/data/checkpoints/
@@ -50,7 +54,10 @@ huggingface_cache/
 .env.*.local
 
 # IDE
-.vscode/
+# Track shared VS Code settings and extension recommendations only.
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
@@ -78,7 +85,13 @@ dmypy.json
 
 # Claude Code
 .claude/settings.local.json
+.claude/worktrees/
 
 # Misc
 *.bak
 *.tmp
+
+# Understand Anything — track the graph artifacts, ignore scratch/caches
+.understand-anything/tmp/
+.understand-anything/intermediate/
+.understand-anything/.trash-*/

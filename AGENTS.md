@@ -110,7 +110,7 @@ Next.js 16 with App Router.
 
 ## Agent Harness
 
-- Skills live canonically in `.agents/skills/` (`.claude/skills` is a symlink into it). Codex parity lives in `.codex/` — `hooks.json`, byte-identical hook copies, and agent TOMLs. **When editing `.claude/hooks/` or `.claude/agents/`, mirror the change in `.codex/`.**
+- Skills live canonically in `.agents/skills/` (`.claude/skills` is a symlink into it). Codex parity lives in `.codex/` — `hooks.json`, relative symlinks to the Claude hooks, and agent TOMLs. **When editing `.claude/agents/`, mirror the change in `.codex/agents/`.**
 - Reviewing code? The methodology source of truth is `.agents/skills/code-review-guide/SKILL.md` — both the Claude subagent and Codex agent are thin wrappers around it.
-- Writing or editing a skill? Read `.agents/skills/writing-great-skills/SKILL.md` first.
+- Writing for agents — skills, `AGENTS.md`, or `CLAUDE.md`? Read `.agents/skills/writing-for-agents/SKILL.md` first.
 - Spec-driven work: `/to-spec` → `/to-tickets` → `/implement`. Run `/setup-matt-pocock-skills` once to configure the issue tracker they use.

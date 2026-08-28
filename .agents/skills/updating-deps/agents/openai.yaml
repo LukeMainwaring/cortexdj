@@ -1,3 +1,5 @@
 interface:
   display_name: "Update Dependencies"
   short_description: "Bump all deps and review changelogs"
+policy:
+  allow_implicit_invocation: false

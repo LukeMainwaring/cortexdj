@@ -1,8 +1,7 @@
 ---
 name: updating-deps-auto
 description: "Autonomous dependency update: bump all deps, validate with auto-fix, research changelogs, apply refactors, run code review, and create a PR. Designed for scheduled/unattended execution."
-model: opus
-effort: xhigh
+disable-model-invocation: true
 ---
 
 # Autonomous Dependency Update
@@ -85,7 +84,7 @@ Update everything — no exclusions.
 
 ## Phase 4: Skip — Library Documentation
 
-**Skipped in autonomous mode.** The CCR environment's limited network access blocks `ai.pydantic.dev` and `ai-sdk.dev`. Library docs are refreshed during interactive `/updating-deps` runs instead. Proceed directly to Phase 5.
+**Skipped in autonomous mode.** The CCR environment's limited network access blocks `pydantic.dev` and `ai-sdk.dev` (and the `uvx library-skills` refresh of the bundled skills). Library docs are refreshed during interactive `/updating-deps` runs instead. Proceed directly to Phase 5.
 
 ## Phase 5: Validate + Auto-Fix
 
@@ -101,13 +100,13 @@ If the above fails, run it **again** — pre-commit hooks often fix issues on th
 
 ### Backend Tests
 
-`pre-commit` covers lint, format, and `mypy --strict`, but not behaviour — a dependency bump can pass all three and still break at runtime. Run the test suite:
+`pre-commit` covers lint, format, and `mypy --strict`, but not behaviour — a dependency bump can pass all three and still break at runtime. Run the unit suite:
 
 ```bash
-uv run --directory backend pytest -m "not eval"
+uv run --directory backend pytest tests/unit -m "not eval"
 ```
 
-The suite is DB-free and provider-free, so it runs in the unattended sandbox with no external services. The coverage floor is intentionally **not** enforced here — CI's test job is the backstop for that on the PR.
+Unit tests are DB-free and provider-free, so they run in the unattended sandbox with no external services. Integration tests (real Postgres) and the `--cov-fail-under=75` floor are intentionally **not** run here — CI enforces `pytest tests/unit tests/integration --cov-fail-under=75` on the PR as the backstop. **Do not** add integration tests to this step: they need a database the routine sandbox won't have and would fail for infrastructure reasons, not dependency ones.
 
 ### Frontend
 
@@ -162,7 +161,7 @@ After applying all refactors, re-run validation to ensure nothing is broken:
 
 ```bash
 uv run --directory backend pre-commit run --all-files
-uv run --directory backend pytest -m "not eval"
+uv run --directory backend pytest tests/unit -m "not eval"
 pnpm -C frontend format
 pnpm -C frontend lint
 ```

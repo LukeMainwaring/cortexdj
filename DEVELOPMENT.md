@@ -30,6 +30,16 @@ Install pre-commit hooks:
 uv run --directory backend pre-commit install
 ```
 
+Link the coding-agent skills shipped by Pydantic AI, Logfire, and FastAPI into
+`.agents/skills/`. These tracked symlinks point into `backend/.venv`, so they are
+dangling on a fresh clone until dependencies are installed. Re-run this command
+after changing the Python minor version:
+
+```bash
+UV_PROJECT_ENVIRONMENT=backend/.venv uvx library-skills --no-tool-skill install -y \
+  -s building-pydantic-ai-agents -s logfire-instrumentation -s fastapi
+```
+
 ### Spotify app (optional)
 
 Playlist and library tools stay hidden unless Spotify is connected. To enable them:

@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "cortexdj"
 version = "0.1.0"
 description = "AI-powered EEG brain-wave classifier and Spotify playlist curator"
-readme = "../README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic>=1.18.5",
@@ -78,3 +77,9 @@ compare-models = "cortexdj.ml.train:compare_main"
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/cortexdj"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cortexdj"]

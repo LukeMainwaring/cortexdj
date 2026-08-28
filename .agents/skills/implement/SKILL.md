@@ -10,6 +10,6 @@ Use /tdd where possible, at pre-agreed seams.
 
 Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
-Once done, review the work with the `code-reviewer` agent — it follows the `code-review-guide` skill.
+Once done, review the work with the `code-reviewer` agent, which follows the `code-review-guide` skill.
 
 Commit your work to the current branch.

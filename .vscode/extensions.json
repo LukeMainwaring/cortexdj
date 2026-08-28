@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "charliermarsh.ruff",
+    "biomejs.biome",
+    "tamasfe.even-better-toml",
+    "bradlc.vscode-tailwindcss"
+  ]
+}
