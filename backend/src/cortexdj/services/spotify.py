@@ -8,7 +8,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 _spotify_client: spotipy.Spotify | None = None
 
-T = TypeVar("T")
 
 SPOTIFY_SCOPES = (
     "user-library-read playlist-read-private playlist-modify-private playlist-modify-public user-read-recently-played"
@@ -45,7 +44,7 @@ def get_spotify_client() -> spotipy.Spotify | None:
     return _spotify_client
 
 
-async def run_spotify(func: Callable[..., T], *args: object, **kwargs: object) -> T:
+async def run_spotify[T](func: Callable[..., T], *args: object, **kwargs: object) -> T:
     """Wrap synchronous spotipy call in asyncio.to_thread for async compatibility."""
     return await asyncio.to_thread(func, *args, **kwargs)
 
@@ -178,7 +177,7 @@ async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, 
     ]
 
 
-async def resolve_track_spotify_id(track: "Track") -> str | None:
+async def resolve_track_spotify_id(track: Track) -> str | None:
     """Return the Spotify track ID for `track`, looking it up if missing.
 
     Pure lookup — does NOT touch the DB. Callers are responsible for persisting

@@ -1,9 +1,8 @@
 import argparse
 import logging
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Awaitable, Callable
 
 import uvicorn
 from fastapi import FastAPI, Request, Response

@@ -68,7 +68,7 @@ line-length = 120
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["I", "F401"]
+select = ["I", "F401", "UP"]
 
 [project.scripts]
 fetch-deap-audio = "cortexdj.scripts.fetch_deap_audio:main"

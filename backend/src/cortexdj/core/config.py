@@ -65,6 +65,6 @@ class Settings(
         return bool(self.SPOTIFY_CLIENT_ID and self.SPOTIFY_CLIENT_SECRET)
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings.model_validate({})

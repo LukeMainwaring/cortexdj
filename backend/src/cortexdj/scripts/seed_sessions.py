@@ -12,7 +12,7 @@ import argparse
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -113,7 +113,7 @@ async def seed_participant(
             id=session_id,
             participant_id=f"P{participant_id:02d}",
             dataset_source="deap",
-            recorded_at=datetime.now(timezone.utc),
+            recorded_at=datetime.now(UTC),
             duration_seconds=float(n_trials * 60),
             metadata_extra={"n_trials": n_trials, "sampling_rate": DEFAULT_SAMPLING_RATE},
         )

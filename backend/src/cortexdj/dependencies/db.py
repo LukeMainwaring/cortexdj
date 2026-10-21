@@ -1,7 +1,8 @@
 import contextlib
 import functools
 import logging
-from typing import Annotated, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Annotated
 
 import psycopg
 from fastapi import Depends
@@ -40,7 +41,7 @@ async_engine = create_async_engine(
 AsyncSessionMaker = async_sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def _get_async_sqlalchemy_session_dependency() -> AsyncGenerator[AsyncSession, None]:
+async def _get_async_sqlalchemy_session_dependency() -> AsyncGenerator[AsyncSession]:
     """Yield a session that owns its transaction: commit on success, rollback on error.
 
     This is the single commit point for request-scoped sessions (and for
@@ -62,13 +63,13 @@ async def _get_async_sqlalchemy_session_dependency() -> AsyncGenerator[AsyncSess
 
 class SessionMakerDep:
     @contextlib.asynccontextmanager
-    async def new_async_session(self) -> AsyncGenerator[AsyncSession, None]:
+    async def new_async_session(self) -> AsyncGenerator[AsyncSession]:
         async for session in _get_async_sqlalchemy_session_dependency():
             yield session
 
 
 @contextlib.asynccontextmanager
-async def get_async_sqlalchemy_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_sqlalchemy_session() -> AsyncGenerator[AsyncSession]:
     async for session in _get_async_sqlalchemy_session_dependency():
         yield session
 
@@ -77,7 +78,7 @@ AsyncPostgresSessionDep = Annotated[AsyncSession, Depends(_get_async_sqlalchemy_
 AsyncSessionMakerDep = Annotated[SessionMakerDep, Depends(SessionMakerDep)]
 
 
-async def async_pg_connection() -> AsyncGenerator[psycopg.AsyncConnection, None]:
+async def async_pg_connection() -> AsyncGenerator[psycopg.AsyncConnection]:
     async with await psycopg.AsyncConnection.connect(_conn_info) as aconn:
         try:
             yield aconn

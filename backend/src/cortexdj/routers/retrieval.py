@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from fastapi import APIRouter, HTTPException, Query
 
 from cortexdj.dependencies.db import AsyncPostgresSessionDep
