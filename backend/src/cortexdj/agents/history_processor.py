@@ -49,7 +49,7 @@ def _get_content_size(content: Any) -> int:
         return len(content)
     try:
         return len(json.dumps(content))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return 0
 
 

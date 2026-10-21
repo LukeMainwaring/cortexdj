@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "cortexdj"
 version = "0.1.0"
 description = "AI-powered EEG brain-wave classifier and Spotify playlist curator"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic>=1.19.1",
   "asyncpg>=0.31.0",
@@ -65,7 +65,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["I", "F401"]
