@@ -110,7 +110,7 @@ def _migrated(_require_test_db: None) -> None:
 
 
 @pytest.fixture
-async def engine(_migrated: None) -> AsyncGenerator[AsyncEngine, None]:
+async def engine(_migrated: None) -> AsyncGenerator[AsyncEngine]:
     # Function-scoped with NullPool on purpose: anyio gives each test its own
     # event loop, and pooled connections bound to a previous test's loop fail.
     # Don't "optimize" this to session scope.
@@ -122,7 +122,7 @@ async def engine(_migrated: None) -> AsyncGenerator[AsyncEngine, None]:
 
 
 @pytest.fixture
-async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
     conn = await engine.connect()
     outer = await conn.begin()  # rolled back at teardown → no cross-test pollution
     session = async_sessionmaker(
@@ -142,12 +142,12 @@ async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     # Imported lazily so collecting the unit tier never pulls in the app.
     from cortexdj.app import app
     from cortexdj.dependencies.eeg_model import get_eeg_model
 
-    async def _override() -> AsyncGenerator[AsyncSession, None]:
+    async def _override() -> AsyncGenerator[AsyncSession]:
         # Deliberately no commit here: the outer transaction owns the data. A route
         # that commits itself lands in a savepoint (see the module docstring).
         yield db_session

@@ -1,8 +1,8 @@
 import logging
 import uuid
+from collections.abc import Mapping
 from contextvars import ContextVar
 from types import TracebackType
-from typing import Mapping
 
 from fastapi import Request
 from pydantic import BaseModel

@@ -15,7 +15,7 @@ is still showing and no longer re-sends.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from pydantic_ai.messages import sanitize_messages
@@ -92,7 +92,7 @@ async def stream_chat(
 
         thread = await Thread.get(db, thread_id, agent_type)
         if thread:
-            thread.updated_at = datetime.now(timezone.utc)
+            thread.updated_at = datetime.now(UTC)
             await db.flush()
 
         if thread and thread.title is None and result.output:
