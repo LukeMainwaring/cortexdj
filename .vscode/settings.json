@@ -1,5 +1,8 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv",
   "python.testing.pytestEnabled": true,
-  "python.testing.cwd": "${workspaceFolder}/backend"
+  "python.testing.cwd": "${workspaceFolder}/backend",
+  "biome.enabled": true,
+  "biome.lsp.bin": "frontend/node_modules/.bin/biome",
+  "biome.configurationPath": "frontend/biome.jsonc"
 }
