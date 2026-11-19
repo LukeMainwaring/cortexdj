@@ -33,7 +33,7 @@ CBRAMOD_N_TIMES = 800
 CBRAMOD_SFREQ = 200.0
 
 
-def _load_cbramod_backbone() -> tuple[nn.Module, int]:
+def _load_cbramod_backbone() -> nn.Module:
     """Load the CBraMod pretrained encoder for contrastive fine-tuning.
 
     Instantiated directly (not via pretrained.py::load_pretrained_dual_head)
@@ -44,23 +44,27 @@ def _load_cbramod_backbone() -> tuple[nn.Module, int]:
     """
     from braindecode.models import CBraMod
 
-    backbone = CBraMod.from_pretrained(
+    backbone: nn.Module = CBraMod.from_pretrained(
         "braindecode/cbramod-pretrained",
         n_chans=CBRAMOD_N_CHANS,
         n_times=CBRAMOD_N_TIMES,
         sfreq=CBRAMOD_SFREQ,
         n_outputs=1,  # placeholder — we never use the head
     )
+    for p in backbone.parameters():
+        p.requires_grad = True
+    return backbone
+
+
+def _measure_embed_dim(backbone: nn.Module) -> int:
+    """Read the backbone's feature width from a dummy forward pass, leaving it in train mode."""
     backbone.eval()
     with torch.no_grad():
         dummy = torch.randn(1, CBRAMOD_N_CHANS, CBRAMOD_N_TIMES)
         out = backbone(dummy, return_features=True)
         embed_dim = int(out["features"].shape[-1])
     backbone.train()
-    for p in backbone.parameters():
-        p.requires_grad = True
-    logger.info(f"Loaded CBraMod pretrained encoder (trainable): embed_dim={embed_dim}")
-    return backbone, embed_dim
+    return embed_dim
 
 
 class EegCLAPEncoder(nn.Module):
@@ -71,11 +75,24 @@ class EegCLAPEncoder(nn.Module):
     two linears is empirically helpful for contrastive learning even when the
     backbone uses no BN. Dropout regularizes the projection without touching
     the backbone.
+
+    `backbone` defaults to the pretrained CBraMod; a test passes a small module with the same
+    `forward(x, return_features=True) -> {"features": ...}` contract instead. Do not rename the
+    `backbone` or `projection` attributes: saved checkpoints' state-dict keys depend on them.
     """
 
-    def __init__(self, *, projection_dim: int = EMBEDDING_DIM, dropout: float = 0.3) -> None:
+    def __init__(
+        self,
+        *,
+        projection_dim: int = EMBEDDING_DIM,
+        dropout: float = 0.3,
+        backbone: nn.Module | None = None,
+    ) -> None:
         super().__init__()
-        self.backbone, backbone_embed_dim = _load_cbramod_backbone()
+        self.backbone = backbone if backbone is not None else _load_cbramod_backbone()
+        backbone_embed_dim = _measure_embed_dim(self.backbone)
+        if backbone is None:
+            logger.info(f"Loaded CBraMod pretrained encoder (trainable): embed_dim={backbone_embed_dim}")
         self.projection = nn.Sequential(
             nn.Linear(backbone_embed_dim, projection_dim),
             nn.BatchNorm1d(projection_dim),

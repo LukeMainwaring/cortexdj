@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 type EEGModel = EEGNetClassifier | PretrainedDualHead
 
+# Bump when the saved metrics/config layout or model weight shapes change.
+CHECKPOINT_SCHEMA_VERSION = 3
+
 CHECKPOINT_PATHS: dict[str, Path] = {
     "eegnet": CHECKPOINTS_DIR / "eegnet_best.pt",
     "cbramod": CHECKPOINTS_DIR / "cbramod_best.pt",
@@ -52,9 +55,6 @@ def load_model(
 
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     resolved_type = model_type or checkpoint["model_type"]
-
-    # Lazy import to avoid a cycle: train imports `EEGModel` from this module.
-    from cortexdj.ml.train import CHECKPOINT_SCHEMA_VERSION
 
     schema = checkpoint.get("schema_version")
     if not isinstance(schema, int) or schema < CHECKPOINT_SCHEMA_VERSION:

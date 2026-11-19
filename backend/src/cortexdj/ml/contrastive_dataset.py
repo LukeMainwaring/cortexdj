@@ -38,6 +38,7 @@ from cortexdj.ml.dataset import (
     _extract_participant_id,
     load_deap_participant,
 )
+from cortexdj.ml.device import get_device
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +93,11 @@ def _audio_cache_key(resolved: list[dict[str, Any]], model_id: str) -> str:
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 
-def _audio_cache_path(key: str) -> Path:
-    return _cache_dir(DEAP_DATA_DIR) / f"clap_audio_{key}.npz"
+def _audio_cache_path(key: str, deap_data_dir: Path = DEAP_DATA_DIR) -> Path:
+    return _cache_dir(deap_data_dir) / f"clap_audio_{key}.npz"
 
 
-def _resolve_audio_path(recorded_path: str) -> Path | None:
+def _resolve_audio_path(recorded_path: str, audio_cache_dir: Path = AUDIO_CACHE_DIR) -> Path | None:
     """Map a recorded audio_cache_path to something that exists on this host.
 
     `fetch_deap_audio.py` writes the absolute path of each cached m4a into
@@ -104,13 +105,13 @@ def _resolve_audio_path(recorded_path: str) -> Path | None:
     `/Users/foo/.../audio_cache/<sha>.m4a` won't exist on a Modal worker
     or another developer's machine. Since the filename is a content hash
     of `(normalized_artist, normalized_title)` the basename is globally
-    unique, so we can fall back to `AUDIO_CACHE_DIR / basename` when the
+    unique, so we can fall back to `audio_cache_dir / basename` when the
     recorded absolute path is missing.
     """
     candidate = Path(recorded_path)
     if candidate.exists():
         return candidate
-    fallback = AUDIO_CACHE_DIR / candidate.name
+    fallback = audio_cache_dir / candidate.name
     if fallback.exists():
         return fallback
     return None
@@ -133,6 +134,8 @@ def build_audio_embedding_cache(
     clap_encoder: ClapAudioEncoder | None = None,
     device: torch.device | None = None,
     force_rebuild: bool = False,
+    deap_data_dir: Path = DEAP_DATA_DIR,
+    audio_cache_dir: Path = AUDIO_CACHE_DIR,
 ) -> dict[int, npt.NDArray[np.float32]]:
     """Return `{trial_id: (512,) float32}` for all resolved DEAP stimuli.
 
@@ -141,7 +144,7 @@ def build_audio_embedding_cache(
     image hit on workers that never ran `fetch_deap_audio.py`.
     """
     key = _audio_cache_key(resolved, CLAP_MODEL_ID)
-    cache_path = _audio_cache_path(key)
+    cache_path = _audio_cache_path(key, deap_data_dir)
 
     if not force_rebuild and cache_path.exists():
         data = np.load(cache_path, allow_pickle=False)
@@ -152,15 +155,13 @@ def build_audio_embedding_cache(
 
     if clap_encoder is None:
         if device is None:
-            from cortexdj.ml.train import _get_device
-
-            device = _get_device()
+            device = get_device()
         clap_encoder = ClapAudioEncoder(device)
 
     trial_ids: list[int] = []
     waveforms: list[np.ndarray] = []
     for entry in sorted(resolved, key=lambda r: r["trial_id"]):
-        path = _resolve_audio_path(entry["audio_cache_path"])
+        path = _resolve_audio_path(entry["audio_cache_path"], audio_cache_dir)
         if path is None:
             logger.warning(f"skipping trial {entry['trial_id']}: audio file not found")
             continue

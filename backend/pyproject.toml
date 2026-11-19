@@ -22,6 +22,12 @@ dependencies = [
   # curl -s https://pypi.org/pypi/opentelemetry-instrumentation-sqlalchemy/json | python3 -c 'import json,sys; print([r for r in json.load(sys.stdin)["info"]["requires_dist"] if "sqlalchemy" in r])'
   "sqlalchemy[asyncio]>=2.0.58,<2.1",
   "uvicorn>=0.54.0",
+  "torch>=2.15.0",
+  "braindecode>=2.0.0",
+  "numpy>=2.5.5",
+  "scipy>=1.18.1",
+  "librosa>=1.0.1",
+  "transformers>=5.23.0",
 ]
 
 [dependency-groups]
@@ -67,6 +73,10 @@ skip_covered = false
 [tool.mypy]
 strict = true
 
+[[tool.mypy.overrides]]
+module = ["braindecode.*", "scipy.*"]
+ignore_missing_imports = true
+
 
 [tool.deptry]
 # Run by the updating-deps skill. asyncpg is loaded by SQLAlchemy as the driver, never imported;
@@ -93,7 +103,8 @@ select = ["I", "F401", "UP", "FAST", "ASYNC", "B", "TID251"]
 # agent builder, so both contracts ignore their edges; without that, independence fails on the
 # indirect path a slice takes to another slice through the agent runtime. An ignore that matches
 # nothing only warns: the named-agent registry imports no slice until a domain registers its own
-# agent builder there.
+# agent builder there. The ML inference kernel (`cortexdj.ml`) may import only `cortexdj.core`
+# among this repo's packages.
 [tool.importlinter]
 root_package = "cortexdj"
 
@@ -114,6 +125,7 @@ source_modules = [
   "cortexdj.core",
   "cortexdj.shared",
   "cortexdj.agents",
+  "cortexdj.ml",
 ]
 forbidden_modules = ["cortexdj.features"]
 ignore_imports = [
@@ -121,6 +133,16 @@ ignore_imports = [
   "cortexdj.agents.registry -> cortexdj.features.**",
 ]
 unmatched_ignore_imports_alerting = "warn"
+
+[[tool.importlinter.contracts]]
+name = "The ML kernel imports only the platform kernel"
+type = "forbidden"
+source_modules = ["cortexdj.ml"]
+forbidden_modules = [
+  "cortexdj.shared",
+  "cortexdj.agents",
+  "cortexdj.features",
+]
 
 [tool.uv]
 default-groups = ["dev"]
