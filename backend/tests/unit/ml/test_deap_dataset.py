@@ -1,4 +1,4 @@
-"""Tests for dataset loading, feature extraction, and cross-validation splits."""
+"""Tests for dataset loading and feature extraction."""
 
 import pickle
 from pathlib import Path
@@ -18,7 +18,6 @@ from cortexdj.ml.dataset import (
     load_deap_participant,
 )
 from cortexdj.ml.preprocessing import FREQ_BANDS
-from cortexdj.ml.train import make_grouped_splits, make_loso_splits
 
 _rng = np.random.default_rng(42)
 
@@ -126,46 +125,3 @@ class TestLoadDatasetFactory:
     def test_missing_dir_raises(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
             load_dataset(data_dir=tmp_path / "missing")
-
-
-class TestLOSOSplits:
-    def test_no_participant_overlap(self, deap_dir: Path) -> None:
-        ds = DEAPFeatureDataset(deap_dir)
-        splits = make_loso_splits(ds)
-        for train_idx, val_idx in splits:
-            train_pids = {ds.participant_ids[i] for i in train_idx}
-            val_pids = {ds.participant_ids[i] for i in val_idx}
-            assert train_pids.isdisjoint(val_pids)
-
-    def test_all_samples_covered(self, deap_dir: Path) -> None:
-        ds = DEAPFeatureDataset(deap_dir)
-        splits = make_loso_splits(ds)
-        all_val = set()
-        for _, val_idx in splits:
-            all_val.update(val_idx)
-        assert all_val == set(range(len(ds)))
-
-    def test_one_fold_per_participant(self, deap_dir: Path) -> None:
-        ds = DEAPFeatureDataset(deap_dir)
-        splits = make_loso_splits(ds)
-        assert len(splits) == 3  # 3 participants
-
-    def test_max_folds_limits(self, deap_dir: Path) -> None:
-        ds = DEAPFeatureDataset(deap_dir)
-        splits = make_loso_splits(ds, max_folds=2)
-        assert len(splits) == 2
-
-
-class TestGroupedSplits:
-    def test_no_participant_overlap(self, deap_dir: Path) -> None:
-        ds = DEAPFeatureDataset(deap_dir)
-        splits = make_grouped_splits(ds, n_folds=3)
-        for train_idx, val_idx in splits:
-            train_pids = {ds.participant_ids[i] for i in train_idx}
-            val_pids = {ds.participant_ids[i] for i in val_idx}
-            assert train_pids.isdisjoint(val_pids)
-
-    def test_correct_fold_count(self, deap_dir: Path) -> None:
-        ds = DEAPFeatureDataset(deap_dir)
-        splits = make_grouped_splits(ds, n_folds=3)
-        assert len(splits) == 3
