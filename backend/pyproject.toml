@@ -142,6 +142,9 @@ forbidden_modules = [
   "cortexdj.shared",
   "cortexdj.agents",
   "cortexdj.features",
+  "cortexdj.api",
+  "cortexdj.app",
+  "cortexdj.migrations",
 ]
 
 [tool.uv]

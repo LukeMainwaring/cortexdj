@@ -65,11 +65,15 @@ class TestSymmetricInfoNCE:
         assert loss.item() == pytest.approx(0.693, abs=0.05)
 
     def test_unique_trial_ids_give_the_vanilla_info_nce_value(self) -> None:
-        # Orthonormal pairs at temperature 1: each row's logits are (1, 0), so both
-        # directions' cross-entropy is log(1 + e^-1) ≈ 0.31326.
-        emb = torch.eye(2)
-        loss = symmetric_info_nce(emb, emb, torch.tensor([0, 1]), torch.tensor(1.0))
-        assert loss.item() == pytest.approx(0.31326, abs=1e-5)
+        # Asymmetric on purpose, so the two directions and the temperature each matter. At
+        # temperature 0.5 the logits are [[2, 1.2], [0, 1.6]]:
+        #   EEG → audio: (log(1 + e^-0.8) + log(1 + e^-1.6)) / 2 ≈ 0.27750
+        #   audio → EEG: (log(1 + e^-2.0) + log(1 + e^-0.4)) / 2 ≈ 0.31997
+        # and plain symmetric cross-entropy is their mean.
+        eeg = torch.eye(2)
+        audio = torch.tensor([[1.0, 0.0], [0.6, 0.8]])
+        loss = symmetric_info_nce(eeg, audio, torch.tensor([0, 1]), torch.tensor(0.5))
+        assert loss.item() == pytest.approx(0.29874, abs=1e-5)
 
 
 class TestRetrievalMetrics:
