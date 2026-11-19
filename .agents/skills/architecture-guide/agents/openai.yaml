@@ -1,0 +1,5 @@
+interface:
+  display_name: "Architecture Guide"
+  short_description: "Write or update the architecture guide"
+policy:
+  allow_implicit_invocation: false

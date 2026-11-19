@@ -10,14 +10,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from cortexdj.core.config import get_settings
-from cortexdj.core.observability import configure_observability, instrument_app
-from cortexdj.utils.logging import RequestLogContext, setup_logging
+from cortexdj.core.logging import RequestLogContext, redact_url, setup_logging
+from cortexdj.core.observability import setup_observability
+from cortexdj.core.startup import get_shutdown_hooks, get_startup_hooks
 
+# Logging and observability are process configuration that must be in place before the
+# lifespan runs, so they are set up at import here rather than as startup hooks.
 log_context_var = setup_logging()
-configure_observability()
 
-from cortexdj.routers.main import api_router  # noqa: E402
+# Do not hoist this import above setup_logging(): it imports every feature, each module
+# creates its logger at import, and only a logger created after setup_logging() sets the
+# logger class is a ContextualLogger that carries the request context.
+from cortexdj.api import api_router  # noqa: E402
 
+# Read once at import on purpose: the app, its routes, and CORS are built from it here. Do
+# not copy this into code a test reconfigures; the Settings seam reaches only code that
+# calls get_settings() when it runs.
 config = get_settings()
 
 logger = logging.getLogger(__name__)
@@ -33,19 +41,18 @@ def generate_operation_id(route: APIRoute) -> str:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting CortexDJ backend...")
 
-    try:
-        from cortexdj.ml.predict import load_model
-
-        model_type = config.EEG_MODEL_BACKEND
-        eeg_model = load_model(model_type=model_type)
-        app.state.eeg_model = eeg_model
-        logger.info(f"{model_type} model loaded successfully")
-    except FileNotFoundError:
-        logger.warning("No EEG model checkpoint found. Run `uv run train-model` first.")
-        app.state.eeg_model = None
+    # Run the registered startup hooks (core/startup.py); features register theirs at import.
+    for hook in get_startup_hooks():
+        await hook(app)
 
     yield
     logger.info("Shutting down CortexDJ backend...")
+    for hook in get_shutdown_hooks():
+        # One hook failing must not stop the rest: each releases something of its own.
+        try:
+            await hook(app)
+        except Exception:
+            logger.exception(f"Shutdown hook {getattr(hook, '__name__', repr(hook))} failed")
 
 
 app = FastAPI(
@@ -55,7 +62,8 @@ app = FastAPI(
     generate_unique_id_function=generate_operation_id,
     lifespan=lifespan,
 )
-instrument_app(app)
+# After the `api` import: no module instruments at import, so configure may follow it.
+setup_observability(app)
 
 
 def _get_allowed_origins() -> list[str]:
@@ -81,7 +89,7 @@ async def add_request_context(request: Request, call_next: Callable[[Request], A
         try:
             request_json = await request.json()
         except Exception:
-            pass
+            pass  # a body that isn't JSON just means there is nothing to add to the log context
 
     ctx = RequestLogContext(
         request_id=uuid.uuid4(),
@@ -100,7 +108,7 @@ async def log_request(request: Request, call_next: Callable[[Request], Awaitable
     url_path = str(request.url.path)
     noisy_patterns = ["/api/health/", "/api/health"]
     if not any(url_path.endswith(pattern) for pattern in noisy_patterns) and request.method != "OPTIONS":
-        logger.info(f"Request: {request.method} {request.url}")
+        logger.info(f"Request: {request.method} {redact_url(request.url)}")
     return await call_next(request)
 
 

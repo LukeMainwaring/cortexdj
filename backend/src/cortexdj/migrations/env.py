@@ -3,19 +3,21 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from cortexdj.dependencies.db import get_postgres_url
+from cortexdj.core.db import get_postgres_url
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_postgres_url("postgresql+psycopg"))
+# Doubled because the config file interpolates "%", and an encoded password can hold one.
+config.set_main_option("sqlalchemy.url", get_postgres_url("postgresql+psycopg").replace("%", "%%"))
 
 if config.config_file_name is not None:
-    # Keep existing loggers alive: migrations also run in-process (the
-    # integration test tier calls `command.upgrade`), and fileConfig's
-    # default disable_existing_loggers=True would silence every logger
-    # created before this point.
+    # Keep the app's loggers: the integration tier migrates in-process, and the default
+    # would silence every logger already created, so no test could see a log line.
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-from cortexdj.models import Base  # noqa: F401, E402
+# Importing the features package registers every feature's models on
+# Base.metadata, so Alembic autogenerate sees all tables.
+import cortexdj.features  # noqa: E402, F401
+from cortexdj.shared.model_base import Base  # noqa: E402
 
 target_metadata = Base.metadata
 

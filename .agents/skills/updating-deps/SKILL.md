@@ -1,14 +1,12 @@
 ---
 name: updating-deps
-description: "Update all dependencies to latest versions, re-download library docs, and review changelogs for refactoring opportunities."
+description: "Update all dependencies to latest versions, validate the build, and review changelogs for refactoring opportunities."
 disable-model-invocation: true
 ---
 
 # Update Dependencies
 
-> For scheduled/autonomous execution, use the `updating-deps-auto` skill instead.
-
-Update all backend and frontend dependencies to their latest versions, refresh library documentation, validate the build, and review changelogs for refactoring opportunities.
+Update all backend and frontend dependencies to their latest versions, validate the build, and review changelogs for refactoring opportunities.
 
 ## Phase 1: Branch Setup
 
@@ -45,11 +43,24 @@ uv lock --upgrade --directory backend
 pnpm -C frontend outdated --json
 ```
 
+   It exits 1 whenever anything is outdated; that is the expected result, not a failure.
+
 2. Note current vs latest for all packages
+
+### Unused and undeclared
+
+Find dependencies nothing uses and imports nothing declares:
+
+```bash
+uv run --directory backend --with deptry deptry .
+pnpm dlx knip --directory frontend --dependencies
+```
+
+Both read their ignores from the repo (`[tool.deptry]` in `backend/pyproject.toml`, `frontend/knip.json`), so every finding is meant to be real. Confirm each before listing it: a dependency is used only when a file the app actually reaches imports it, so an import in a file nothing else imports (a dead component) is a real finding, not a false positive. A confirmed false positive goes in that ignore list instead.
 
 ### Summary
 
-Present a markdown table showing each dependency, its current version floor/range, and the latest available version. Group by backend and frontend. Wait for user acknowledgment before proceeding to Phase 3.
+Present a markdown table showing each dependency, its current version floor/range, and the latest available version. Group by backend and frontend. Below it, list the unused and undeclared findings, each with its fix: remove the package (and any file only it served), move it to the dev group, or declare it. Wait for user acknowledgment before proceeding to Phase 3.
 
 ## Phase 3: Bump Versions
 
@@ -61,60 +72,52 @@ Edit `backend/pyproject.toml` to update each `>=X.Y.Z` floor to the latest resol
 uv sync --directory backend
 ```
 
-### Frontend
+Bump the pre-commit hook revisions too, so CI's pinned `ruff-pre-commit` matches the ruff in `pyproject.toml`:
 
-For dependencies using `^` ranges:
+```bash
+uv run --directory backend pre-commit autoupdate
+```
+
+### Frontend
 
 ```bash
 pnpm -C frontend update --latest
 ```
 
-For exact-pinned dependencies (no `^` prefix — e.g., `react`, `react-dom`, `next`, and any in `devDependencies` pinned exactly like `@biomejs/biome`, `ultracite`), bump individually:
+This bumps every dependency and keeps each range's style (`^` stays `^`, exact stays exact).
 
-```bash
-pnpm -C frontend add <pkg>@latest
-pnpm -C frontend add -D <pkg>@latest  # for devDependencies
-```
+It does not touch the `packageManager` pin. Bump that by hand to the newest pnpm in the pinned major (`npm view pnpm@<major> version`), then run `pnpm -C frontend install` so the lockfile's package-manager section matches; CI installs with the pinned version and its frozen install fails if that section is stale. pnpm holds back any version published less than a day ago (`minimumReleaseAge`, default 1440 minutes): `outdated` and `update --latest` stop at the newest version at least a day old, and CI rejects a lockfile entry younger than that. To take a same-day release on purpose, add `name@version` to `minimumReleaseAgeExclude` in `frontend/pnpm-workspace.yaml`.
 
 Update everything — no exclusions.
 
-## Phase 4: Re-download Library Documentation
+### Unused and undeclared
 
-Download fresh copies of the key AI library documentation used by this project:
+Apply the fixes the user acknowledged in Phase 2, with `uv add`/`uv remove` and `pnpm -C frontend add`/`remove`, so they land in the same commit as the bumps.
 
-```bash
-curl -o docs/pydantic-ai-llms-full.txt https://pydantic.dev/docs/ai/llms-full.txt
-```
+### Holds
 
-Pydantic AI, Logfire, and FastAPI also ship coding-agent skills inside their wheels. They are symlinked into `.agents/skills/` from `backend/.venv`, so they track the installed version automatically — but the symlink embeds the Python minor (`lib/python3.X`), so re-run the install after a Python bump or if `ls -la .agents/skills/` shows a dangling link:
+A **hold** is an upper bound or alias kept until a stated lift condition is met. Find every hold whose comment states a lift condition: comments next to the dependency in `backend/pyproject.toml`, and, since `package.json` takes no comments, the frontend holds described in `DEVELOPMENT.md`. Each names how to check its condition; run that check. If it is met, lift the hold, delete its comment, and validate with the rest of the bump. If not, leave it and name it in the Phase 7 version summary as held, with its condition.
+
+## Phase 4: Check Bundled Library Skills
+
+Library docs come from the installed packages, so they track each bump with no download: Pydantic AI, Logfire, and FastAPI ship coding-agent skills in their wheels, and the `ai` npm package ships its full docs in `frontend/node_modules/ai/docs/`.
+
+The three wheel skills are symlinked into `.agents/skills/` from `backend/.venv`. The symlink embeds the Python minor (`lib/python3.X`), so re-run the install after a Python bump or if `ls -la .agents/skills/` shows a dangling link:
 
 ```bash
 UV_PROJECT_ENVIRONMENT=backend/.venv uvx library-skills --no-tool-skill install -y \
   -s building-pydantic-ai-agents -s logfire-instrumentation -s fastapi
 ```
 
-Vercel AI SDK docs are pulled from the per-page raw-markdown variant (`.md` suffix). The upstream `llms.txt` was restructured around guides and no longer carries the UI reference content, so we discover the doc pages from `sitemap.xml` and pull each one. The response header `x-matched-path: /[variants]/llms.mdx/[type]/[...slug]` confirms `.md` is the documented Fumadocs LLM-markdown route. Sanity assertions trip if upstream changes shape again.
+### Vendored Matt Pocock skills
+
+The skills copied from `mattpocock/skills` are listed in `.agents/skills/VENDORED.md` with the upstream commit they were last synced to. Check for drift:
 
 ```bash
-set -eo pipefail
-tmpfile=$(mktemp)
-trap 'rm -f "$tmpfile"' EXIT
-curl -fsSL https://ai-sdk.dev/sitemap.xml \
-  | grep -oE 'https://ai-sdk\.dev/docs/(ai-sdk-ui|reference/ai-sdk-ui)[^<]*' \
-  | sort -u > "$tmpfile"
-test -s "$tmpfile" || { echo "ERROR: sitemap returned no AI SDK UI URLs"; exit 1; }
-
-: > docs/vercel-ai-sdk-ui.txt
-while IFS= read -r url; do
-  {
-    printf '\n<!-- source: %s -->\n\n' "$url"
-    curl -fsSL "${url}.md"
-  } >> docs/vercel-ai-sdk-ui.txt
-done < "$tmpfile"
-
-grep -q 'useChat' docs/vercel-ai-sdk-ui.txt || { echo "ERROR: vercel-ai-sdk-ui.txt missing 'useChat' — upstream layout may have changed"; exit 1; }
-test "$(wc -c < docs/vercel-ai-sdk-ui.txt)" -gt 100000 || { echo "ERROR: vercel-ai-sdk-ui.txt unexpectedly small"; exit 1; }
+./scripts/check-vendored-skills.sh
 ```
+
+For each skill under **Changed since pin**, read the upstream commits and apply them to our copy: copy the upstream file when the skill has no local edits, hand-apply the change when `VENDORED.md` marks it `(customized)`. For each skill under **New upstream skills**, ask the user whether to vendor it. On yes, copy the skill directory into `.agents/skills/` and add it to the **Vendored** list; on no, add it to **Not vendored**. Either way it never shows as new again. Finish by setting `Upstream commit:` in `VENDORED.md` to the upstream head the script printed.
 
 ## Phase 5: Validate
 
@@ -129,47 +132,61 @@ uv run --directory backend pre-commit run --all-files
 `pre-commit` covers lint, format, and `mypy --strict`, but not behaviour. Run the unit suite too:
 
 ```bash
-uv run --directory backend pytest tests/unit -m "not eval"
+uv run --directory backend pytest
 ```
 
-If Postgres is up (`docker compose up -d`), also run the integration tier to match the CI gate:
+Then run the integration tier to match the CI gate. The script runs unit + integration on the host against an isolated `cortexdj_test` database, starting Postgres if needed and stopping it again if it started it:
 
 ```bash
-uv run --directory backend pytest tests/unit tests/integration -m "not eval"
+./backend/scripts/test-integration.sh
 ```
 
 ### Frontend
 
 ```bash
 pnpm -C frontend lint
+pnpm -C frontend typecheck
 ```
+
+Regenerate the API client too; it exports the schema from the checked-out backend, so no server is needed. Lint and `next build` never run the generator, so a generator break otherwise stays hidden until someone changes an endpoint:
+
+```bash
+pnpm -C frontend generate-client
+git diff --exit-code frontend/api/generated
+```
+
+A crash means the bump broke the generator; a non-empty diff means the bump changed the backend schema or the generator's output. Report which.
 
 Report any failures with full error output. Do NOT auto-fix — the user will decide how to address issues.
 
 ## Phase 6: Changelog Research
 
-For every direct dependency that changed version (listed in `pyproject.toml` or `package.json`, not transitive-only), fetch the GitHub releases page to review what changed between the old and new versions. Use WebFetch on `https://github.com/<owner>/<repo>/releases`.
+For every direct dependency that changed version (listed in `pyproject.toml` or `package.json`, not transitive-only), review what changed between the old and new versions on its GitHub releases page (`https://github.com/<owner>/<repo>/releases`). Skip any library that had no version change.
 
-Focus on releases between the old version (from Phase 2) and the new version. Extract:
+Hand the reading to two subagents run in parallel, one for the backend packages and one for the frontend, so the release notes stay out of this session's context. Give each its packages with old and new versions, and ask for the items that touch this codebase, with file paths:
 
 - New features and APIs
 - Breaking changes
 - Deprecations
 - New recommended patterns or best practices
 
-Skip any library that had no version change.
+What they return is leads; Phase 7 checks them against the code.
 
 ## Phase 7: Refactoring Report
 
 Cross-reference the changelog findings from Phase 6 with the actual codebase. Use Grep and Read to search for deprecated patterns, old API usage, or code that could benefit from newly available features.
 
-Present a structured report:
+Reproduce every claimed bug before it goes in the report: build, run the test, or inspect the generated output, and show the evidence. A changelog or subagent saying something is broken is a lead, not a finding.
+
+Size the report to the update. When every bump is patch or minor and nothing from Phase 6 touches the code, report only the version summary, the holds, and one line saying there is nothing to adopt. Otherwise present the full structured report:
 
 ### 1. Version Summary
 
 | Package | Old Version | New Version |
 |---------|-------------|-------------|
 | ... | ... | ... |
+
+Add a **Vendored skills** row: old pin, new pin, which skills changed, which were added.
 
 ### 2. Breaking Changes
 
@@ -203,13 +220,13 @@ git status --porcelain
 git diff --stat
 ```
 
-2. If `git status --porcelain` is empty, nothing was updated (deps already at latest, docs unchanged). Report this and skip the commit — do not create an empty commit.
+2. If `git status --porcelain` is empty, nothing was updated (deps already at latest). Report this and skip the commit — do not create an empty commit.
 
-3. Otherwise stage and commit everything that changed. The run is on its own `update-deps/<date>` branch with no auto-fixes (Phase 5 is report-only), so the only changes present are the dependency, lockfile, and documentation refreshes:
+3. Otherwise stage and commit everything that changed. The run is on its own `update-deps/<date>` branch with no auto-fixes (Phase 5 is report-only), so the only changes present are the dependency, lockfile, and pre-commit hook bumps, plus the unused and undeclared fixes from Phase 3:
 
 ```bash
 git add -A
 git commit -m "chore: bump all dependencies to latest versions"
 ```
 
-Do NOT automatically run code-reviewer or create-pr — those are manual follow-up steps.
+Then push and open the PR the way `AGENTS.md` (Pull requests) describes, and stop. A diff of version floors, lockfiles, and removed packages needs no review; say so.

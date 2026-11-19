@@ -23,25 +23,31 @@ import {
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ChatItem } from "./sidebar-history-item";
 
-type GroupedThreads = {
+const TITLE_POLL_WINDOW_MS = 60_000;
+const SKELETON_ROWS = [1, 2, 3, 4, 5];
+
+interface GroupedThreads {
+  lastMonth: ThreadSummary[];
+  lastWeek: ThreadSummary[];
+  older: ThreadSummary[];
   today: ThreadSummary[];
   yesterday: ThreadSummary[];
-  lastWeek: ThreadSummary[];
-  lastMonth: ThreadSummary[];
-  older: ThreadSummary[];
-};
+}
 
 const groupThreadsByDate = (threads: ThreadSummary[]): GroupedThreads => {
   const now = new Date();
   const oneWeekAgo = subWeeks(now, 1);
   const oneMonthAgo = subMonths(now, 1);
 
-  return threads.reduce(
+  return threads.reduce<GroupedThreads>(
     (groups, thread) => {
       const threadDate = new Date(thread.created_at);
 
@@ -60,12 +66,12 @@ const groupThreadsByDate = (threads: ThreadSummary[]): GroupedThreads => {
       return groups;
     },
     {
+      lastMonth: [],
+      lastWeek: [],
+      older: [],
       today: [],
       yesterday: [],
-      lastWeek: [],
-      lastMonth: [],
-      older: [],
-    } as GroupedThreads,
+    }
   );
 };
 
@@ -78,7 +84,6 @@ function ThreadGroup({
   onRename,
   onDelete,
   setOpenMobile,
-  isFirst,
 }: {
   label: string;
   threads: ThreadSummary[];
@@ -88,57 +93,83 @@ function ThreadGroup({
   onRename: (chatId: string, title: string) => void;
   onDelete: (chatId: string) => void;
   setOpenMobile: (open: boolean) => void;
-  isFirst: boolean;
 }) {
-  if (threads.length === 0) return null;
+  if (threads.length === 0) {
+    return null;
+  }
 
   return (
-    <>
-      <div
-        className={`px-2 py-1 text-sidebar-foreground/50 text-xs ${isFirst ? "" : "mt-4"}`}
-      >
-        {label}
-      </div>
-      {threads.map((thread) => (
-        <ChatItem
-          chat={{
-            id: thread.id,
-            title: thread.title ?? null,
-            createdAt: new Date(thread.created_at),
-          }}
-          isActive={thread.id === activeId}
-          isRenaming={renamingId === thread.id}
-          key={thread.id}
-          onCancelRename={() => setRenamingId(null)}
-          onDelete={onDelete}
-          onRename={onRename}
-          onStartRename={(chatId) => setRenamingId(chatId)}
-          setOpenMobile={setOpenMobile}
-        />
-      ))}
-    </>
+    <SidebarGroup>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {threads.map((thread) => (
+            <ChatItem
+              isActive={thread.thread_id === activeId}
+              isRenaming={renamingId === thread.thread_id}
+              key={thread.thread_id}
+              onCancelRename={() => setRenamingId(null)}
+              onDelete={onDelete}
+              onRename={onRename}
+              onStartRename={(chatId) => setRenamingId(chatId)}
+              setOpenMobile={setOpenMobile}
+              thread={thread}
+            />
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
 export function SidebarHistory() {
   const { setOpenMobile } = useSidebar();
   const pathname = usePathname();
-  const id = pathname?.startsWith("/chat/") ? pathname.split("/")[2] : null;
+  const id = pathname.startsWith("/chat/") ? pathname.split("/")[2] : null;
 
   const { data, isLoading, refetch } = useThreads();
-  const threads = data?.threads ?? [];
 
-  // Poll for title updates when any thread has a pending title
-  const hasPendingTitles = threads.some((t) => t.title === null);
+  // The backend titles a thread after its run completes, so poll briefly for
+  // untitled threads. Bound the wait: a run stopped before any output never
+  // gets a title, and polling until one arrives would never end.
+  const [now, setNow] = useState(() => Date.now());
+  const pendingUntil = Math.min(
+    Number.POSITIVE_INFINITY,
+    ...(data?.threads ?? [])
+      .filter((t) => t.title === null)
+      .map((t) => Date.parse(t.updated_at) + TITLE_POLL_WINDOW_MS)
+      .filter((deadline) => deadline > now)
+  );
   useEffect(() => {
-    if (!hasPendingTitles) {
+    if (!Number.isFinite(pendingUntil)) {
+      return;
+    }
+    const remaining = pendingUntil - Date.now();
+    if (remaining <= 0) {
+      // Data can arrive after its deadline while the display clock is stale.
+      setNow(Date.now());
       return;
     }
     const interval = setInterval(() => {
       refetch();
     }, 2000);
-    return () => clearInterval(interval);
-  }, [hasPendingTitles, refetch]);
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      setNow(Date.now());
+    }, remaining);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [pendingUntil, refetch]);
+
+  // Past the window, show a stale untitled thread as "Untitled" instead of a
+  // "Generating..." placeholder that will never resolve.
+  const threads = (data?.threads ?? []).map((t) =>
+    t.title === null && Date.parse(t.updated_at) + TITLE_POLL_WINDOW_MS <= now
+      ? { ...t, title: "Untitled" }
+      : t
+  );
 
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -150,9 +181,9 @@ export function SidebarHistory() {
   const handleRename = (chatId: string, title: string) => {
     setRenamingId(null);
     toast.promise(renameThread(chatId, title), {
+      error: "Failed to rename thread",
       loading: "Renaming thread...",
       success: "Thread renamed",
-      error: "Failed to rename thread",
     });
   };
 
@@ -167,6 +198,7 @@ export function SidebarHistory() {
     }
 
     toast.promise(deleteThread(threadToDelete), {
+      error: "Failed to delete thread",
       loading: "Deleting thread...",
       success: () => {
         if (isCurrentThread) {
@@ -176,34 +208,21 @@ export function SidebarHistory() {
 
         return "Thread deleted successfully";
       },
-      error: "Failed to delete thread",
     });
   };
 
   if (isLoading) {
     return (
       <SidebarGroup>
-        <div className="px-2 py-1 text-sidebar-foreground/50 text-xs">
-          Today
-        </div>
+        <SidebarGroupLabel>Today</SidebarGroupLabel>
         <SidebarGroupContent>
-          <div className="flex flex-col">
-            {[44, 32, 28, 64, 52].map((item) => (
-              <div
-                className="flex h-8 items-center gap-2 rounded-md px-2"
-                key={item}
-              >
-                <div
-                  className="h-4 max-w-(--skeleton-width) flex-1 rounded-md bg-sidebar-accent-foreground/10"
-                  style={
-                    {
-                      "--skeleton-width": `${item}%`,
-                    } as React.CSSProperties
-                  }
-                />
-              </div>
+          <SidebarMenu>
+            {SKELETON_ROWS.map((row) => (
+              <SidebarMenuItem key={row}>
+                <SidebarMenuSkeleton />
+              </SidebarMenuItem>
             ))}
-          </div>
+          </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
     );
@@ -213,7 +232,7 @@ export function SidebarHistory() {
     return (
       <SidebarGroup>
         <SidebarGroupContent>
-          <div className="px-2 py-2 text-center text-muted-foreground text-sm">
+          <div className="text-muted-foreground px-2 py-2 text-center text-sm">
             Your conversations will appear here
           </div>
         </SidebarGroupContent>
@@ -231,38 +250,24 @@ export function SidebarHistory() {
     { label: "Older", threads: grouped.older },
   ];
 
-  let isFirst = true;
-
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {groups.map((group) => {
-              if (group.threads.length === 0) return null;
-              const wasFirst = isFirst;
-              isFirst = false;
-              return (
-                <ThreadGroup
-                  activeId={id}
-                  isFirst={wasFirst}
-                  key={group.label}
-                  label={group.label}
-                  onDelete={(chatId) => {
-                    setDeleteId(chatId);
-                    setShowDeleteDialog(true);
-                  }}
-                  onRename={handleRename}
-                  renamingId={renamingId}
-                  setOpenMobile={setOpenMobile}
-                  setRenamingId={setRenamingId}
-                  threads={group.threads}
-                />
-              );
-            })}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {groups.map((group) => (
+        <ThreadGroup
+          activeId={id}
+          key={group.label}
+          label={group.label}
+          onDelete={(chatId) => {
+            setDeleteId(chatId);
+            setShowDeleteDialog(true);
+          }}
+          onRename={handleRename}
+          renamingId={renamingId}
+          setOpenMobile={setOpenMobile}
+          setRenamingId={setRenamingId}
+          threads={group.threads}
+        />
+      ))}
 
       <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
         <AlertDialogContent>

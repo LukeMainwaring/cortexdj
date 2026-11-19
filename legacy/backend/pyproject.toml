@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cortexdj"
+version = "0.1.0"
+description = "AI-powered EEG brain-wave classifier and Spotify playlist curator"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+  "alembic>=1.19.1",
+  "asyncpg>=0.31.0",
+  "braindecode>=1.7.0",
+  "fastapi[standard]>=0.141.1",
+  "httpx>=0.28.1",
+  "librosa>=1.0.0",
+  "logfire[fastapi,sqlalchemy]>=4.41.0",
+  "mne>=1.12.1",
+  "modal>=1.5.5",
+  "numpy>=2.5.2",
+  "openai>=3.6.0",
+  "pgvector>=0.5.0",
+  "psycopg[binary,pool]>=3.3.4",
+  "pydantic>=2.13.5",
+  "pydantic-ai>=2.35.3",
+  "pydantic-settings>=2.15.0",
+  "safetensors>=0.8.0",
+  "scipy>=1.18.1",
+  "spotipy>=2.26.0",
+  "sqlalchemy[asyncio,mypy]>=2.0.52",
+  "tensorboard>=2.21.0",
+  "torch>=2.13.0",
+  "transformers>=5.16.1",
+  "uvicorn>=0.52.4",
+]
+
+[dependency-groups]
+dev = [
+  "anyio>=4.14.2",
+  "mypy>=2.3.1",
+  "pre-commit>=4.6.2",
+  "pydantic-evals>=2.35.3",
+  "pytest>=9.1.1",
+  "pytest-cov>=7.1.0",
+  "ruff>=0.16.5",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: real-DB/HTTP tests; needs Postgres (CI service or `docker compose up -d postgres`)",
+    "eval: marks tests that call a real LLM (opt-in; run with `pytest -m eval`)",
+]
+# Default run = the fast, DB-free unit tier; `integration` and `eval` are
+# opt-in via -m. Test dirs are packages (an __init__.py each) so the same
+# basename can recur across tiers.
+addopts = "-m 'not eval and not integration'"
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["mne.*", "braindecode.*", "spotipy.*", "scipy.*", "librosa.*", "transformers.*", "pgvector.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["I", "F401", "UP"]
+
+[project.scripts]
+fetch-deap-audio = "cortexdj.scripts.fetch_deap_audio:main"
+seed-sessions = "cortexdj.scripts.seed_sessions:main"
+seed-track-index = "cortexdj.scripts.build_track_index:main"
+train-model = "cortexdj.ml.train:main"
+train-contrastive = "cortexdj.ml.contrastive_train:main"
+compare-models = "cortexdj.ml.train:compare_main"
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/cortexdj"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cortexdj"]

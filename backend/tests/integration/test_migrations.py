@@ -1,19 +1,17 @@
-"""Prove the shipped migrations round-trip cleanly (downgrade base → head).
-
-Safe only because the integration tier refuses to run against a database
-whose name doesn't end with "_test" (see conftest ``_require_test_db``).
-"""
+"""The shipped migration upgrades AND downgrades cleanly (round-trip)."""
 
 from alembic import command
 from alembic.config import Config
 
-from tests.integration.conftest import _ALEMBIC_INI
+from tests.integration.conftest import ALEMBIC_INI
 
 
-def test_migrations_round_trip(_migrated: None) -> None:
-    cfg = Config(_ALEMBIC_INI)
+def test_migration_downgrade_upgrade_round_trip() -> None:
+    # `downgrade base` DROPS ALL TABLES; safe because the whole integration tier refuses to run
+    # outside an isolated test database (see _require_test_db in conftest.py).
+    cfg = Config(ALEMBIC_INI)
     try:
         command.downgrade(cfg, "base")
-    finally:
-        # Leave the schema at head for the rest of the tier regardless of outcome.
         command.upgrade(cfg, "head")
+    finally:
+        command.upgrade(cfg, "head")  # leave schema present for the rest of the session

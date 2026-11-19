@@ -9,8 +9,8 @@ export function MessageContent({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 overflow-hidden rounded-lg px-4 py-3 text-foreground text-sm",
-        className,
+        "text-foreground flex flex-col gap-2 overflow-hidden rounded-lg px-4 py-3 text-sm",
+        className
       )}
       {...props}
     >

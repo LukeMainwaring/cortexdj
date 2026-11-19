@@ -1,19 +1,14 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-import spotipy
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from cortexdj.ml.predict import EEGModel
-
-if TYPE_CHECKING:
-    from cortexdj.schemas.thread import BrainContext
 
 
 @dataclass
 class AgentDeps:
+    """Per-run dependencies, reachable from tools as ``ctx.deps``.
+
+    The thread id is deliberately not here: the chat endpoint passes it as the
+    run's ``conversation_id``, so tools read it from ``ctx.conversation_id``.
+    """
+
     db: AsyncSession
-    eeg_model: EEGModel | None = None
-    spotify_client: spotipy.Spotify | None = None
-    thread_id: str | None = None
-    brain_context: BrainContext | None = None

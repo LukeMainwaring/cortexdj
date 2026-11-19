@@ -1,5 +1,0 @@
-interface:
-  display_name: "Update Dependencies (Auto)"
-  short_description: "Unattended dependency update to PR"
-policy:
-  allow_implicit_invocation: false

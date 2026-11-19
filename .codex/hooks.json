@@ -19,12 +19,12 @@
           {
             "type": "command",
             "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/frontend-lint.py\"",
-            "timeout": 90
+            "timeout": 30
           },
           {
             "type": "command",
             "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/backend-ruff.py\"",
-            "timeout": 90
+            "timeout": 15
           }
         ]
       }

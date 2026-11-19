@@ -1,18 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ChatMessage } from "@/lib/types";
+import { useCallback } from "react";
 import {
   deleteThreadMutation,
   getThreadMessagesOptions,
+  getThreadMessagesQueryKey,
   listThreadsOptions,
   listThreadsQueryKey,
   renameThreadMutation,
-} from "../generated/@tanstack/react-query.gen";
+} from "@/api/generated/@tanstack/react-query.gen";
+import type { ChatMessage } from "@/lib/types";
 
-// Ensure client is configured with baseURL
-import "../client";
+export const useThreads = () => useQuery(listThreadsOptions());
 
-export const useThreads = () => {
-  return useQuery(listThreadsOptions());
+// A finished turn changes the thread's messages and, through its title and
+// updated time, the thread list.
+export const useInvalidateThread = () => {
+  const queryClient = useQueryClient();
+  return useCallback(
+    (threadId: string) => {
+      queryClient.invalidateQueries({ queryKey: listThreadsQueryKey() });
+      queryClient.invalidateQueries({
+        queryKey: getThreadMessagesQueryKey({ path: { thread_id: threadId } }),
+      });
+    },
+    [queryClient]
+  );
 };
 
 export const useDeleteThread = () => {
@@ -24,9 +36,8 @@ export const useDeleteThread = () => {
     },
   });
 
-  const deleteThread = (threadId: string) => {
-    return mutationResult.mutateAsync({ path: { thread_id: threadId } });
-  };
+  const deleteThread = (threadId: string) =>
+    mutationResult.mutateAsync({ path: { thread_id: threadId } });
 
   return {
     deleteThread,
@@ -43,12 +54,11 @@ export const useRenameThread = () => {
     },
   });
 
-  const renameThread = (threadId: string, title: string) => {
-    return mutationResult.mutateAsync({
-      path: { thread_id: threadId },
+  const renameThread = (threadId: string, title: string) =>
+    mutationResult.mutateAsync({
       body: { title },
+      path: { thread_id: threadId },
     });
-  };
 
   return {
     renameThread,
@@ -59,23 +69,13 @@ export const useRenameThread = () => {
 export const useThreadMessages = (threadId: string) => {
   return useQuery({
     ...getThreadMessagesOptions({ path: { thread_id: threadId } }),
+    retry: (failureCount, error) => {
+      // A missing thread stays missing.
+      if (error?.response?.status === 404) {
+        return false;
+      }
+      return failureCount < 3;
+    },
     select: (data) => data.messages as unknown as ChatMessage[],
-    retry: (failureCount, error) => {
-      // Don't retry on 404 (thread doesn't exist yet)
-      if (error?.response?.status === 404) return false;
-      return failureCount < 3;
-    },
-  });
-};
-
-export const useThreadBrainContext = (threadId: string, enabled = true) => {
-  return useQuery({
-    ...getThreadMessagesOptions({ path: { thread_id: threadId } }),
-    enabled,
-    select: (data) => data.brain_context ?? null,
-    retry: (failureCount, error) => {
-      if (error?.response?.status === 404) return false;
-      return failureCount < 3;
-    },
   });
 };

@@ -1,42 +1,40 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { memo } from "react";
-import { useWindowSize } from "usehooks-ts";
-import type { BrainContext } from "@/api/generated/types.gen";
-import { BrainContextBadge } from "@/components/brain-context-badge";
-import { PlusIcon } from "@/components/icons";
-import { SidebarToggle } from "@/components/sidebar-toggle";
 import { Button } from "@/components/ui/button";
-import { useSidebar } from "./ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useStartNewChat } from "@/hooks/use-start-new-chat";
 
-function PureChatHeader({
-  brainContext,
-}: {
-  brainContext?: BrainContext | null;
-}) {
-  const router = useRouter();
-  const { open } = useSidebar();
-  const { width: windowWidth } = useWindowSize();
+function PureChatHeader() {
+  const { open, isMobile } = useSidebar();
+  const startNewChat = useStartNewChat();
 
   return (
-    <header className="sticky top-0 flex items-center gap-2 bg-background px-2 py-1.5 md:px-2">
-      <SidebarToggle />
+    <header className="bg-background sticky top-0 flex items-center gap-2 px-2 py-1.5 md:px-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SidebarTrigger className="size-8" variant="outline" />
+        </TooltipTrigger>
+        <TooltipContent align="start" className="hidden md:block">
+          Toggle Sidebar
+        </TooltipContent>
+      </Tooltip>
 
-      <div className="order-1 min-w-0 flex-1">
-        <BrainContextBadge brainContext={brainContext} />
-      </div>
+      <div className="order-1 min-w-0 flex-1" />
 
-      {(!open || windowWidth < 768) && (
+      {(!open || isMobile) && (
         <Button
           className="order-2 ml-auto h-8 px-2 md:order-1 md:ml-0 md:h-fit md:px-2"
-          onClick={() => {
-            router.push("/");
-            router.refresh();
-          }}
+          onClick={startNewChat}
           variant="outline"
         >
-          <PlusIcon />
+          <Plus />
           <span className="md:sr-only">New Chat</span>
         </Button>
       )}

@@ -2,12 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useScrollToBottom() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const isAtBottomRef = useRef(true);
   const isUserScrollingRef = useRef(false);
 
-  // Keep ref in sync with state
   useEffect(() => {
     isAtBottomRef.current = isAtBottom;
   }, [isAtBottom]);
@@ -17,6 +15,8 @@ export function useScrollToBottom() {
       return true;
     }
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    // Within 100px counts as "at bottom", so a streaming reply that has just
+    // grown past the viewport keeps auto-scrolling instead of stranding the reader.
     return scrollTop + clientHeight >= scrollHeight - 100;
   }, []);
 
@@ -25,12 +25,11 @@ export function useScrollToBottom() {
       return;
     }
     containerRef.current.scrollTo({
-      top: containerRef.current.scrollHeight,
       behavior,
+      top: containerRef.current.scrollHeight,
     });
   }, []);
 
-  // Handle user scroll events
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -47,6 +46,8 @@ export function useScrollToBottom() {
       setIsAtBottom(atBottom);
       isAtBottomRef.current = atBottom;
 
+      // Treat the user as still scrolling for 150ms after the last scroll
+      // event, so auto-scroll does not fight a wheel or trackpad gesture.
       scrollTimeout = setTimeout(() => {
         isUserScrollingRef.current = false;
       }, 150);
@@ -59,7 +60,6 @@ export function useScrollToBottom() {
     };
   }, [checkIfAtBottom]);
 
-  // Auto-scroll when content changes
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -70,8 +70,8 @@ export function useScrollToBottom() {
       if (isAtBottomRef.current && !isUserScrollingRef.current) {
         requestAnimationFrame(() => {
           container.scrollTo({
-            top: container.scrollHeight,
             behavior: "instant",
+            top: container.scrollHeight,
           });
           setIsAtBottom(true);
           isAtBottomRef.current = true;
@@ -81,9 +81,9 @@ export function useScrollToBottom() {
 
     const mutationObserver = new MutationObserver(scrollIfNeeded);
     mutationObserver.observe(container, {
+      characterData: true,
       childList: true,
       subtree: true,
-      characterData: true,
     });
 
     const resizeObserver = new ResizeObserver(scrollIfNeeded);
@@ -101,7 +101,6 @@ export function useScrollToBottom() {
 
   return {
     containerRef,
-    endRef,
     isAtBottom,
     scrollToBottom,
   };

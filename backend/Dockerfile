@@ -10,9 +10,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:3.14-slim-bookworm AS app
 
-# Install system dependencies for MNE/scipy
-RUN apt-get update && apt-get install -y --no-install-recommends libhdf5-dev libgomp1 && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 # Copy the venv
@@ -25,7 +22,6 @@ ENV PYTHONPATH="/app/src"
 FROM app AS local
 
 # src/ comes from a bind mount in docker-compose.yml
-COPY tests/ /app/tests/
 
 # Run the app
 CMD ["./scripts/run_local.sh"]

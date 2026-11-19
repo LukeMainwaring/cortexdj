@@ -7,26 +7,25 @@ import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  description: "An AI chatbot scaffold",
   title: "CortexDJ",
-  description:
-    "AI-powered EEG brain-wave classifier and Spotify playlist curator",
 };
 
 const fontSans = Inter({
-  subsets: ["latin"],
   display: "swap",
+  subsets: ["latin"],
   variable: "--font-sans",
 });
 
 const fontSerif = Playfair_Display({
-  subsets: ["latin"],
   display: "swap",
+  subsets: ["latin"],
   variable: "--font-serif",
 });
 
 const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
   display: "swap",
+  subsets: ["latin"],
   variable: "--font-mono",
 });
 

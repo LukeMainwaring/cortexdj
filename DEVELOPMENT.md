@@ -1,197 +1,191 @@
 # Development
 
-## Tools
-
-This project uses:
-
-- **[uv]** - Fast Python package installer and resolver
-- **[Docker]** - Container platform for local development
-- **[Ruff]** - Fast Python linter and formatter
-- **[mypy]** - Static type checker
-- **[pre-commit]** - Git hook framework
-
-[uv]: https://docs.astral.sh/uv/
-[Docker]: https://docs.docker.com/get-docker/
-[Ruff]: https://github.com/astral-sh/ruff
-[mypy]: https://mypy-lang.org/
-[pre-commit]: https://pre-commit.com/
+All commands run from the repo root. `uv` takes `--directory backend`; `pnpm` takes `-C frontend`.
 
 ## Setup
 
-Install dependencies:
-
 ```bash
 uv sync --directory backend
-```
-
-Install pre-commit hooks:
-
-```bash
 uv run --directory backend pre-commit install
+
+cp .env.sample .env            # set OPENAI_API_KEY and/or ANTHROPIC_API_KEY
+
+docker compose up -d           # PostgreSQL (pgvector) and the backend on :8003
+./backend/scripts/migrate-docker.sh
+
+pnpm -C frontend install
+pnpm -C frontend generate-client
+pnpm -C frontend dev           # http://localhost:3003
 ```
 
-Link the coding-agent skills shipped by Pydantic AI, Logfire, and FastAPI into
-`.agents/skills/`. These tracked symlinks point into `backend/.venv`, so they are
-dangling on a fresh clone until dependencies are installed. Re-run this command
-after changing the Python minor version:
+The frontend needs Node 26 or newer (`engines.node` in `frontend/package.json`, enforced by
+`engineStrict` in `frontend/pnpm-workspace.yaml`); CI runs 26. `packageManager` pins pnpm, and
+pnpm switches to that version on its own.
+
+The coding-agent skills that Pydantic AI, Logfire, and FastAPI ship inside their wheels are
+symlinked into `.agents/skills/` from `backend/.venv`, which is not in git. A fresh clone has
+three dangling links until you run this, and the link path carries the Python minor version,
+so re-run it after a Python bump:
 
 ```bash
 UV_PROJECT_ENVIRONMENT=backend/.venv uvx library-skills --no-tool-skill install -y \
   -s building-pydantic-ai-agents -s logfire-instrumentation -s fastapi
 ```
 
-### Spotify app (optional)
+## Checks and tests
 
-Playlist and library tools stay hidden unless Spotify is connected. To enable them:
+Tests live under `backend/tests/` in three tiers that mirror the source slices. A tier is a
+directory: name the directory to run it.
 
-1. Create an app at https://developer.spotify.com/dashboard
-2. Add redirect URI `http://127.0.0.1:8003/api/spotify/callback`
-3. Copy the client ID + secret into `.env` (`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`)
-4. Run the app, then click **Settings → Spotify → Connect** in the UI to authorize
-
-## Pre-commit hooks
-
-```bash
-uv run --directory backend pre-commit run --all-files
-```
-
-## Tests
-
-The suite has three tiers under `backend/tests/`:
-
-- **`unit/<area>/`** — fast, DB-free, provider-free. This is the default `pytest` run.
-- **`integration/`** — real Postgres + HTTP (`httpx` against the app). Schema comes from the shipped Alembic migrations; each test rolls back an outer transaction, so tests never pollute each other. Opt-in via `-m integration`.
-- **`evals/`** — real-LLM `brain_agent` evals. Opt-in via `-m eval`; use as a nightly safety net on `main` or manual spot-checks, not on every PR. See `.claude/rules/backend/pydantic-ai.md`.
+- **`unit/`**: fast, no database, no provider. A bare `pytest` runs only these.
+- **`integration/`**: real Postgres and HTTP (httpx `AsyncClient`), one transaction per test
+  rolled back. It refuses to run unless `POSTGRES_DB` contains `test`, because it applies the
+  shipped migrations and one test downgrades to base, and it fails rather than skips when the
+  database is missing, so a green run means the tests ran.
+- **`evals/`**: real-model agent evals. See below; they cost money.
 
 ```bash
-uv run --directory backend pytest              # unit tier (integration + eval excluded)
-uv run --directory backend pytest -v           # verbose output
-uv run --directory backend pytest tests/unit/ml/test_preprocessing.py  # single file
-uv run --directory backend pytest -m eval      # real-model brain_agent eval suite (opt-in)
+uv run --directory backend pytest                                  # unit tier
+uv run --directory backend pytest tests/unit/core/test_config.py   # one file
+uv run --directory backend mypy src tests                          # strict
+./backend/scripts/test-integration.sh                              # unit + integration
+./backend/scripts/test-integration.sh tests/integration/features/chat -x   # extra args go to pytest
+uv run --directory backend pre-commit run --all-files              # ruff, format, mypy, import-linter
 ```
 
-To run the integration tier locally, create the test database once, then point `POSTGRES_DB` at it (the env var overrides the `.env` value; host/port still come from `.env`):
+`test-integration.sh` runs pytest on the host against the `postgres` container: it starts
+the container if it is not running, creates the `cortexdj_test` database if it is
+missing, and stops the container again on exit only if it started it. If another Postgres
+holds port 5433 it says so and stops. Tests never read the repo-root `.env`
+(`tests/conftest.py` turns it off and blocks real model requests), so a run behaves the same
+on every machine and never spends provider credit.
+
+## Evals
+
+`./backend/scripts/run-evals.sh` manages Postgres like `test-integration.sh`, migrates the
+test database, and runs `pytest -s tests/evals` with the provider keys from `.env`. The
+shipped cases reach no database-backed tool, so the migrate step is there for the evals you
+add; seed what those need in the script after it.
+
+The tier has three uses, and each one runs the same files at a different repeat count:
+
+- **Golden set** (`test_golden_set.py`): hand-written good and bad replies run through the
+  judges with no agent. A real test: it fails if a judge grades a reply the wrong way. Run it
+  after changing a rubric in `tests/evals/judges.py` or `EVAL_JUDGE_MODEL`. Once; its labels
+  are fixed, so a repeat only measures judge noise.
+- **Agent cases** (`test_assistant_eval.py`, cases in `assistant_dataset.py`): the registered
+  assistant on a real model. A measurement, not a gate: it prints a report and fails only if a
+  case could not run or be scored. Each run's tool calls print below the report. The default of
+  3 runs per case is for reading while working on a prompt; a pass rate from a handful of runs
+  is a rough number.
+- **Baseline runs**: the same agent cases at `EVAL_REPEAT=5` or more, run before and after a
+  deliberate prompt or model change, and recorded as a dated section in
+  `docs/evals/baseline.md`. More runs of the same cases narrow the run-to-run spread, which is
+  what a before-and-after on a fixed set compares. They say nothing about questions the set
+  does not contain; only more cases do that.
 
 ```bash
-./backend/scripts/create-test-db.sh
-POSTGRES_DB=cortexdj_test uv run --directory backend pytest -m integration
+./backend/scripts/run-evals.sh                                   # everything, each agent case three times
+./backend/scripts/run-evals.sh tests/evals/test_golden_set.py    # judges only
+EVAL_REPEAT=1 EVAL_CASES=friendly_greeting ./backend/scripts/run-evals.sh tests/evals/test_assistant_eval.py
+EVAL_REPEAT=5 ./backend/scripts/run-evals.sh tests/evals/test_assistant_eval.py   # a baseline run
 ```
 
-The tier refuses to run unless the database name ends with `_test`, because it runs `alembic upgrade`/`downgrade` against whatever database the env points at. Shared test-data builders live in `backend/tests/factories.py` (`make_*` = unpersisted, `create_*` = persisted via flush).
+`EVAL_REPEAT` is how many times each agent case runs (default 3); `EVAL_CASES` is a
+comma-separated list of case names. Judges run on `EVAL_JUDGE_MODEL`, pinned and independent
+of `AGENT_MODEL`, and a tier above the agents' default
+(`docs/adr/0004-eval-judges-a-tier-above-the-agents.md`). The shipped cases cost cents a run;
+every case and repeat you add scales that, the agents more than the judges. With
+`LOGFIRE_TOKEN` set, a run is exported to Logfire under environment `eval`.
+
+The same steps run from the Actions tab (`.github/workflows/eval.yml`) once the provider
+keys are repository secrets. Do not run eval and integration jobs against the test database
+at the same time. See `.agents/rules/backend/pydantic-ai.md` for the agent rules.
+
+## Observability (Logfire)
+
+`setup_observability(app)` in `backend/src/cortexdj/core/observability.py` instruments
+FastAPI, SQLAlchemy, and Pydantic AI. Without a token, spans print to the terminal and nothing
+leaves the process; `LOGFIRE_CONSOLE=false` silences that. To export, put a write token in
+`.env` (`LOGFIRE_TOKEN=...`, from logfire.pydantic.dev → project → Settings → Write tokens) and
+recreate the backend (`docker compose up -d backend`; a plain `restart` keeps the old
+environment); the startup log says whether traces are exported. ADR 0003 says why there
+are no custom spans: the facts a trace should be searchable by ride on the agent run as
+metadata, and the instrumentors record the rest.
+
+**Which agent ran this turn, and what did it do?** In Live, filter on
+`attributes->>'gen_ai.conversation.id' = '<thread id>'` (the thread id is in the browser's
+URL) and open the `invoke_agent <agent>` span: the agent is in its name, `metadata` holds
+whatever an instance's `AgentDeps` records, and its children are the model requests and tool
+calls, with the request's SQL alongside.
+
+**This eval case failed; show me the run.** Run one case with `LOGFIRE_TOKEN` set:
+
+```bash
+EVAL_REPEAT=1 EVAL_CASES=friendly_greeting ./backend/scripts/run-evals.sh tests/evals/test_assistant_eval.py
+```
+
+Open Experiments, pick the run (its metadata names the agent model, provider, and reasoning
+effort, the judge model, and the git sha), and open the failed case: its trace holds that run's
+`invoke_agent` span.
 
 ## Database migrations
 
 ```bash
-# Create a new migration
-./backend/scripts/create-db-revision-docker.sh "<migration_message>"
-
-# Apply all pending migrations
-./backend/scripts/migrate-docker.sh
-
-# Roll back one migration
-./backend/scripts/downgrade-db-revision-docker.sh
+./backend/scripts/create-db-revision-docker.sh "<migration_message>"   # autogenerate against the dev DB
+./backend/scripts/migrate-docker.sh                                     # upgrade head
+./backend/scripts/downgrade-db-revision-docker.sh                       # one step back
 ```
 
-## API Client Generation
+The template ships one initial migration and edits it in place while the schema is still the
+scaffold's, instead of stacking revisions on an example. A database created before such an edit
+has `upgrade head` as a no-op and the old columns: reset it with `docker compose down -v` (the dev
+database) or by dropping and recreating `cortexdj_test` (the test database). Once a real
+instance has data, add revisions instead.
 
-After modifying backend API endpoints:
+Review an autogenerated revision before applying it (pgvector's `CREATE EXTENSION`, the
+HNSW index options, and named constraints are the things it gets wrong). Never downgrade
+without a reason.
+
+Shapes the first real revisions tend to need: a fixed set of kinds is a string column with a
+non-native `Enum` (`native_enum=False`), so a new kind is a code change, not a type migration;
+a NOT NULL column on a populated table is added with a `server_default` to backfill and the
+default dropped in the same revision; and the module docstring names the ADR the change
+serves and what a downgrade loses.
+
+## API client
 
 ```bash
-# Ensure backend is running
-docker compose up -d
-
-# Regenerate client
-pnpm -C frontend generate-client
+pnpm -C frontend generate-client   # exports the OpenAPI schema from the checked-out backend, no server needed
+pnpm -C frontend typecheck         # tsc, including the generated client's consumers
 ```
 
-## ML Development
+The output lands in `frontend/api/generated/` and is never hand-edited (a PreToolUse hook
+blocks it). Generation exports OpenAPI with `uv` and its frozen lockfile: no running backend,
+database, `.env`, or provider keys; the exporter supplies build-time settings and does not run
+startup hooks. Health and the streaming chat route are filtered out: chat goes through the AI
+SDK transport. The generated REST client initializes through `frontend/api/client.ts`, so
+consumers do not need side-effect imports.
 
-### DEAP Dataset
+Regenerate when upgrading `@hey-api/openapi-ts`. `typescript` is held on the TypeScript 6
+package (`npm:@typescript/typescript6`), so `typecheck` runs `tsc6`, because openapi-ts uses
+a compiler API TypeScript 7 removed. Lift the hold when an openapi-ts release runs on
+TypeScript 7 (check the release notes of any version newer than the one locked;
+`npm view @hey-api/openapi-ts version` gives the newest): alias `typescript` back to the plain
+package, switch `typecheck` to `tsc`, and delete this sentence.
 
-See [backend/data/DEAP_SETUP.md](backend/data/DEAP_SETUP.md) for download instructions. Place `.dat` files in `backend/data/deap/`.
+CI regenerates the client and fails on drift. Formatting is separate (`pnpm -C frontend
+format`), so generation does not rewrite unrelated frontend files.
 
-### Model Training
+## CI and review
 
-For demoing CortexDJ, skip training entirely — run `./backend/scripts/download-checkpoints.sh` to pull the shipped checkpoints from GitHub Releases into `backend/data/checkpoints/`. The commands below retrain from scratch on DEAP; they're only needed when modifying the ML pipeline.
+`.github/workflows/ci.yml` runs lint, mypy, the unit and integration tiers against a pgvector
+Postgres service with a coverage floor (`--cov-fail-under=75`, baseline ~80%; ratchet it up
+as coverage grows), the client-generation drift check, and frontend lint and typecheck on
+every PR. The eval tier runs manually from the Actions tab (`eval.yml`) with provider secrets.
 
-Three trainable models live side by side: the quadrant classifier (EEGNet or CBraMod backbone) and the contrastive EEG↔CLAP encoder.
-
-```bash
-# Classifier (arousal/valence quadrant prediction) — CBraMod by default
-uv run --directory backend train-model                    # full LOSO (50 epochs, 32 folds)
-uv run --directory backend train-model --quick            # 10 epochs, 3 folds
-uv run --directory backend train-model --model eegnet     # lightweight backend
-uv run --directory backend compare-models                 # side-by-side eval
-
-# Contrastive EEG↔CLAP encoder
-uv run --directory backend fetch-deap-audio               # one-time: resolve DEAP stimuli → iTunes m4a
-uv run --directory backend train-contrastive              # full run
-uv run --directory backend train-contrastive --quick      # 5-epoch smoke test
-uv run --directory backend tensorboard --logdir backend/data/tensorboard_runs
-```
-
-Checkpoints land in `backend/data/checkpoints/` (gitignored). CBraMod is the runtime default; set `EEG_MODEL_BACKEND=eegnet` in `.env` to use the lightweight model. The contrastive checkpoint is loaded lazily on the first retrieval request.
-
-Label binarization strategies are selectable via `--label-split`; defaults to `median_per_subject` for balanced per-fold labels. Run `uv run --directory backend train-model --help` for the full option set.
-
-### GPU Training (Modal, optional)
-
-Skip this if you downloaded the shipped checkpoints. Full LOSO with CBraMod is 12+ h on Apple Silicon; Modal runs it in ~1 h on A10G (~$1-2).
-
-```bash
-# One-time setup — auth + DEAP volume seed
-modal setup
-modal volume create cortexdj-deap
-caffeinate -dim bash -c 'for f in backend/data/deap/s*.dat; do
-  modal volume put cortexdj-deap "$f" "/$(basename "$f")"
-done'
-
-# Training runs (wrap long runs in caffeinate to keep the client connected)
-caffeinate -dim modal run backend/scripts/modal_train.py                          # classifier, full LOSO
-modal run backend/scripts/modal_train.py --args="--quick"                         # quick test
-modal run backend/scripts/modal_train.py --args="--model eegnet"                  # EEGNet instead
-modal run backend/scripts/modal_train.py --command compare-models                 # compare both
-caffeinate -dim modal run backend/scripts/modal_train.py --command train-contrastive
-```
-
-Fold-level progress persists on the `cortexdj-deap` volume, so preempted runs auto-resume at the last completed fold (`--args="--no-resume"` to start clean). Checkpoints download to `backend/data/checkpoints/` when the run completes.
-
-### Autoresearch (autonomous EEGNet iteration)
-
-A [Karpathy-style](https://github.com/karpathy/autoresearch) overnight experiment loop for the quadrant classifier — an AI coding agent modifies a single training file, runs a 15-minute experiment on Modal, reads the resulting `avg_macro_f1`, and decides keep-or-revert. Targets the EEGNet pipeline on a fixed 28/4 DEAP subject split.
-
-```bash
-# Run one experiment manually (~30 min end-to-end: ~15 min cold-start + 15 min training)
-uv run --directory backend python scripts/run_autoresearch.py
-# or equivalently:
-modal run backend/scripts/modal_autoresearch.py
-
-# Local dry-run on CPU — no Modal, short budget — for sanity-checking train.py edits
-WALL_CLOCK_BUDGET_SECONDS=30 AUTORESEARCH_RUN_DIR=/tmp/ar_local \
-  uv run --directory backend python -m autoresearch.train
-```
-
-To run the agent loop: `/autoresearch 10` in a Claude Code session stages a batch and prints a `/goal` line; run that line and the session iterates — hypothesis, edit `train.py`, experiment, keep-or-revert — until 10 new rows land in `experiments/experiments.jsonl` (Codex: same condition via its `/goal`). Nothing runs until the goal is set. Overnight (8h) budgets roughly 12–16 experiments.
-
-Results land in `backend/autoresearch/experiments/` (gitignored): one JSONL row per run, a `best.json` pointer to the current champion, and per-run artifacts (`train.py` snapshot, `stdout.log`, `metrics.json`). See `backend/autoresearch/README.md` for the full workflow, the four contracts the agent must preserve, and design rationale.
-
-### Database Seeding
-
-```bash
-# Seed the `sessions` and `eeg_segments` tables from DEAP .dat files
-uv run --directory backend seed-sessions                          # all 32 DEAP participants
-uv run --directory backend seed-sessions --participants 1 2 3     # specific participants
-uv run --directory backend seed-sessions --model eegnet           # use EEGNet checkpoint
-
-# Seed the `track_audio_embeddings` pgvector index for EEG↔CLAP retrieval.
-# Pool = (user Spotify saved tracks) ∪ (12 genre-seed searches). Requires Spotify OAuth.
-uv run --directory backend seed-track-index                       # default pool size
-uv run --directory backend seed-track-index --limit 500           # smaller pool for dev
-uv run --directory backend seed-track-index --skip-library        # genre seeds only (no OAuth)
-```
-
-One-off verification scripts live under `backend/scripts/` with usage in their own docstrings.
-
-## Continuous Integration
-
-Lint, type-check, and frontend-lint run on every PR — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Review a branch with `/review-changes` (Claude Code) or `$review-changes` (Codex): the
+harness's built-in review over `main...HEAD` plus the review checks in [`REVIEW.md`](REVIEW.md), with
+an optional second opinion from the other CLI (`solo` skips that; `cross-model` skips the
+question). Pass a spec path to also check the diff against what was asked for. For
+uncommitted work, use the built-ins directly: `/code-review` or `codex review --uncommitted`.

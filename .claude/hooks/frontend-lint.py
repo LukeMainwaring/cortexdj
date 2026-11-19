@@ -5,10 +5,15 @@ Mirrors the AGENTS.md "run lint after frontend changes" instruction. Does not
 modify files -- on lint errors it exits 2 so the agent sees them and fixes
 them (optionally via `pnpm -C frontend format`). No-op for non-frontend or
 generated files so it's cheap on every edit.
+
+Serves both harnesses: Claude Code sends `tool_input.file_path`; Codex's
+`apply_patch` sends the raw patch in `tool_input.command`, so the touched
+paths are read from its `*** ... File:` headers (one patch may touch several).
 """
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -18,6 +23,31 @@ SKIP = (
     "frontend/.next/",
 )
 EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".css")
+PATCH_HEADER = re.compile(r"^\*\*\* (?:Add|Update) File: (.+?)\s*$|^\*\*\* Move to: (.+?)\s*$", re.M)
+
+
+def touched_paths(tool_input: dict) -> list[str]:
+    """Paths an edit touches, from either harness's payload shape."""
+    direct = tool_input.get("file_path")
+    if direct:
+        return [direct]
+    patch = tool_input.get("command")
+    if not isinstance(patch, str) or "*** Begin Patch" not in patch:
+        return []
+    return [a or b for a, b in PATCH_HEADER.findall(patch)]
+
+
+def lint_one(rel_in_frontend: str, project_dir: str) -> str | None:
+    """Run ultracite on one file; return its output if it found issues."""
+    proc = subprocess.run(  # noqa: S603
+        ["pnpm", "-C", "frontend", "exec", "ultracite", "check", rel_in_frontend],
+        capture_output=True,
+        text=True,
+        cwd=project_dir,
+    )
+    if proc.returncode != 0:
+        return (proc.stdout + "\n" + proc.stderr).strip()
+    return None
 
 
 def main() -> int:
@@ -26,31 +56,24 @@ def main() -> int:
     except (json.JSONDecodeError, ValueError):
         return 0
 
-    file_path = (data.get("tool_input") or {}).get("file_path")
-    if not file_path:
-        return 0
-
     project_dir = data.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
-    norm = os.path.abspath(os.path.join(project_dir, file_path)).replace(os.sep, "/")
+    failures: list[str] = []
+    for file_path in touched_paths(data.get("tool_input") or {}):
+        norm = os.path.abspath(os.path.join(project_dir, file_path)).replace(os.sep, "/")
+        # legacy/ is the parked pre-port source: excluded from every check until it is ported.
+        if "/frontend/" not in norm or "/legacy/" in norm or not norm.endswith(EXTS) or not os.path.exists(norm):
+            continue
+        rel_in_frontend = norm.split("/frontend/", 1)[1]
+        if any(("frontend/" + rel_in_frontend).startswith(s) for s in SKIP):
+            continue
+        out = lint_one(rel_in_frontend, project_dir)
+        if out is not None:
+            failures.append(f"ultracite found issues in frontend/{rel_in_frontend}:\n\n{out}")
 
-    if "/frontend/" not in norm or not norm.endswith(EXTS):
-        return 0
-    rel_in_frontend = norm.split("/frontend/", 1)[1]
-    if any(("frontend/" + rel_in_frontend).startswith(s) for s in SKIP):
-        return 0
-
-    proc = subprocess.run(  # noqa: S603
-        ["pnpm", "-C", "frontend", "exec", "ultracite", "check", rel_in_frontend],
-        capture_output=True,
-        text=True,
-        cwd=project_dir,
-    )
-    if proc.returncode != 0:
-        out = (proc.stdout + "\n" + proc.stderr).strip()
+    if failures:
         print(
-            f"ultracite found issues in frontend/{rel_in_frontend}. Fix them "
-            "(or run `pnpm -C frontend format` for auto-fixable ones), then "
-            f"continue.\n\n{out}",
+            "\n\n".join(failures)
+            + "\n\nFix them (or run `pnpm -C frontend format` for auto-fixable ones), then continue.",
             file=sys.stderr,
         )
         return 2

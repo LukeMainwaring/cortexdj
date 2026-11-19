@@ -12,5 +12,7 @@ export default function Page() {
     return <div className="flex h-dvh" />;
   }
 
-  return <Chat id={id} initialMessages={initialMessages ?? []} />;
+  // Keyed so switching threads mounts a fresh chat: its turn refs and scroll
+  // position belong to one thread.
+  return <Chat id={id} initialMessages={initialMessages ?? []} key={id} />;
 }

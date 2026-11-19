@@ -1,7 +1,5 @@
 "use client";
 
-import "@/api/client"; // Side-effect: configures API client baseURL
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -14,7 +12,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             staleTime: 60 * 1000,
           },
         },
-      }),
+      })
   );
 
   return (

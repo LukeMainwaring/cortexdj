@@ -5,28 +5,6 @@ export type ClientOptions = {
 };
 
 /**
- * BrainContext
- */
-export type BrainContext = {
-    /**
-     * Latest Session Id
-     */
-    latest_session_id?: string | null;
-    /**
-     * Dominant Mood
-     */
-    dominant_mood?: string | null;
-    /**
-     * Avg Arousal
-     */
-    avg_arousal?: number | null;
-    /**
-     * Avg Valence
-     */
-    avg_valence?: number | null;
-};
-
-/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -37,274 +15,57 @@ export type HttpValidationError = {
 };
 
 /**
- * HealthCheckResponse
+ * NoteCreate
  */
-export type HealthCheckResponse = {
-    /**
-     * Status
-     */
-    status: string;
-};
-
-/**
- * SegmentListResponse
- */
-export type SegmentListResponse = {
-    /**
-     * Segments
-     */
-    segments: Array<SegmentSchema>;
-    /**
-     * Total
-     */
-    total: number;
-    trajectory_summary?: TrajectorySummary | null;
-};
-
-/**
- * SegmentSchema
- */
-export type SegmentSchema = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Session Id
-     */
-    session_id: string;
-    /**
-     * Segment Index
-     */
-    segment_index: number;
-    /**
-     * Start Time
-     */
-    start_time: number;
-    /**
-     * End Time
-     */
-    end_time: number;
-    /**
-     * Arousal Score
-     */
-    arousal_score: number;
-    /**
-     * Valence Score
-     */
-    valence_score: number;
-    /**
-     * Dominant State
-     */
-    dominant_state: string;
-    /**
-     * Band Powers
-     */
-    band_powers: {
-        [key: string]: number;
-    };
-    /**
-     * Features
-     */
-    features?: {
-        [key: string]: unknown;
-    } | null;
-    /**
-     * Created At
-     */
-    created_at: string;
-};
-
-/**
- * SessionListResponse
- */
-export type SessionListResponse = {
-    /**
-     * Sessions
-     */
-    sessions: Array<SessionSchema>;
-    /**
-     * Total
-     */
-    total: number;
-};
-
-/**
- * SessionSchema
- */
-export type SessionSchema = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Participant Id
-     */
-    participant_id: string;
-    /**
-     * Dataset Source
-     */
-    dataset_source: string;
-    /**
-     * Recorded At
-     */
-    recorded_at: string;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Metadata Extra
-     */
-    metadata_extra?: {
-        [key: string]: unknown;
-    } | null;
-    /**
-     * Created At
-     */
-    created_at: string;
-};
-
-/**
- * SessionSummaryListResponse
- */
-export type SessionSummaryListResponse = {
-    /**
-     * Sessions
-     */
-    sessions: Array<SessionSummarySchema>;
-    /**
-     * Total
-     */
-    total: number;
-};
-
-/**
- * SessionSummarySchema
- */
-export type SessionSummarySchema = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Display Index
-     */
-    display_index: number;
-    /**
-     * Label
-     */
-    label: string;
-    /**
-     * Dominant State
-     */
-    dominant_state: string;
-    /**
-     * State Distribution
-     */
-    state_distribution: {
-        [key: string]: number;
-    };
-    /**
-     * Segment Count
-     */
-    segment_count: number;
-    /**
-     * Track Count
-     */
-    track_count: number;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Avg Arousal
-     */
-    avg_arousal: number;
-    /**
-     * Avg Valence
-     */
-    avg_valence: number;
-};
-
-/**
- * SimilarTrackSchema
- */
-export type SimilarTrackSchema = {
-    /**
-     * Spotify Id
-     */
-    spotify_id: string;
+export type NoteCreate = {
     /**
      * Title
      */
     title: string;
     /**
-     * Artist
+     * Content
      */
-    artist: string;
-    /**
-     * Itunes Preview Url
-     */
-    itunes_preview_url?: string | null;
-    /**
-     * Audio Cache Key
-     */
-    audio_cache_key?: string | null;
-    /**
-     * Similarity
-     */
-    similarity: number;
+    content: string;
 };
 
 /**
- * SimilarTracksResponse
+ * NoteListResponse
  */
-export type SimilarTracksResponse = {
+export type NoteListResponse = {
     /**
-     * Session Id
+     * Notes
      */
-    session_id: string;
+    notes: Array<NoteSchema>;
     /**
-     * Tracks
+     * Total
      */
-    tracks: Array<SimilarTrackSchema>;
-    /**
-     * K
-     */
-    k: number;
+    total: number;
 };
 
 /**
- * SmoothedPoint
+ * NoteSchema
  */
-export type SmoothedPoint = {
+export type NoteSchema = {
     /**
-     * Start Time
+     * Id
      */
-    start_time: number;
+    id: string;
     /**
-     * Arousal
+     * Title
      */
-    arousal: number;
+    title: string;
     /**
-     * Valence
+     * Content
      */
-    valence: number;
+    content: string;
     /**
-     * Quadrant
+     * Created At
      */
-    quadrant: string;
-};
-
-/**
- * SpotifyConnectionStatus
- */
-export type SpotifyConnectionStatus = {
+    created_at: string;
     /**
-     * Connected
+     * Updated At
      */
-    connected: boolean;
+    updated_at: string;
 };
 
 /**
@@ -341,7 +102,6 @@ export type ThreadMessagesResponse = {
     messages: Array<{
         [key: string]: unknown;
     }>;
-    brain_context?: BrainContext | null;
 };
 
 /**
@@ -373,10 +133,6 @@ export type ThreadRenameResponse = {
  */
 export type ThreadSummary = {
     /**
-     * Id
-     */
-    id: string;
-    /**
      * Thread Id
      */
     thread_id: string;
@@ -384,7 +140,6 @@ export type ThreadSummary = {
      * Title
      */
     title: string | null;
-    brain_context?: BrainContext | null;
     /**
      * Created At
      */
@@ -393,67 +148,6 @@ export type ThreadSummary = {
      * Updated At
      */
     updated_at: string;
-};
-
-/**
- * TrajectorySummary
- */
-export type TrajectorySummary = {
-    /**
-     * Dwell Fractions
-     */
-    dwell_fractions: {
-        [key: string]: number;
-    };
-    /**
-     * Dominant Quadrant
-     */
-    dominant_quadrant: string;
-    /**
-     * Transition Count
-     */
-    transition_count: number;
-    /**
-     * Transitions
-     */
-    transitions: Array<TransitionEvent>;
-    /**
-     * Centroid
-     */
-    centroid: [
-        number,
-        number
-    ];
-    /**
-     * Dispersion
-     */
-    dispersion: number;
-    /**
-     * Path Length
-     */
-    path_length: number;
-    /**
-     * Smoothed
-     */
-    smoothed: Array<SmoothedPoint>;
-};
-
-/**
- * TransitionEvent
- */
-export type TransitionEvent = {
-    /**
-     * Time
-     */
-    time: number;
-    /**
-     * From Quadrant
-     */
-    from_quadrant: string;
-    /**
-     * To Quadrant
-     */
-    to_quadrant: string;
 };
 
 /**
@@ -483,319 +177,6 @@ export type ValidationError = {
         [key: string]: unknown;
     };
 };
-
-export type StreamChatData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/agent/chat';
-};
-
-export type StreamChatResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type GetAudioPreviewData = {
-    body?: never;
-    path: {
-        /**
-         * Cache Key
-         */
-        cache_key: string;
-    };
-    query?: never;
-    url: '/api/audio/preview/{cache_key}';
-};
-
-export type GetAudioPreviewErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetAudioPreviewError = GetAudioPreviewErrors[keyof GetAudioPreviewErrors];
-
-export type GetAudioPreviewResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DbHealthCheckData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/health/db';
-};
-
-export type DbHealthCheckResponses = {
-    /**
-     * Successful Response
-     */
-    200: HealthCheckResponse;
-};
-
-export type DbHealthCheckResponse = DbHealthCheckResponses[keyof DbHealthCheckResponses];
-
-export type GetSimilarTracksData = {
-    body?: never;
-    path: {
-        /**
-         * Session Id
-         */
-        session_id: string;
-    };
-    query?: {
-        /**
-         * K
-         */
-        k?: number;
-    };
-    url: '/api/sessions/{session_id}/similar-tracks';
-};
-
-export type GetSimilarTracksErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetSimilarTracksError = GetSimilarTracksErrors[keyof GetSimilarTracksErrors];
-
-export type GetSimilarTracksResponses = {
-    /**
-     * Successful Response
-     */
-    200: SimilarTracksResponse;
-};
-
-export type GetSimilarTracksResponse = GetSimilarTracksResponses[keyof GetSimilarTracksResponses];
-
-export type ListSessionsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Limit
-         */
-        limit?: number;
-        /**
-         * Offset
-         */
-        offset?: number;
-    };
-    url: '/api/sessions';
-};
-
-export type ListSessionsErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
-
-export type ListSessionsResponses = {
-    /**
-     * Successful Response
-     */
-    200: SessionListResponse;
-};
-
-export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
-
-export type ListSessionsEnrichedData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Limit
-         */
-        limit?: number;
-        /**
-         * Offset
-         */
-        offset?: number;
-        /**
-         * Order
-         */
-        order?: 'recent' | 'stable';
-    };
-    url: '/api/sessions/enriched';
-};
-
-export type ListSessionsEnrichedErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListSessionsEnrichedError = ListSessionsEnrichedErrors[keyof ListSessionsEnrichedErrors];
-
-export type ListSessionsEnrichedResponses = {
-    /**
-     * Successful Response
-     */
-    200: SessionSummaryListResponse;
-};
-
-export type ListSessionsEnrichedResponse = ListSessionsEnrichedResponses[keyof ListSessionsEnrichedResponses];
-
-export type GetSessionData = {
-    body?: never;
-    path: {
-        /**
-         * Session Id
-         */
-        session_id: string;
-    };
-    query?: never;
-    url: '/api/sessions/{session_id}';
-};
-
-export type GetSessionErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
-
-export type GetSessionResponses = {
-    /**
-     * Successful Response
-     */
-    200: SessionSchema;
-};
-
-export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
-
-export type GetSessionSegmentsData = {
-    body?: never;
-    path: {
-        /**
-         * Session Id
-         */
-        session_id: string;
-    };
-    query?: never;
-    url: '/api/sessions/{session_id}/segments';
-};
-
-export type GetSessionSegmentsErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetSessionSegmentsError = GetSessionSegmentsErrors[keyof GetSessionSegmentsErrors];
-
-export type GetSessionSegmentsResponses = {
-    /**
-     * Successful Response
-     */
-    200: SegmentListResponse;
-};
-
-export type GetSessionSegmentsResponse = GetSessionSegmentsResponses[keyof GetSessionSegmentsResponses];
-
-export type ConnectSpotifyData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/spotify/connect';
-};
-
-export type ConnectSpotifyResponses = {
-    /**
-     * Response Connectspotify
-     *
-     * Successful Response
-     */
-    200: {
-        [key: string]: string;
-    };
-};
-
-export type ConnectSpotifyResponse = ConnectSpotifyResponses[keyof ConnectSpotifyResponses];
-
-export type SpotifyCallbackData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Code
-         */
-        code?: string | null;
-        /**
-         * State
-         */
-        state?: string | null;
-        /**
-         * Error
-         */
-        error?: string | null;
-    };
-    url: '/api/spotify/callback';
-};
-
-export type SpotifyCallbackErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type SpotifyCallbackError = SpotifyCallbackErrors[keyof SpotifyCallbackErrors];
-
-export type SpotifyCallbackResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type GetSpotifyStatusData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/spotify/status';
-};
-
-export type GetSpotifyStatusResponses = {
-    /**
-     * Successful Response
-     */
-    200: SpotifyConnectionStatus;
-};
-
-export type GetSpotifyStatusResponse = GetSpotifyStatusResponses[keyof GetSpotifyStatusResponses];
-
-export type DisconnectSpotifyData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/spotify/disconnect';
-};
-
-export type DisconnectSpotifyResponses = {
-    /**
-     * Successful Response
-     */
-    200: SpotifyConnectionStatus;
-};
-
-export type DisconnectSpotifyResponse = DisconnectSpotifyResponses[keyof DisconnectSpotifyResponses];
 
 export type ListThreadsData = {
     body?: never;
@@ -902,3 +283,74 @@ export type RenameThreadResponses = {
 };
 
 export type RenameThreadResponse = RenameThreadResponses[keyof RenameThreadResponses];
+
+export type ListNotesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/notes';
+};
+
+export type ListNotesResponses = {
+    /**
+     * Successful Response
+     */
+    200: NoteListResponse;
+};
+
+export type ListNotesResponse = ListNotesResponses[keyof ListNotesResponses];
+
+export type CreateNoteData = {
+    body: NoteCreate;
+    path?: never;
+    query?: never;
+    url: '/api/notes';
+};
+
+export type CreateNoteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateNoteError = CreateNoteErrors[keyof CreateNoteErrors];
+
+export type CreateNoteResponses = {
+    /**
+     * Successful Response
+     */
+    201: NoteSchema;
+};
+
+export type CreateNoteResponse = CreateNoteResponses[keyof CreateNoteResponses];
+
+export type GetNoteData = {
+    body?: never;
+    path: {
+        /**
+         * Note Id
+         */
+        note_id: string;
+    };
+    query?: never;
+    url: '/api/notes/{note_id}';
+};
+
+export type GetNoteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetNoteError = GetNoteErrors[keyof GetNoteErrors];
+
+export type GetNoteResponses = {
+    /**
+     * Successful Response
+     */
+    200: NoteSchema;
+};
+
+export type GetNoteResponse = GetNoteResponses[keyof GetNoteResponses];

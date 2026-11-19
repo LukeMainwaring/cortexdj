@@ -18,35 +18,11 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# The previous render, kept beside a re-render for comparison until sign-off
+docs/architecture/diagrams/**/*-previous.html
+
 # Generated API client scratch output
 frontend/api/scripts/outputs/
-
-# Data & models
-backend/data/checkpoints/
-backend/data/deap/
-backend/data/audio_cache/
-backend/data/deap_stimuli_resolved.json
-backend/data/deap_stimuli_miss_log.jsonl
-backend/data/track_index_miss_log.jsonl
-backend/data/tensorboard_runs/
-backend/.cache/
-backend/.cache*
-
-# Autoresearch run logs (local-only, per-run artifacts)
-backend/autoresearch/experiments/experiments.jsonl
-backend/autoresearch/experiments/best.json
-backend/autoresearch/experiments/runs/
-*.h5
-*.pt
-*.pth
-*.ckpt
-*.npy
-*.npz
-*.safetensors
-*.bin
-
-# HuggingFace model cache
-huggingface_cache/
 
 # Environment
 .env
@@ -87,11 +63,35 @@ dmypy.json
 .claude/settings.local.json
 .claude/worktrees/
 
+# Archify diagram output
+.archify/
+
 # Misc
 *.bak
 *.tmp
 
-# Understand Anything — track the graph artifacts, ignore scratch/caches
-.understand-anything/tmp/
-.understand-anything/intermediate/
-.understand-anything/.trash-*/
+# Data & models (backend/data/ is ignored line by line: DEAP_SETUP.md and
+# deap_stimuli.json in it are tracked)
+backend/data/checkpoints/
+backend/data/deap/
+backend/data/audio_cache/
+backend/data/deap_stimuli_resolved.json
+backend/data/deap_stimuli_miss_log.jsonl
+backend/data/track_index_miss_log.jsonl
+backend/data/tensorboard_runs/
+backend/.cache/
+backend/.cache*
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+*.safetensors
+*.bin
+
+# Database dumps (hold a stored Spotify login; never commit)
+backend/data/*.dump
+
+# HuggingFace model cache
+huggingface_cache/

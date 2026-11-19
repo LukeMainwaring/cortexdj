@@ -3,7 +3,7 @@
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import Link from "next/link";
 import { memo, useEffect, useRef, useState } from "react";
-import type { Chat } from "@/lib/types";
+import type { ThreadSummary } from "@/api/generated/types.gen";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,7 @@ import {
 } from "./ui/sidebar";
 
 const PureChatItem = ({
-  chat,
+  thread,
   isActive,
   isRenaming,
   onDelete,
@@ -28,7 +28,7 @@ const PureChatItem = ({
   onCancelRename,
   setOpenMobile,
 }: {
-  chat: Chat;
+  thread: ThreadSummary;
   isActive: boolean;
   isRenaming: boolean;
   onDelete: (chatId: string) => void;
@@ -37,24 +37,24 @@ const PureChatItem = ({
   onCancelRename: () => void;
   setOpenMobile: (open: boolean) => void;
 }) => {
-  const [renameValue, setRenameValue] = useState(chat.title ?? "");
+  const [renameValue, setRenameValue] = useState(thread.title ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
-      setRenameValue(chat.title ?? "");
+      setRenameValue(thread.title ?? "");
       inputRef.current.focus();
       inputRef.current.select();
     }
-  }, [isRenaming, chat.title]);
+  }, [isRenaming, thread.title]);
 
   const handleSubmit = () => {
     const trimmed = renameValue.trim();
-    if (!trimmed || trimmed === chat.title) {
+    if (!trimmed || trimmed === thread.title) {
       onCancelRename();
       return;
     }
-    onRename(chat.id, trimmed);
+    onRename(thread.thread_id, trimmed);
   };
 
   return (
@@ -63,7 +63,7 @@ const PureChatItem = ({
         {isRenaming ? (
           <div className="flex h-8 items-center px-2">
             <Input
-              className="h-6 rounded border-0 bg-transparent px-1 py-0 text-sm outline-none ring-1 ring-ring ring-offset-0 focus-visible:ring-offset-0"
+              className="ring-ring h-6 rounded border-0 bg-transparent px-1 py-0 text-sm ring-1 ring-offset-0 outline-none focus-visible:ring-offset-0"
               onBlur={handleSubmit}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
@@ -80,10 +80,13 @@ const PureChatItem = ({
             />
           </div>
         ) : (
-          <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
+          <Link
+            href={`/chat/${thread.thread_id}`}
+            onClick={() => setOpenMobile(false)}
+          >
             <span>
-              {chat.title ?? (
-                <span className="animate-pulse text-muted-foreground">
+              {thread.title ?? (
+                <span className="text-muted-foreground animate-pulse">
                   Generating...
                 </span>
               )}
@@ -96,7 +99,7 @@ const PureChatItem = ({
         <DropdownMenu modal={true}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuAction
-              className="mr-0.5 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground mr-0.5"
               showOnHover={!isActive}
             >
               <MoreHorizontal size={16} />
@@ -107,7 +110,7 @@ const PureChatItem = ({
           <DropdownMenuContent align="end" side="bottom">
             <DropdownMenuItem
               className="cursor-pointer"
-              onSelect={() => onStartRename(chat.id)}
+              onSelect={() => onStartRename(thread.thread_id)}
             >
               <Pencil size={16} />
               <span>Rename</span>
@@ -116,8 +119,8 @@ const PureChatItem = ({
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
-              className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive dark:text-red-500"
-              onSelect={() => onDelete(chat.id)}
+              className="text-destructive focus:bg-destructive/15 focus:text-destructive cursor-pointer dark:text-red-500"
+              onSelect={() => onDelete(thread.thread_id)}
             >
               <Trash size={16} />
               <span>Delete</span>
@@ -130,8 +133,14 @@ const PureChatItem = ({
 };
 
 export const ChatItem = memo(PureChatItem, (prevProps, nextProps) => {
-  if (prevProps.isActive !== nextProps.isActive) return false;
-  if (prevProps.chat.title !== nextProps.chat.title) return false;
-  if (prevProps.isRenaming !== nextProps.isRenaming) return false;
+  if (prevProps.isActive !== nextProps.isActive) {
+    return false;
+  }
+  if (prevProps.thread.title !== nextProps.thread.title) {
+    return false;
+  }
+  if (prevProps.isRenaming !== nextProps.isRenaming) {
+    return false;
+  }
   return true;
 });

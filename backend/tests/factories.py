@@ -1,106 +1,100 @@
-"""Test-data builders shared across test tiers.
+"""Test data builders, shared by every tier.
 
-``make_*`` returns an unpersisted ORM instance (unit tier). ``create_*``
-persists via the given session — add, flush, refresh — for the integration
-tier, where the surrounding fixture rolls an outer transaction back after
-each test. Builders flush and never commit, same as services: the session's
-owner holds the only commit.
+Hand-written (no factory-boy/polyfactory): readable, mypy-strict clean, and
+copy-extendable per the repo's copy-a-slice convention. ``make_*`` builds an
+unpersisted value for any tier; ``create_*`` persists through a session for the
+integration tier. Builders take ``**overrides`` (or keyword arguments with defaults, where
+the shape is typed) so a test states only the fields it is about. Add a builder here
+rather than a private helper in a test file once two test files need the same shape.
+
+Builders for cuttable features live inside ``# sf:`` marker blocks, imports included,
+so they vanish with their feature on prune. Do not hoist those imports to the top:
+keep this file importable in the backend-only variant.
 """
-
-from datetime import UTC, datetime
-from typing import Any
-from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cortexdj.models.eeg_segment import EegSegment
-from cortexdj.models.session import Session
-from cortexdj.models.thread import Thread
-from cortexdj.models.track_audio_embedding import EMBEDDING_DIM, TrackAudioEmbedding
-from cortexdj.schemas.agent_type import AgentType
+from cortexdj.features.notes.model import Note
 
 
-def make_session(**overrides: Any) -> Session:
-    data: dict[str, Any] = {
-        "id": str(uuid4()),
-        "participant_id": "P01",
-        "dataset_source": "deap",
-        "recorded_at": datetime(2024, 1, 1, tzinfo=UTC),
-        "duration_seconds": 60.0,
-    }
+def make_note(**overrides: object) -> Note:
+    """Unpersisted Note with sensible defaults; override any field (incl. ``embedding``)."""
+    data: dict[str, object] = {"title": "Groceries", "content": "milk, eggs, bread"}
     data.update(overrides)
-    return Session(**data)
+    return Note(**data)
 
 
-async def create_session(db: AsyncSession, **overrides: Any) -> Session:
-    session = make_session(**overrides)
-    db.add(session)
+async def create_note(db: AsyncSession, **overrides: object) -> Note:
+    """Persist a Note via ``db`` and return it (bypasses the embedder)."""
+    note = make_note(**overrides)
+    db.add(note)
     await db.flush()
-    await db.refresh(session)
-    return session
+    await db.refresh(note)
+    return note
 
 
-def make_eeg_segment(session_id: str, **overrides: Any) -> EegSegment:
-    data: dict[str, Any] = {
-        "id": str(uuid4()),
-        "session_id": session_id,
-        "segment_index": 0,
-        "start_time": 0.0,
-        "end_time": 4.0,
-        "arousal_score": 0.7,
-        "valence_score": 0.6,
-        "dominant_state": "excited",
-        "band_powers": {"alpha": 1.0, "beta": 0.5, "theta": 0.3, "delta": 0.2, "gamma": 0.1},
-    }
-    data.update(overrides)
-    return EegSegment(**data)
+from typing import Any
+from unittest.mock import AsyncMock
+
+from pydantic_ai import RunContext
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.usage import RunUsage
+from pydantic_evals.evaluators import EvaluatorContext
+from pydantic_evals.otel import SpanTree, SpanTreeRecordingError
+
+from cortexdj.agents.deps import AgentDeps
+from cortexdj.features.chat.model import Thread
 
 
-async def create_eeg_segment(db: AsyncSession, session_id: str, **overrides: Any) -> EegSegment:
-    segment = make_eeg_segment(session_id, **overrides)
-    db.add(segment)
-    await db.flush()
-    await db.refresh(segment)
-    return segment
-
-
-def make_track_audio_embedding(**overrides: Any) -> TrackAudioEmbedding:
-    # Default is a unit vector, not zeros — cosine distance against a zero
-    # vector is undefined, which would poison similarity-ordering tests.
-    embedding = [0.0] * EMBEDDING_DIM
-    embedding[0] = 1.0
-    data: dict[str, Any] = {
-        "spotify_id": f"sp-{uuid4().hex[:16]}",
-        "title": "Test Track",
-        "artist": "Test Artist",
-        "source": "user_library",
-        "embedding": embedding,
-    }
-    data.update(overrides)
-    return TrackAudioEmbedding(**data)
-
-
-async def create_track_audio_embedding(db: AsyncSession, **overrides: Any) -> TrackAudioEmbedding:
-    row = make_track_audio_embedding(**overrides)
-    db.add(row)
-    await db.flush()
-    await db.refresh(row)
-    return row
-
-
-def make_thread(**overrides: Any) -> Thread:
-    data: dict[str, Any] = {
-        "thread_id": f"t-{uuid4().hex[:8]}",
-        "agent_type": AgentType.CHAT.value,
-        "title": None,
-    }
-    data.update(overrides)
-    return Thread(**data)
-
-
-async def create_thread(db: AsyncSession, **overrides: Any) -> Thread:
-    thread = make_thread(**overrides)
+async def create_thread(db: AsyncSession, thread_id: str = "t-1", **overrides: object) -> Thread:
+    """Persist a chat Thread via ``db``; it has no messages until a test appends them."""
+    thread = Thread(thread_id=thread_id, **overrides)
     db.add(thread)
     await db.flush()
     await db.refresh(thread)
     return thread
+
+
+def make_chat_request(thread_id: str, text: str) -> dict[str, Any]:
+    """One ``/api/agent/chat`` body as the frontend sends it: the newest message only."""
+    return {
+        "trigger": "submit-message",
+        "id": thread_id,
+        "messages": [{"id": f"msg-{text}", "role": "user", "parts": [{"type": "text", "text": text}]}],
+    }
+
+
+def make_deps(db: AsyncSession | None = None) -> AgentDeps:
+    """Agent deps; with no ``db``, the session is a spec'd mock for a run that must not reach a database."""
+    return AgentDeps(db=db if db is not None else AsyncMock(spec=AsyncSession))
+
+
+def make_run_context(deps: AgentDeps) -> RunContext[AgentDeps]:
+    """The context a tool receives, for calling a tool function directly without an agent run."""
+    return RunContext(deps=deps, model=TestModel(), usage=RunUsage())
+
+
+def make_evaluator_context[InputsT, OutputT](
+    inputs: InputsT,
+    output: OutputT,
+    *,
+    attributes: dict[str, Any] | None = None,
+    span_tree: SpanTree | SpanTreeRecordingError | None = None,
+) -> EvaluatorContext[InputsT, OutputT, None]:
+    """The context an evaluator receives for one finished case, for running it with no dataset behind it.
+
+    With no ``span_tree``, the context carries the error a run with no tracing records, so
+    an evaluator that reads spans fails the way it would on such a run. Generic rather than
+    typed to the eval tier's ``AgentTurn``: ``tests/evals/agent_run.py`` imports this module.
+    """
+    return EvaluatorContext(
+        name="case",
+        inputs=inputs,
+        metadata=None,
+        expected_output=None,
+        output=output,
+        duration=1.0,
+        _span_tree=span_tree if span_tree is not None else SpanTreeRecordingError("no agent ran for this case"),
+        attributes=attributes if attributes is not None else {},
+        metrics={},
+    )

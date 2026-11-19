@@ -1,17 +1,17 @@
 "use client";
 
-import type { UIMessage } from "ai";
 import { Copy } from "lucide-react";
 import { memo } from "react";
 import { toast } from "sonner";
 import { useCopyToClipboard } from "usehooks-ts";
+import type { ChatMessage } from "@/lib/types";
 import { Action, Actions } from "./elements/actions";
 
 export function PureMessageActions({
   message,
   isLoading,
 }: {
-  message: UIMessage;
+  message: ChatMessage;
   isLoading: boolean;
 }) {
   const [_, copyToClipboard] = useCopyToClipboard();
@@ -21,7 +21,7 @@ export function PureMessageActions({
   }
 
   const textFromParts = message.parts
-    ?.filter((part) => part.type === "text")
+    .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("\n")
     .trim();
@@ -46,13 +46,4 @@ export function PureMessageActions({
   );
 }
 
-export const MessageActions = memo(
-  PureMessageActions,
-  (prevProps, nextProps) => {
-    if (prevProps.isLoading !== nextProps.isLoading) {
-      return false;
-    }
-
-    return true;
-  },
-);
+export const MessageActions = memo(PureMessageActions);

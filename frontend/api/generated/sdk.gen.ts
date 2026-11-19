@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponses, DbHealthCheckData, DbHealthCheckResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetAudioPreviewData, GetAudioPreviewErrors, GetAudioPreviewResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses, StreamChatData, StreamChatResponses } from './types.gen';
+import type { CreateNoteData, CreateNoteErrors, CreateNoteResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, GetNoteData, GetNoteErrors, GetNoteResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListNotesData, ListNotesResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,149 +17,6 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
-
-/**
- * Stream Chat
- *
- * Brain assistant streaming endpoint.
- *
- * Uses VercelAIAdapter to handle parsing, agent execution, and streaming
- * in Vercel AI SDK protocol format.
- */
-export const streamChat = <ThrowOnError extends boolean = false>(options?: Options<StreamChatData, ThrowOnError>): RequestResult<StreamChatResponses, unknown, ThrowOnError> => (options?.client ?? client).post<StreamChatResponses, unknown, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/agent/chat',
-    ...options
-});
-
-/**
- * Get Audio Preview
- *
- * Serve a cached iTunes m4a preview by its content-addressed cache key.
- *
- * Same-origin delivery exists so the frontend waveform component can
- * `fetch` + `decodeAudioData` the bytes — Apple's preview CDN does not
- * reliably set CORS headers for cross-origin Web Audio decoding.
- */
-export const getAudioPreview = <ThrowOnError extends boolean = false>(options: Options<GetAudioPreviewData, ThrowOnError>): RequestResult<GetAudioPreviewResponses, GetAudioPreviewErrors, ThrowOnError> => (options.client ?? client).get<GetAudioPreviewResponses, GetAudioPreviewErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/audio/preview/{cache_key}',
-    ...options
-});
-
-/**
- * Db Health Check
- *
- * Check the database connection.
- */
-export const dbHealthCheck = <ThrowOnError extends boolean = false>(options?: Options<DbHealthCheckData, ThrowOnError>): RequestResult<DbHealthCheckResponses, unknown, ThrowOnError> => (options?.client ?? client).get<DbHealthCheckResponses, unknown, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/health/db',
-    ...options
-});
-
-/**
- * Get Similar Tracks
- *
- * Return the top-k tracks whose CLAP audio embedding is closest to the
- * session's EEG embedding in the joint contrastive space.
- */
-export const getSimilarTracks = <ThrowOnError extends boolean = false>(options: Options<GetSimilarTracksData, ThrowOnError>): RequestResult<GetSimilarTracksResponses, GetSimilarTracksErrors, ThrowOnError> => (options.client ?? client).get<GetSimilarTracksResponses, GetSimilarTracksErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/sessions/{session_id}/similar-tracks',
-    ...options
-});
-
-/**
- * List Sessions
- *
- * List all EEG sessions.
- */
-export const listSessions = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsData, ThrowOnError>): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsResponses, ListSessionsErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/sessions',
-    ...options
-});
-
-/**
- * List Sessions Enriched
- *
- * List EEG sessions with derived display labels and quadrant distributions.
- *
- * `order=recent` (default) returns newest first; `order=stable` returns
- * chronological-insertion order (Session 01 → Session NN).
- */
-export const listSessionsEnriched = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsEnrichedData, ThrowOnError>): RequestResult<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/sessions/enriched',
-    ...options
-});
-
-/**
- * Get Session
- *
- * Get a specific EEG session.
- */
-export const getSession = <ThrowOnError extends boolean = false>(options: Options<GetSessionData, ThrowOnError>): RequestResult<GetSessionResponses, GetSessionErrors, ThrowOnError> => (options.client ?? client).get<GetSessionResponses, GetSessionErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/sessions/{session_id}',
-    ...options
-});
-
-/**
- * Get Session Segments
- *
- * Get all EEG segments for a session, plus a trajectory summary.
- */
-export const getSessionSegments = <ThrowOnError extends boolean = false>(options: Options<GetSessionSegmentsData, ThrowOnError>): RequestResult<GetSessionSegmentsResponses, GetSessionSegmentsErrors, ThrowOnError> => (options.client ?? client).get<GetSessionSegmentsResponses, GetSessionSegmentsErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/sessions/{session_id}/segments',
-    ...options
-});
-
-/**
- * Connect Spotify
- *
- * Get the Spotify authorization URL to start OAuth flow.
- */
-export const connectSpotify = <ThrowOnError extends boolean = false>(options?: Options<ConnectSpotifyData, ThrowOnError>): RequestResult<ConnectSpotifyResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ConnectSpotifyResponses, unknown, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/spotify/connect',
-    ...options
-});
-
-/**
- * Spotify Callback
- *
- * Handle Spotify OAuth callback and exchange code for tokens.
- */
-export const spotifyCallback = <ThrowOnError extends boolean = false>(options?: Options<SpotifyCallbackData, ThrowOnError>): RequestResult<SpotifyCallbackResponses, SpotifyCallbackErrors, ThrowOnError> => (options?.client ?? client).get<SpotifyCallbackResponses, SpotifyCallbackErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/spotify/callback',
-    ...options
-});
-
-/**
- * Get Spotify Status
- *
- * Get the current Spotify connection status.
- */
-export const getSpotifyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetSpotifyStatusData, ThrowOnError>): RequestResult<GetSpotifyStatusResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetSpotifyStatusResponses, unknown, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/spotify/status',
-    ...options
-});
-
-/**
- * Disconnect Spotify
- *
- * Disconnect Spotify by clearing stored tokens.
- */
-export const disconnectSpotify = <ThrowOnError extends boolean = false>(options?: Options<DisconnectSpotifyData, ThrowOnError>): RequestResult<DisconnectSpotifyResponses, unknown, ThrowOnError> => (options?.client ?? client).post<DisconnectSpotifyResponses, unknown, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/spotify/disconnect',
-    ...options
-});
 
 /**
  * List Threads
@@ -207,4 +64,41 @@ export const renameThread = <ThrowOnError extends boolean = false>(options: Opti
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * List Notes
+ *
+ * List the user's notes, newest first.
+ */
+export const listNotes = <ThrowOnError extends boolean = false>(options?: Options<ListNotesData, ThrowOnError>): RequestResult<ListNotesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListNotesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/notes',
+    ...options
+});
+
+/**
+ * Create Note
+ *
+ * Create a new note.
+ */
+export const createNote = <ThrowOnError extends boolean = false>(options: Options<CreateNoteData, ThrowOnError>): RequestResult<CreateNoteResponses, CreateNoteErrors, ThrowOnError> => (options.client ?? client).post<CreateNoteResponses, CreateNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/notes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Note
+ *
+ * Get a single note by id.
+ */
+export const getNote = <ThrowOnError extends boolean = false>(options: Options<GetNoteData, ThrowOnError>): RequestResult<GetNoteResponses, GetNoteErrors, ThrowOnError> => (options.client ?? client).get<GetNoteResponses, GetNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/notes/{note_id}',
+    ...options
 });

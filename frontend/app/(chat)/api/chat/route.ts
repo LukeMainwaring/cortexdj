@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { BACKEND_URL } from "@/lib/constants";
 
@@ -6,23 +6,19 @@ export async function POST(request: NextRequest) {
   const body = await request.text();
 
   const response = await fetch(`${BACKEND_URL}/api/agent/chat`, {
-    method: "POST",
+    body,
     headers: {
       "Content-Type": "application/json",
     },
-    body,
+    method: "POST",
   });
 
-  if (!response.ok) {
-    return NextResponse.json(
-      { error: "Backend request failed" },
-      { status: response.status },
-    );
-  }
-
+  // A failure passes through with the backend's status and body, so the JSON
+  // `detail` FastAPI returns reaches the UI unchanged.
   return new Response(response.body, {
     headers: {
       "Content-Type": response.headers.get("Content-Type") || "text/plain",
     },
+    status: response.status,
   });
 }

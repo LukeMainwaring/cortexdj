@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ChevronUp,
-  MoonIcon,
-  Music,
-  SettingsIcon,
-  SunIcon,
-} from "lucide-react";
-import Link from "next/link";
+import { ChevronUp, MoonIcon, SettingsIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import {
@@ -35,10 +28,13 @@ export function SidebarUserNav() {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="h-12 bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-              <SettingsIcon className="size-4" />
+            <SidebarMenuButton
+              className="bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              size="lg"
+            >
+              <SettingsIcon />
               <span className="truncate font-medium">Settings</span>
-              <ChevronUp className="ml-auto size-4" />
+              <ChevronUp className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -51,24 +47,10 @@ export function SidebarUserNav() {
                 setTheme(resolvedTheme === "dark" ? "light" : "dark")
               }
             >
-              {mounted ? (
-                resolvedTheme === "dark" ? (
-                  <MoonIcon className="mr-2 size-4" />
-                ) : (
-                  <SunIcon className="mr-2 size-4" />
-                )
-              ) : (
-                <SunIcon className="mr-2 size-4" />
-              )}
+              {mounted && resolvedTheme === "dark" ? <MoonIcon /> : <SunIcon />}
               {mounted
                 ? `Toggle ${resolvedTheme === "light" ? "dark" : "light"} mode`
                 : "Toggle theme"}
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild className="cursor-pointer">
-              <Link href="/settings/spotify">
-                <Music className="mr-2 size-4" />
-                Spotify Settings
-              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
