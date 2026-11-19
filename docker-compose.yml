@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    # pgvector image (Postgres + the vector extension) for the embeddings feature.
+    # Left unconditional: it's a strict superset of stock Postgres, so it works
+    # unchanged if embeddings is pruned (the extension simply goes unused).
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_DB: cortexdj
       POSTGRES_USER: postgres
@@ -10,7 +13,9 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PG18+ images store data in a version-specific subdir; mount at
+      # /var/lib/postgresql (not /var/lib/postgresql/data, the pre-18 path).
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -37,7 +42,6 @@ services:
       - .env
     volumes:
       - ./backend/src:/app/src
-      - ./backend/data:/app/data
     depends_on:
       postgres:
         condition: service_healthy

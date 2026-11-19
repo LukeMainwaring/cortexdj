@@ -1,0 +1,9 @@
+# Refuse to install on a Node older than engines.node in package.json.
+# (pnpm 12 reads settings from this file, not .npmrc.)
+engineStrict: true
+
+# ultracite ships agent skills; the rules files and the lint hook already
+# cover what they would add, so pnpm never offers them for approval.
+permissions:
+  ultracite:
+    skills: false

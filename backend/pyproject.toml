@@ -1,0 +1,126 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cortexdj"
+version = "0.1.0"
+description = "Full-stack AI app scaffold: FastAPI + Pydantic AI agent backend"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+  "alembic>=1.20.1",
+  "asyncpg>=0.32.0",
+  "fastapi[standard]>=0.165.0",
+  "logfire[fastapi,sqlalchemy]>=5.6.0",
+  "opentelemetry-api>=1.45.2",
+  "psycopg[binary,pool]>=3.3.9",
+  "pydantic>=2.14.3",
+  "pydantic-settings>=2.16.3",
+  "pydantic-ai>=2.71.0",
+  # <2.1 until opentelemetry-instrumentation-sqlalchemy (logfire) supports 2.1; out of its range,
+  # logfire.instrument_sqlalchemy raises at startup. Check its cap:
+  # curl -s https://pypi.org/pypi/opentelemetry-instrumentation-sqlalchemy/json | python3 -c 'import json,sys; print([r for r in json.load(sys.stdin)["info"]["requires_dist"] if "sqlalchemy" in r])'
+  "sqlalchemy[asyncio]>=2.0.58,<2.1",
+  "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28.1",
+  "import-linter>=2.17",
+  "mypy>=2.4.1",
+  "pre-commit>=4.7.0",
+  "pydantic-evals>=2.71.0",
+  "pytest>=9.2.0",
+  "pytest-cov>=7.1.0",
+  "ruff>=0.17.5",
+]
+
+[tool.pytest.ini_options]
+# A tier is a directory. Bare `pytest` runs the fast, DB-free `tests/unit`; name a
+# directory to run another tier (`pytest tests/integration` needs the test database).
+# `pytest tests/evals` needs real provider keys and the test database: use scripts/run-evals.sh.
+# Tests are packages (an __init__.py per dir) so the same basename can recur across
+# tiers without an import collision.
+testpaths = ["tests/unit"]
+addopts = "-q"
+strict = true
+# Async tests and fixtures run under anyio without a per-test marker.
+anyio_mode = "auto"
+# A warning is a failure, so deprecations surface when they appear, not when they break.
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["cortexdj"]
+branch = true
+# SQLAlchemy's async driver runs on greenlets; without this, lines after a DB await go uncounted.
+concurrency = ["greenlet", "thread"]
+omit = ["*/migrations/*", "*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# No `fail_under` here: the prune gate (.template/verify_matrix.sh) runs only the
+# DB-free `unit` tier, so a repo-wide threshold would fail it. The gate lives as a
+# CLI flag in the CI `test` job instead (see .github/workflows/ci.yml).
+
+[tool.mypy]
+strict = true
+
+
+[tool.deptry]
+# Run by the updating-deps skill. asyncpg is loaded by SQLAlchemy as the driver, never imported;
+# starlette is imported directly in the usual FastAPI way.
+known_first_party = ["cortexdj"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["asyncpg"]
+DEP003 = ["starlette"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["I", "F401", "UP", "FAST", "ASYNC", "B", "TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"unittest.mock.patch".msg = "Fake at a seam (a FastAPI dependency, an `override` context manager, a constructor argument); see docs/adr/0001-test-tiers-and-fakes.md."
+"sqlmodel".msg = "Models use SQLAlchemy 2.0 directly: the table in model.py and the API shape in schema.py stay separate classes."
+
+# The dependency direction from AGENTS.md, run by pre-commit as `lint-imports`. The capability
+# registry and the named-agent registry are composition roots that import a slice's capability or
+# agent builder, so both contracts ignore their edges; without that, independence fails on the
+# indirect path a slice takes to another slice through the agent runtime. An ignore that matches
+# nothing only warns: the named-agent registry imports no slice until a domain registers its own
+# agent builder there.
+[tool.importlinter]
+root_package = "cortexdj"
+
+[[tool.importlinter.contracts]]
+name = "Feature slices never import each other"
+type = "independence"
+modules = ["cortexdj.features.*"]
+ignore_imports = [
+  "cortexdj.agents.capabilities -> cortexdj.features.**",
+  "cortexdj.agents.registry -> cortexdj.features.**",
+]
+unmatched_ignore_imports_alerting = "warn"
+
+[[tool.importlinter.contracts]]
+name = "The kernel never imports a feature slice"
+type = "forbidden"
+source_modules = [
+  "cortexdj.core",
+  "cortexdj.shared",
+  "cortexdj.agents",
+]
+forbidden_modules = ["cortexdj.features"]
+ignore_imports = [
+  "cortexdj.agents.capabilities -> cortexdj.features.**",
+  "cortexdj.agents.registry -> cortexdj.features.**",
+]
+unmatched_ignore_imports_alerting = "warn"
+
+[tool.uv]
+default-groups = ["dev"]

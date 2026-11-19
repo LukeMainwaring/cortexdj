@@ -1,1 +1,0 @@
-../../.claude/hooks/backend-ruff.py

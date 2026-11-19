@@ -1,8 +1,10 @@
 # AGENTS.md
 
-This file provides guidance to AI coding agents (Claude Code, Codex, etc.) when working with code in this repository.
+CortexDJ is a full-stack AI app: a FastAPI + Pydantic AI backend and a Next.js chat frontend. It is being ported onto a fresh instance of its upstream template. Until the port finishes, the running app is the template's example domain, **Notes** — a vertical feature slice you copy as the pattern when a domain is ported in.
 
-For project overview, features, and demo workflows, read `README.md`. For setup, commands, training workflows, and database migrations, read `DEVELOPMENT.md`.
+**`legacy/`** holds the pre-port source (`legacy/backend/`, `legacy/frontend/`, `legacy/docs/`, `legacy/DEVELOPMENT.md`). Nothing in it runs and every check excludes it. Code leaves it with `git mv` as it is ported, so file history follows; do not edit, lint, or test it in place. `README.md` still describes the pre-port app. The pre-port tree is also readable at the `pre-port` tag.
+
+For project overview and quickstart, read `README.md`. For setup, commands, database migrations, and tests, read `DEVELOPMENT.md`.
 
 When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes.
 
@@ -19,26 +21,36 @@ uv sync --directory backend
 # Run backend with Docker (includes PostgreSQL)
 docker compose up -d
 
-# Pre-commit hooks (covers type checking, linting, and formatting)
-uv run --directory backend pre-commit run --all-files
-
-# Train CBraMod model with LOSO CV (default; requires DEAP — see backend/data/DEAP_SETUP.md)
-# Labels are binarized at each subject's own Likert median by default; use
-# --label-split fixed_5 to reproduce papers that used the >= 5 threshold.
-uv run --directory backend train-model
-
-# GPU training via Modal (run `modal setup` once to authenticate)
-modal run backend/scripts/modal_train.py
-
 # Create local database migration
 ./backend/scripts/create-db-revision-docker.sh "<migration_message>"
 
 # Apply pending migrations
 ./backend/scripts/migrate-docker.sh
-
-# Run tests
-uv run --directory backend pytest
 ```
+
+Checks, lightest first. While working, run the first two; before finishing, run the last three once each.
+
+```bash
+# One test file
+uv run --directory backend pytest tests/unit/<path>
+
+# Type check (mypy strict)
+uv run --directory backend mypy src tests
+
+# Unit tier (fast, no DB)
+uv run --directory backend pytest
+
+# Unit + integration against the test database. Starts Postgres if it is not
+# running and stops it again if it started it; extra args go to pytest.
+./backend/scripts/test-integration.sh
+
+# Pre-commit hooks (lint, format, mypy, import linter)
+uv run --directory backend pre-commit run --all-files
+```
+
+The eval tier (`backend/tests/evals/`) is not one of these checks: it calls real models and costs money. It needs Postgres and the provider keys in `.env`; run it with `./backend/scripts/run-evals.sh`, and only when the user asks.
+
+Tests are how a change is verified. Start the app stack (`docker compose up -d`) only when the user asks for it, and stop it with `docker compose stop` when done.
 
 ### Frontend (TypeScript/Next.js)
 
@@ -46,6 +58,7 @@ uv run --directory backend pytest
 pnpm -C frontend install
 pnpm -C frontend lint            # lint with ultracite
 pnpm -C frontend format          # format with ultracite
+pnpm -C frontend typecheck       # tsc, including the generated client's consumers
 pnpm -C frontend generate-client # regenerate API client from backend OpenAPI
 ```
 
@@ -55,63 +68,54 @@ After making frontend code changes, run `pnpm -C frontend format` to fix formatt
 
 ### Backend (`backend/`)
 
-FastAPI Python backend using async patterns throughout.
+FastAPI Python backend (package `cortexdj`), async throughout, organized **feature-first**: each domain is a vertical slice under `features/<name>/`, with a thin horizontal kernel (`core/`, `shared/`, `agents/`) holding what every feature shares. New features, routers, and startup hooks plug into small registries rather than edits scattered across `app.py` — register in one place and the wiring follows.
 
-- **`src/cortexdj/app.py`**: FastAPI entry point with lifespan handler (EEG model loading)
-- **`src/cortexdj/routers/`**: API routes by domain (agent, sessions, threads, health, retrieval)
-- **`src/cortexdj/agents/`**: Pydantic AI agent — `brain_agent.py` is the assistant. Capabilities in `capabilities/` (Session, Insight, Playlist, Retrieval, Classification) group tools and optionally inject dynamic system-prompt fragments via `get_instructions()`. Tool functions live in `tools/`. Key convention: expected failures return `{"error": ...}` dicts from the tool body; unexpected exceptions propagate to `hooks.on_tool_execute_error`, which logs the traceback and raises `ToolFailed` (a native failed tool outcome, no retry budget spent, exception message never shown to the model) — except `retrieval_tools.retrieve_tracks_from_brain_state`, which catches `DeapFileMissingError` inline for user-facing clarity. See `docs/adr/0003-two-layer-tool-error-convention.md`. `history_processor.py`'s `summarize_tool_results` is registered as a `ProcessHistory` capability on `brain_agent` to compact large tool results in prior turns and prevent token bloat.
-- **`src/cortexdj/models/`**: SQLAlchemy async models with CRUD classmethods (Session, EegSegment, Track, SessionTrack, Playlist, Thread, Message, TrackAudioEmbedding). `TrackAudioEmbedding` is the pgvector-backed retrieval index with an HNSW cosine search op.
-- **`src/cortexdj/schemas/`**: Pydantic schemas for API contracts
-- **`src/cortexdj/services/`**: Business logic — `eeg_processing`, `spotify` (identity only; `preview_url` deprecated for standard-mode apps Nov 2024), `session`, `thread`, `title_generator`, `trajectory`, `retrieval` (encode_session_to_clap_space + pgvector search), `audio_catalog` (iTunes Search wrapper with duration-delta match heuristic).
-- **`src/cortexdj/ml/`**: Two separable model pipelines.
-  - **Quadrant classifier**: `model.py` (EEGNet), `pretrained.py` (CBraMod), `dataset.py`, `preprocessing.py`, `train.py`, `metrics.py`, `predict.py`. Per-fold class-weighted CE + label smoothing, EMA-smoothed early stop on macro-F1. See `DEVELOPMENT.md` for `--label-split` options.
-  - **Contrastive EEG↔CLAP**: `contrastive.py` (EegCLAPEncoder with CBraMod backbone + SimCLR projection head, symmetric soft-target InfoNCE, encode_session), `contrastive_dataset.py` (DeapClapPairDataset + host-portable audio cache + `trial_to_eeg_windows` shared slicer), `contrastive_train.py` (SequentialLR warmup+cosine, TensorBoard scalars + val embedding projector, grad accumulation).
-- **`src/cortexdj/core/`**: `config.py` (settings via pydantic-settings), `observability.py` (Logfire — configured once from `app.py`, never at agent import time), `detached_tasks.py` (strong refs for fire-and-forget asyncio tasks)
-- **`src/cortexdj/migrations/`**: Alembic migrations for PostgreSQL
-- **`tests/`**: Three tiers — `unit/` (default run), `integration/` (real Postgres, `-m integration`), `evals/` (real LLM, `-m eval`). See `DEVELOPMENT.md` and `.claude/rules/backend/code-conventions.md`.
+- **`src/cortexdj/app.py`**: FastAPI entry point with a lifespan handler that runs the startup-hook registry. Don't add ad-hoc startup logic here — register a hook (see `core/startup.py`).
+- **`src/cortexdj/api.py`**: the **router aggregator** — include a feature's router here and it's mounted. A composition root (may import across features).
+- **`src/cortexdj/core/`**: platform kernel — `config.py` (settings), `db.py`, `startup.py` (the **startup-hook registry**), `logging.py`, `health.py`. Never cut by a feature prune.
+- **`src/cortexdj/shared/`**: cross-feature primitives — `model_base.py` (`Base`), `schema_base.py` (`BaseSchema`).
+- **`src/cortexdj/agents/`**: the feature-agnostic Pydantic AI **agent runtime** — `assistant.py` holds `build_agent`, the shared recipe (hooks, history compaction, prompt caching, optional thinking, tool timeout) and builds the assistant from `ENABLED_CAPABILITIES` (the capability registry in `capabilities.py`); `registry.py` is the **named-agent registry** (`get_agent(ASSISTANT)`, `get_agent(THREAD_TITLE)`) that builds lazily and caches; plus `title_agent.py`, `deps.py`, `hooks.py`, `history_processor.py`. Convention: tools and output validators let exceptions propagate to `hooks.on_tool_execute_error` / `hooks.on_output_process_error` for structured recovery rather than catching inline.
+- **`src/cortexdj/features/<name>/`**: one vertical slice per domain — `model.py`, `schema.py`, `service.py`, `router.py`, and (if it talks to the agent) `tools.py` + `capability.py`. **Copy a slice to add a domain.** Handlers stay thin and delegate to `service.py`. Ships with `notes` and `chat` (threads, messages, title generation, the streaming `/agent/chat` endpoint).
+- **`src/cortexdj/migrations/`**: Alembic migrations for PostgreSQL. `env.py` does `import cortexdj.features` so autogenerate sees every slice's tables.
+
+**Dependency direction:** a feature may import `core/`, `shared/`, `agents/`; the kernel never imports a feature; a feature never imports another feature. Only `api.py`, `agents/capabilities.py`, and `agents/registry.py` import across features. When a feature or the runtime needs something another feature owns, the type and a one-slot `register_<thing>` / `override_<thing>` seam go in `shared/`, `api.py` registers the implementation at import, and a call before registration raises a `<Thing>NotRegistered` error. Never a direct import.
 
 ### Frontend (`frontend/`)
 
-Next.js 16 with App Router.
+Next.js with the App Router. The generated API client and TanStack Query wrappers keep the UI in sync with the backend's OpenAPI schema.
 
-- **`app/(chat)/page.tsx`**: Main chat page
-- **`app/(chat)/api/chat/route.ts`**: Proxy route to backend agent
-- **`components/chat.tsx`**: Chat orchestrator using `@ai-sdk/react` useChat hook
-- **`components/brain-context-badge.tsx`**: Displays active brain context (mood/arousal/valence)
-- **`features/tool-panel-registry.ts`**: Composition root mapping tool name → panel; the only file that imports across slices. `components/message.tsx` looks up `TOOL_PANELS` — a new tool panel is a slice component plus one map entry, never a renderer branch. See `.claude/rules/frontend/code-conventions.md` for the slice boundaries.
-- **`features/sessions/session-visualization.tsx`**: Tabbed session viewer — wraps `features/sessions/emotion-trajectory.tsx` (default, animated SVG trajectory through Russell's affect space) and a recharts arousal/valence timeline in Radix Tabs, with the band-power chart shared below. Registered for `analyze_session`
-- **`features/sessions/emotion-trajectory.tsx`**: Custom SVG + `motion/react` chart that plots each 4-second segment as a point in the valence/arousal plane, draws a smoothed rolling-mean path via an animated `motion.path` (`style={{ pathLength: progress }}`), and exposes a play/pause + scrubber driven by a `requestAnimationFrame` loop
-- **`features/retrieval/retrieved-tracks-panel.tsx`**: Ranked tracks rendered beneath `retrieve_tracks_from_brain_state` tool calls — similarity bars, inline 30s preview playback via a shared `<audio>` ref, Spotify deep-links, branched 404/503/500 error states
-- **`api/hooks/sessions.ts`**: TanStack Query wrappers around the generated sessions client — `useSessionSegments` and `useSimilarTracks`; follow this pattern when wrapping new generated endpoints. Retries skip 404 (missing session) and 503 (missing contrastive checkpoint)
+- **`features/<name>/`**: domain UI slices, mirroring the backend's `features/<name>/` (the example is `features/notes/`). A slice's tool panels register in **`features/tool-panel-registry.ts`**, the frontend analog of `ENABLED_CAPABILITIES`. Everything else (`app/`, `api/`, `components/ui` + `components/elements`, the chat shell, `lib/`, `hooks/`) is the shared kernel.
+- **`api/hooks/`**: TanStack Query wrappers around the generated client (e.g. `threads.ts`); follow this pattern when wrapping new generated endpoints.
+- **`api/generated/`**: generated from the backend OpenAPI schema via `pnpm -C frontend generate-client`.
 
 ### Data Flow
 
-1. Frontend `useChat` sends **only the newest turn** to `/api/chat` (`prepareSendMessagesRequest` in `components/chat.tsx`) — the database is the conversation history
-2. Route proxies to backend `POST /agent/chat`
-3. Backend sanitizes the browser's turn, stores it, and **commits before the run starts** — a stopped or broken stream must not lose it. Stored history is loaded with `Message.get_history` and passed as `message_history`; on success only `result.new_messages()` is appended
-4. Backend loads thread's `brain_context` into `AgentDeps`; `ClassificationCapability.get_instructions()` dynamically injects it into the system prompt
-5. The `ProcessHistory` capability (`summarize_tool_results`) compacts large tool results from prior turns to prevent token bloat
-6. Pydantic AI agent decides which tools to call
-7. Agent streams response back as SSE (Vercel AI SDK format)
-8. Frontend renders with tool-call transparency, brain context badge, and inline panels — `message.tsx` resolves each tool part against `features/tool-panel-registry.ts`: `<SessionVisualization>` on `analyze_session`, `<RetrievedTracksPanel>` on `retrieve_tracks_from_brain_state` (component-level details in the Frontend section above)
+A chat turn, from the browser's `useChat` through the `/api/chat` proxy, the backend's `POST /agent/chat`, the agent run, and the SSE stream back to the tool panels, is described in `docs/architecture/one-chat-turn.md`. The thread id reaches tools as `ctx.conversation_id`; capabilities inject runtime context into the system prompt via `get_instructions()`.
 
 ## Additional Instructions
 
-- Backend port: 8003, Frontend port: 3003, PostgreSQL port: 5433
-- Why is this code like this? Check `docs/adr/` before "fixing" a non-obvious choice — it records the decisions that look wrong without context, and the implementing docstring cites its ADR.
-- Model checkpoints are gitignored -- use `uv run train-model` to train.
-- After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`.
-- Do not manually edit files in `frontend/api/generated/`.
-- Working with Modal? See `.claude/rules/backend/modal.md` first — Modal's API has changed substantially in the 1.x series and your training data may be stale.
-- Editing the Pydantic AI agent or evals? See `.claude/rules/backend/pydantic-ai.md` first — docs are split between the local snapshot and `ai.pydantic.dev`; tool error-handling convention.
-- Editing the frontend chat UI? See `.claude/rules/frontend/vercel-ai-sdk.md` first — pinned UI docs cover the UI surface only; everything else on `ai-sdk.dev`. No AI SDK Core server-side — backend SSE is the source of truth.
-- Editing frontend code in general? See `.claude/rules/frontend/code-conventions.md` first — import-alias scope, shadcn/ui usage, kebab-case filenames, `cn()` from `@/lib/utils`.
-- Editing backend Python? See `.claude/rules/backend/code-conventions.md` first — filename, typing, and naming conventions.
-- Writing or naming new code (any stack)? See `.claude/rules/conventions.md` first — behavioral names, intent-carrying docstrings + negative constraints, rationale in ADRs.
+- Ports: backend 8003, frontend 3003, PostgreSQL 5433 on the host (5432 inside its container and in CI).
+- After modifying backend API endpoints, regenerate the frontend client with `pnpm -C frontend generate-client`. Never hand-edit `frontend/api/generated/`.
+- Before writing code, read the rules for the files you touch (Claude Code loads them by path through the `.claude/rules` symlink):
+  - Any backend or frontend code: `.agents/rules/conventions.md` (docstrings that carry the why, current state not history).
+  - Backend Python: `.agents/rules/backend/code-conventions.md` (copy targets, test seams, Pydantic vs dataclass); agents, tools, capabilities, or evals also: `.agents/rules/backend/pydantic-ai.md` (doc sources, cached instructions, output tools).
+  - Frontend TypeScript: `.agents/rules/frontend/code-conventions.md` (adding shadcn components, query hooks); chat UI or streaming also: `.agents/rules/frontend/vercel-ai-sdk.md` (bundled AI SDK docs; backend SSE is the source of truth).
+- When asked to review changes (a diff, branch, or PR): read `REVIEW.md` and apply it. The `review-changes` skill wraps the harness reviewer for a solo or cross-model review; don't add a custom reviewer agent.
 
-## Agent Harness
+## Pull requests
 
-- Skills live canonically in `.agents/skills/` (`.claude/skills` is a symlink into it). Codex parity lives in `.codex/` — `hooks.json`, relative symlinks to the Claude hooks, and agent TOMLs. **When editing `.claude/agents/`, mirror the change in `.codex/agents/`.**
-- Reviewing code? The methodology source of truth is `.agents/skills/code-review-guide/SKILL.md` — both the Claude subagent and Codex agent are thin wrappers around it.
-- Writing for agents — skills, `AGENTS.md`, or `CLAUDE.md`? Read `.agents/skills/writing-for-agents/SKILL.md` first.
-- Spec-driven work: `/to-spec` → `/to-tickets` → `/implement`. Run `/setup-matt-pocock-skills` once to configure the issue tracker they use.
+Branch from a freshly pulled `main` and open the PR against it as a draft, with the body from the `pr` skill. When the diff changes code, recommend `review-changes`; otherwise say why no review is needed. When more commits land on an open PR, rewrite its title and body to describe the PR as it now stands, not as a log of what was pushed. Merge only on the user's explicit approval: mark it ready, wait for CI, merge with `--merge`, and clean up as `docs/agents/issue-tracker.md` says.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local markdown under `.scratch/<effort>/` in this repo, and `.scratch/active.md` links the unresolved tickets. `docs/agents/issue-tracker.md` is the workflow contract: layout, status, readiness, the planning handoff, and resolving and cleaning up at merge. Consult it when planning ends, when creating or picking up tickets, and when the user approves a merge. Planning sessions (grill-me, grill-with-docs, wayfinder) end with settled decisions and remaining uncertainties, then stop for the user to invoke `to-spec`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`, which also holds the house ADR shape (stricter than `domain-modeling`'s).
+
+### Architecture guide
+
+`docs/architecture/` is the architecture guide: an overview plus one page per topic, each with a diagram and how to explain it. The user-invoked `architecture-guide` skill writes and updates it (`check` lists stale pages).

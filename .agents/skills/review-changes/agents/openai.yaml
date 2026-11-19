@@ -1,0 +1,5 @@
+interface:
+  display_name: "Review Changes"
+  short_description: "Built-in review + REVIEW.md, optional cross-model second opinion"
+policy:
+  allow_implicit_invocation: true

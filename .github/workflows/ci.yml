@@ -4,47 +4,48 @@ on:
     branches: [main]
   pull_request:
 
+# A new push to a PR replaces the run in progress; pushes to main each run to completion.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python
-        id: setup-python
-        uses: actions/setup-python@v6
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.0.0
         with:
+          enable-cache: true
           python-version: "3.14"
 
       - name: Cache pre-commit
         uses: actions/cache@v5
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-3|${{ steps.setup-python.outputs.python-version }}|${{ hashFiles('.pre-commit-config.yaml') }}
+          key: pre-commit-4|py3.14|${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Run pre-commit (lint + format)
         env:
           SKIP: mypy
-        run: |
-          pip install pre-commit
-          pre-commit run --all-files
+        run: uvx pre-commit run --all-files
 
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.0.0
         with:
           enable-cache: true
+          python-version: "3.14"
 
       - name: Install dependencies
         working-directory: ./backend
@@ -57,44 +58,38 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
-      # Same image as local docker compose; backs the integration tier.
       postgres:
-        image: pgvector/pgvector:pg17
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: cortexdj_test
         ports:
-          - "5432:5432"
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      # The integration tier connects to the service container above and
-      # refuses to run unless the DB name contains "test" (it runs alembic
-      # upgrade/downgrade). The unit tier stays DB-free.
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cortexdj_test
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
-      # Dummy provider key: tests use TestModel/monkeypatch, never a real call.
+      # Dummy provider keys: tests use TestModel/FunctionModel and block real calls (tests/conftest.py).
       OPENAI_API_KEY: sk-test-deterministic-no-real-calls
+      ANTHROPIC_API_KEY: sk-ant-test-deterministic-no-real-calls
     steps:
       - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.0.0
         with:
           enable-cache: true
+          python-version: "3.14"
 
       - name: Install dependencies
         working-directory: ./backend
@@ -102,35 +97,26 @@ jobs:
 
       - name: Run tests + coverage
         working-directory: ./backend
-        # Coverage floor at 40% (unit tier alone measures ~43%; combined with
-        # the integration tier, ~53%); ratchet up as coverage grows.
-        # The explicit -m "not eval" OVERRIDES addopts' 'not integration'
-        # (the last -m wins), which is what selects the integration tier
-        # here — don't remove it as "redundant" or the tier silently
-        # deselects while CI stays green.
-        run: uv run pytest -m "not eval" --cov=cortexdj --cov-report=term-missing --cov-report=xml --cov-fail-under=40
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-xml
-          path: backend/coverage.xml
+        # Tiers are directories: naming both runs unit + integration (evals stay out of PR CI).
+        # Coverage floor at 75% (baseline ~80%); ratchet up as coverage grows.
+        run: uv run pytest -o faulthandler_timeout=120 tests/unit tests/integration --cov=cortexdj --cov-report=term-missing:skip-covered --cov-fail-under=75
 
   frontend-lint:
-    name: Frontend Lint
+    name: Frontend Lint and SDK
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           package_json_file: frontend/package.json
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "26"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
@@ -139,3 +125,18 @@ jobs:
 
       - name: Lint
         run: pnpm -C frontend lint
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Check generated SDK
+        run: |
+          pnpm -C frontend generate-client
+          git diff --exit-code -- frontend/api/generated
+          test -z "$(git ls-files --others --exclude-standard -- frontend/api/generated)"
+
+      - name: Typecheck
+        run: pnpm -C frontend typecheck

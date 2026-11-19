@@ -1,8 +1,9 @@
 name: Eval
 
-# Real-LLM agent evals (pydantic-evals). Kept out of PR CI because they call a
-# real provider (cost + flakiness). Run on demand from the Actions tab, or enable
-# the nightly schedule below once OPENAI_API_KEY is set as a repository secret.
+# Real-LLM agent evals (pydantic-evals). Kept out of PR CI because they call real
+# providers (cost + flakiness). Run on demand from the Actions tab once
+# OPENAI_API_KEY / ANTHROPIC_API_KEY are set as repository secrets, or enable the
+# nightly schedule below.
 on:
   workflow_dispatch:
   # schedule:
@@ -12,31 +13,47 @@ jobs:
   eval:
     name: Agent Evals
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexdj_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      # Settings require these at import; the evals never connect to the DB.
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: cortexdj
+      POSTGRES_DB: cortexdj_test
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.0.0
         with:
           enable-cache: true
+          python-version: "3.14"
 
       - name: Install dependencies
         working-directory: ./backend
         run: uv sync --frozen --all-groups
 
+      # The same steps as backend/scripts/run-evals.sh, without the Docker handling.
+      - name: Migrate the test database
+        working-directory: ./backend
+        run: uv run alembic -c src/cortexdj/alembic.ini upgrade head
+
       - name: Run evals
         working-directory: ./backend
-        run: uv run pytest -m eval tests/evals/
+        run: uv run pytest -s tests/evals
