@@ -18,6 +18,12 @@ pnpm -C frontend generate-client
 pnpm -C frontend dev           # http://localhost:3003
 ```
 
+The model checkpoints live in `backend/data/checkpoints/`, which is not in git;
+`./backend/scripts/download-checkpoints.sh` fetches them from a GitHub Release (it needs the
+`gh` CLI). The backend container sees `backend/data` at `/app/data` through a bind mount.
+The first model load in the container downloads the CBraMod backbone from the Hugging Face hub
+into the `huggingface_cache` volume.
+
 The frontend needs Node 26 or newer (`engines.node` in `frontend/package.json`, enforced by
 `engineStrict` in `frontend/pnpm-workspace.yaml`); CI runs 26. `packageManager` pins pnpm, and
 pnpm switches to that version on its own.

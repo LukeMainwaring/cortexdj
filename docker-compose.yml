@@ -42,6 +42,11 @@ services:
       - .env
     volumes:
       - ./backend/src:/app/src
+      # Checkpoints and datasets; .dockerignore keeps data/ out of the image.
+      - ./backend/data:/app/data
+      # The CBraMod backbone is fetched from the Hugging Face hub on first load;
+      # the volume keeps it across container recreations.
+      - huggingface_cache:/root/.cache/huggingface
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,3 +60,4 @@ networks:
 
 volumes:
   postgres_data:
+  huggingface_cache:
