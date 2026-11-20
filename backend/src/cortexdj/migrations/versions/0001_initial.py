@@ -105,9 +105,33 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["thread_id"], ["threads.thread_id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("thread_id"),
     )
+    op.create_table(
+        "spotify_tokens",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("access_token", sa.String(length=1024), nullable=False),
+        sa.Column("refresh_token", sa.String(length=1024), nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_table(
+        "playlists",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("spotify_playlist_id", sa.String(length=255), nullable=True),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("mood_criteria", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("track_count", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_playlists_id"), "playlists", ["id"], unique=False)
 
 
 def downgrade() -> None:
+    op.drop_index(op.f("ix_playlists_id"), table_name="playlists")
+    op.drop_table("playlists")
+    op.drop_table("spotify_tokens")
     op.drop_table("thread_brain_contexts")
     op.drop_index(op.f("ix_session_tracks_id"), table_name="session_tracks")
     op.drop_table("session_tracks")
