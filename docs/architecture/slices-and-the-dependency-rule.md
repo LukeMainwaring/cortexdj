@@ -16,6 +16,7 @@ flowchart TB
     subgraph features["features/"]
         chat
         sessions
+        spotify
     end
     subgraph kernel[Kernel]
         agents["agents/<br/>runtime: recipe, hooks, history, deps"]
@@ -29,14 +30,14 @@ flowchart TB
 
 ## How it works
 
-A slice is a folder with the files it needs: `model.py`, `schema.py`, `service.py`, `router.py` where the slice has a table or routes, and `tools.py` and `capability.py` where it talks to an agent. There are two: `chat` (threads and messages, the title generator, and the streaming endpoint) and `sessions` (EEG sessions and a thread's brain context, with its tools). Route handlers stay thin and call the slice's `service.py`; tools do the same, through the session on `AgentDeps`.
+A slice is a folder with the files it needs: `model.py`, `schema.py`, `service.py`, `router.py` where the slice has a table or routes, and `tools.py` and `capability.py` where it talks to an agent. There are three: `chat` (threads and messages, the title generator, and the streaming endpoint), `sessions` (EEG sessions and a thread's brain context, with its tools), and `spotify` (the Spotify login, saved playlists, and the Spotify tools). Route handlers stay thin and call the slice's `service.py`; tools do the same, through the session on `AgentDeps`.
 
 The kernel is `core/` (settings, `db.py` with the request session and the one for work outside a request, the startup and shutdown hook registries, logging with credential redaction, and Logfire observability), `shared/` (the base model and schema classes, and the scrubber), and `agents/` (the agent runtime: the shared recipe in `assistant.py`, the named-agent registry, the tool and output error hooks, the history compactor, and `AgentDeps`).
 
 Three files are composition roots and may import across slices:
 
 - `api.py` includes each slice's router, and the health router from the kernel.
-- `agents/capabilities.py` lists the capabilities the assistant is built from; the sessions capability is the one entry.
+- `agents/capabilities.py` lists the capabilities the assistant is built from; the sessions and spotify capabilities are the entries.
 - `agents/registry.py` maps agent names to builders and builds each one lazily on first use, so the app boots without a provider key. The assistant and the title agent are the two entries; an entry may reach another agent through `partial(get_agent, NAME)`, which is how a specialist would be handed to the capability that delegates to it.
 
 Two other places list every slice for narrower reasons: `features/__init__.py` imports each slice's models so Alembic sees every table, and the frontend's `features/tool-panel-registry.ts` aggregates each UI slice's tool-to-panel map.

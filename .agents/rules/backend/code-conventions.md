@@ -33,6 +33,7 @@ Fake only at these seams; everything else in `cortexdj` runs for real in a test
 | The database session (integration tier) | the `client` fixture, which sets `app.dependency_overrides` |
 | Title generation | `app.dependency_overrides[get_title_generator]`, already set by `tests/integration/features/chat/conftest.py` |
 | The EEG model | `override_eeg_model(model)` from `features/sessions/eeg_model.py`; `None` stands for no checkpoint |
+| The Spotify client | `override_spotify_client(SpotifyClient(client=fake, is_user=...))` from `features/spotify/client.py`, with a small hand-written fake for the spotipy client; `SpotifyClient(client=None, is_user=False)` stands for not configured. To test connected against not connected, add or leave out a `spotify_tokens` row (`create_spotify_token`) instead. Never set `SPOTIFY_CLIENT_ID` in a test: the app client is cached for the process and would call Spotify |
 | A `shared/` seam (track access, session lookup) | its `override_<thing>(fake)` context manager; `None` stands for never registered |
 | Settings | `monkeypatch.setenv` or `delenv`, then `get_settings.cache_clear()` before and after. A test of a settings class constructs it directly (`AgentSettings(AGENT_MODEL=...)`) |
 

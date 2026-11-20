@@ -2,7 +2,7 @@
 
 ## Summary
 
-CortexDJ is a chat app where a user talks to one assistant that can call tools over the app's own data; the shipped domain is `sessions` (EEG sessions). A Next.js frontend proxies each chat turn to a FastAPI backend, which stores the turn, runs a Pydantic AI agent against the thread's history, and streams the reply back as server-sent events. The one idea to remember: the backend is cut into feature slices that only meet at a few composition roots, and an instance grows by copying a slice.
+CortexDJ is a chat app where a user talks to one assistant that can call tools over the app's own data; the shipped domains are `sessions` (EEG sessions) and `spotify` (track search, the user's library, mood playlists). A Next.js frontend proxies each chat turn to a FastAPI backend, which stores the turn, runs a Pydantic AI agent against the thread's history, and streams the reply back as server-sent events. The one idea to remember: the backend is cut into feature slices that only meet at a few composition roots, and an instance grows by copying a slice.
 
 ## Topics
 
@@ -26,9 +26,9 @@ flowchart LR
 
 ## How it works
 
-The backend package is `cortexdj`. A thin kernel (`core/`, `shared/`, `agents/`) holds what every feature shares, and each domain is a slice under `features/`: `chat` (threads, messages, title generation, and the streaming endpoint) and `sessions` (EEG sessions, segments, tracks, and a thread's brain context: tables, routes, and the assistant's tools).
+The backend package is `cortexdj`. A thin kernel (`core/`, `shared/`, `agents/`) holds what every feature shares, and each domain is a slice under `features/`: `chat` (threads, messages, title generation, and the streaming endpoint) `sessions` (EEG sessions, segments, tracks, and a thread's brain context: tables, routes, and the assistant's tools), and `spotify` (the OAuth routes, the stored login, saved playlists, and the assistant's Spotify tools).
 
-A chat turn enters at `features/chat/stream.py`. It stores the user's message, loads the thread's history, gets the assistant from the registry in `agents/registry.py`, and streams the run back in the Vercel AI SDK format. The assistant is built once by `build_assistant` in `agents/assistant.py` from `ENABLED_CAPABILITIES`, the list in `agents/capabilities.py`; the sessions slice's capability is the one entry. Threads, messages, and sessions live in one Postgres database, and every route takes a session from `core/db.py` that commits when the request ends.
+A chat turn enters at `features/chat/stream.py`. It stores the user's message, loads the thread's history, gets the assistant from the registry in `agents/registry.py`, and streams the run back in the Vercel AI SDK format. The assistant is built once by `build_assistant` in `agents/assistant.py` from `ENABLED_CAPABILITIES`, the list in `agents/capabilities.py`; the sessions and spotify capabilities are its entries. Threads, messages, and sessions live in one Postgres database, and every route takes a session from `core/db.py` that commits when the request ends.
 
 The frontend is a Next.js chat shell. `components/chat.tsx` sends only the newest message, `app/(chat)/api/chat/route.ts` forwards it, and `components/message.tsx` renders tool calls, mounting a richer panel when the tool's name is in `features/tool-panel-registry.ts`.
 
