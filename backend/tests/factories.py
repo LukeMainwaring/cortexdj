@@ -64,9 +64,21 @@ def make_chat_request(thread_id: str, text: str) -> dict[str, Any]:
     }
 
 
+def _mock_session() -> AsyncSession:
+    """A spec'd mock session whose lookups find no row."""
+    db = AsyncMock(spec=AsyncSession)
+    db.get.return_value = None
+    return db
+
+
 def make_deps(db: AsyncSession | None = None) -> AgentDeps:
-    """Agent deps; with no ``db``, the session is a spec'd mock for a run that must not reach a database."""
-    return AgentDeps(db=db if db is not None else AsyncMock(spec=AsyncSession))
+    """Agent deps for a run; ``db`` defaults to a mock for a run that must not reach a database.
+
+    The mock's lookups find no row, because the assistant reads the thread's brain context
+    before every model request, so an assistant run in the unit tier sees none. The
+    integration tier passes its real ``db_session``.
+    """
+    return AgentDeps(db=db if db is not None else _mock_session())
 
 
 def make_run_context(deps: AgentDeps) -> RunContext[AgentDeps]:

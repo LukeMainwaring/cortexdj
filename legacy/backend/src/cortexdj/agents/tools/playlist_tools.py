@@ -56,43 +56,6 @@ def _spotify_api_error(operation: str, error: Exception) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def find_relaxing_tracks(ctx: RunContext[AgentDeps], limit: int = 20) -> dict[str, Any]:
-    """Find tracks that triggered calm or relaxed brain states.
-
-    Queries historical EEG data to find tracks associated with
-    high valence and low arousal (the relaxation quadrant).
-    """
-    relaxed = await eeg_service.find_tracks_by_mood(ctx.deps.db, "relaxed", limit=limit)
-    calm = await eeg_service.find_tracks_by_mood(ctx.deps.db, "calm", limit=limit)
-
-    all_tracks = relaxed + calm
-    if not all_tracks:
-        return {"tracks": [], "count": 0, "message": "No tracks with relaxation data found."}
-
-    seen: set[str] = set()
-    unique: list[dict[str, object]] = []
-    for t in all_tracks:
-        tid = str(t["track_id"])
-        if tid not in seen:
-            seen.add(tid)
-            unique.append(t)
-
-    return {
-        "tracks": [
-            {
-                "title": t["title"],
-                "artist": t["artist"],
-                "dominant_state": t["dominant_state"],
-                "avg_arousal": round(float(t["avg_arousal"]), 2),  # type: ignore[arg-type]
-                "avg_valence": round(float(t["avg_valence"]), 2),  # type: ignore[arg-type]
-            }
-            for t in unique[:limit]
-        ],
-        "count": len(unique[:limit]),
-        "total_available": len(unique),
-    }
-
-
 async def build_mood_playlist(
     ctx: RunContext[AgentDeps],
     mood: str,
