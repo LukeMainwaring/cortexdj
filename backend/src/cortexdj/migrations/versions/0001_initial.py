@@ -44,9 +44,88 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_table(
+        "sessions",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("participant_id", sa.String(length=50), nullable=False),
+        sa.Column("dataset_source", sa.String(length=20), nullable=False),
+        sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("duration_seconds", sa.Float(), nullable=False),
+        sa.Column("metadata_extra", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_sessions_id"), "sessions", ["id"], unique=False)
+    op.create_table(
+        "tracks",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("spotify_track_id", sa.String(length=255), nullable=True),
+        sa.Column("title", sa.String(length=500), nullable=False),
+        sa.Column("artist", sa.String(length=500), nullable=False),
+        sa.Column("album", sa.String(length=500), nullable=True),
+        sa.Column("duration_ms", sa.Integer(), nullable=True),
+        sa.Column("spotify_features", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("spotify_track_id"),
+    )
+    op.create_index(op.f("ix_tracks_id"), "tracks", ["id"], unique=False)
+    op.create_table(
+        "eeg_segments",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("session_id", sa.String(), nullable=False),
+        sa.Column("segment_index", sa.Integer(), nullable=False),
+        sa.Column("start_time", sa.Float(), nullable=False),
+        sa.Column("end_time", sa.Float(), nullable=False),
+        sa.Column("arousal_score", sa.Float(), nullable=False),
+        sa.Column("valence_score", sa.Float(), nullable=False),
+        sa.Column("dominant_state", sa.String(length=20), nullable=False),
+        sa.Column("band_powers", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("features", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["session_id"], ["sessions.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_eeg_segments_id"), "eeg_segments", ["id"], unique=False)
+    op.create_table(
+        "session_tracks",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("session_id", sa.String(), nullable=False),
+        sa.Column("track_id", sa.String(), nullable=False),
+        sa.Column("track_order", sa.Integer(), nullable=False),
+        sa.Column("avg_arousal", sa.Float(), nullable=False),
+        sa.Column("avg_valence", sa.Float(), nullable=False),
+        sa.Column("dominant_state", sa.String(length=20), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["session_id"], ["sessions.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["track_id"], ["tracks.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_session_tracks_id"), "session_tracks", ["id"], unique=False)
+    op.create_table(
+        "thread_brain_contexts",
+        sa.Column("thread_id", sa.String(), nullable=False),
+        sa.Column("latest_session_id", sa.String(), nullable=True),
+        sa.Column("dominant_mood", sa.String(), nullable=True),
+        sa.Column("avg_arousal", sa.Float(), nullable=True),
+        sa.Column("avg_valence", sa.Float(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["thread_id"], ["threads.thread_id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("thread_id"),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("thread_brain_contexts")
+    op.drop_index(op.f("ix_session_tracks_id"), table_name="session_tracks")
+    op.drop_table("session_tracks")
+    op.drop_index(op.f("ix_eeg_segments_id"), table_name="eeg_segments")
+    op.drop_table("eeg_segments")
+    op.drop_index(op.f("ix_tracks_id"), table_name="tracks")
+    op.drop_table("tracks")
+    op.drop_index(op.f("ix_sessions_id"), table_name="sessions")
+    op.drop_table("sessions")
     op.drop_table("notes")
     op.drop_table("messages")
     op.drop_table("threads")

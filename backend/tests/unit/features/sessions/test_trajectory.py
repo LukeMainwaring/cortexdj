@@ -3,13 +3,13 @@
 from datetime import UTC, datetime
 from math import isclose, sqrt
 
-from cortexdj.ml.dataset import scores_to_quadrant
-from cortexdj.models.eeg_segment import EegSegment
-from cortexdj.services.trajectory import (
+from cortexdj.features.sessions.model import EegSegment
+from cortexdj.features.sessions.trajectory import (
     compute_trajectory_summary,
     quadrant_from_scores,
     smooth_trajectory,
 )
+from cortexdj.ml.dataset import scores_to_quadrant
 
 
 def _segment(index: int, arousal: float, valence: float, state: str, start: float) -> EegSegment:

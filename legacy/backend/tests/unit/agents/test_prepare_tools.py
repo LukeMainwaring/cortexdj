@@ -80,38 +80,3 @@ class TestPlaylistCapabilityPrepareTools:
         assert "get_my_playlists" in offered
         assert "add_tracks_to_playlist" in offered
 
-
-class TestClassificationCapabilityPrepareTools:
-    async def test_hides_model_tools_when_eeg_model_missing(self) -> None:
-        model = await _run_agent_with_test_model(spotify_client=None, eeg_model=None)
-        offered = _offered_tool_names(model)
-
-        assert "get_model_info" not in offered
-
-    async def test_set_brain_context_always_available(self) -> None:
-        model = await _run_agent_with_test_model(spotify_client=None, eeg_model=None)
-        offered = _offered_tool_names(model)
-
-        assert "set_brain_context" in offered
-
-    async def test_shows_model_tools_when_eeg_model_loaded(self) -> None:
-        from tests.fakes import fake_eeg_model
-
-        model = await _run_agent_with_test_model(spotify_client=None, eeg_model=fake_eeg_model())
-        offered = _offered_tool_names(model)
-
-        assert "get_model_info" in offered
-
-
-class TestAlwaysAvailableTools:
-    async def test_session_and_insight_tools_always_present(self) -> None:
-        model = await _run_agent_with_test_model(spotify_client=None, eeg_model=None)
-        offered = _offered_tool_names(model)
-
-        for always in (
-            "list_sessions",
-            "analyze_session",
-            "explain_brain_state",
-            "compare_sessions",
-        ):
-            assert always in offered

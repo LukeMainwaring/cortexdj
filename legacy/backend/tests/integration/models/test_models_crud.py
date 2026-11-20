@@ -13,33 +13,14 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.models.message import Message
-from cortexdj.models.session import Session
 from cortexdj.models.spotify_token import SpotifyToken
 from cortexdj.models.thread import Thread
 from cortexdj.models.track_audio_embedding import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.schemas.agent_type import AgentType
 from cortexdj.schemas.thread import BrainContext
-from tests.factories import create_session, create_track_audio_embedding
+from tests.factories import create_track_audio_embedding
 
 _CHAT = AgentType.CHAT.value
-
-
-class TestSession:
-    async def test_get_all_paginates_newest_first(self, db_session: AsyncSession) -> None:
-        for day in (1, 2, 3):
-            await create_session(db_session, recorded_at=datetime(2024, 2, day, tzinfo=UTC))
-
-        sessions, total = await Session.get_all(db_session, limit=2, offset=0)
-        assert total == 3
-        assert len(sessions) == 2
-        assert sessions[0].recorded_at.day == 3
-
-    async def test_get_by_participant(self, db_session: AsyncSession) -> None:
-        await create_session(db_session, participant_id="P01")
-        await create_session(db_session, participant_id="P02")
-
-        found = await Session.get_by_participant(db_session, "P02")
-        assert [s.participant_id for s in found] == ["P02"]
 
 
 class TestThread:

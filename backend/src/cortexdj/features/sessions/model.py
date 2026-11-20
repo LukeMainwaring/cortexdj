@@ -36,6 +36,13 @@ class Session(Base):
         return result.scalars().all(), total
 
     @classmethod
+    async def get_by_participant(cls, db: AsyncSession, participant_id: str) -> Sequence[Session]:
+        result = await db.execute(
+            select(cls).where(cls.participant_id == participant_id).order_by(cls.recorded_at.desc())
+        )
+        return result.scalars().all()
+
+    @classmethod
     async def list_chronological_ids(cls, db: AsyncSession) -> list[tuple[str, float]]:
         """Return all (id, duration_seconds) pairs ordered by insertion time.
 

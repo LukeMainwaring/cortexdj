@@ -1,6 +1,6 @@
-"""Unit tests for utils.emotion quadrant lookups (agent-facing copy)."""
+"""Unit tests for the emotion quadrant lookups (agent-facing copy)."""
 
-from cortexdj.utils.emotion import (
+from cortexdj.features.sessions.emotion import (
     BRAIN_STATE_EXPLANATIONS,
     QUADRANT_DESCRIPTIONS,
     get_brain_state_explanation,
