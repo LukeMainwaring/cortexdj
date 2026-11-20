@@ -7,13 +7,11 @@ to keep this side-effect-free beyond table registration.
 """
 
 from cortexdj.features.chat.model import Message, Thread
-from cortexdj.features.notes.model import Note
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 
 __all__ = [
     "EegSegment",
     "Message",
-    "Note",
     "Session",
     "SessionTrack",
     "Thread",

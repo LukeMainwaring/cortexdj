@@ -22,17 +22,17 @@ from cortexdj.agents.history_processor import (
     compact_prior_tool_results,
 )
 
-SUMMARIZABLE = frozenset({"list_notes"})
+SUMMARIZABLE = frozenset({"find_relaxing_tracks"})
 
 
-def _notes_payload(n: int) -> dict[str, object]:
-    return {"notes": [{"id": str(i), "title": f"n{i}", "content": "x" * 100} for i in range(n)], "total": n}
+def _tracks_payload(n: int) -> dict[str, object]:
+    return {"tracks": [{"title": f"t{i}", "artist": "x" * 100} for i in range(n)], "count": n}
 
 
 def test_large_prior_list_result_is_summarized() -> None:
-    big = _notes_payload(50)  # well over LARGE_RESULT_THRESHOLD once serialized
-    prior = ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content=big, tool_call_id="c1")])
-    last = ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content=big, tool_call_id="c2")])
+    big = _tracks_payload(50)  # well over LARGE_RESULT_THRESHOLD once serialized
+    prior = ModelRequest(parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content=big, tool_call_id="c1")])
+    last = ModelRequest(parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content=big, tool_call_id="c2")])
 
     out = compact_prior_tool_results([prior, last], SUMMARIZABLE)
 
@@ -43,9 +43,9 @@ def test_large_prior_list_result_is_summarized() -> None:
     assert isinstance(part, ToolReturnPart)
     content = cast(dict[str, Any], part.content)
     assert content["_summarized"] is True
-    assert content["tool"] == "list_notes"
-    assert len(content["notes"]) == 5  # sample of the list
-    assert content["total"] == 50  # scalar fields pass through
+    assert content["tool"] == "find_relaxing_tracks"
+    assert len(content["tracks"]) == 5  # sample of the list
+    assert content["count"] == 50  # scalar fields pass through
     assert "50 items" in content["summary"]
 
     # The current turn (last message) is preserved in full, even though it's large.
@@ -60,7 +60,7 @@ def test_summary_samples_the_first_non_empty_list() -> None:
     """A result with alternative lists (`rows` or `groups`) keeps the one that holds the answer."""
     rows = [{"id": str(i), "content": "x" * 100} for i in range(50)]
     big = {"groups": [], "rows": rows, "total": 50}
-    prior = ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content=big, tool_call_id="c1")])
+    prior = ModelRequest(parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content=big, tool_call_id="c1")])
     last = ModelRequest(parts=[UserPromptPart(content="next")])
 
     out = compact_prior_tool_results([prior, last], SUMMARIZABLE)
@@ -77,7 +77,7 @@ def test_summary_samples_the_first_non_empty_list() -> None:
 
 def test_rebuilt_message_keeps_identity_fields() -> None:
     prior = ModelRequest(
-        parts=[ToolReturnPart(tool_name="list_notes", content=_notes_payload(50), tool_call_id="c1")],
+        parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content=_tracks_payload(50), tool_call_id="c1")],
         run_id="run-1",
     )
     last = ModelRequest(parts=[UserPromptPart(content="next")])
@@ -94,8 +94,8 @@ def test_rebuilt_message_keeps_identity_fields() -> None:
 
 
 def test_non_summarizable_tool_is_untouched() -> None:
-    prior = ModelRequest(parts=[ToolReturnPart(tool_name="other_tool", content=_notes_payload(50), tool_call_id="c1")])
-    last = ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content={}, tool_call_id="c2")])
+    prior = ModelRequest(parts=[ToolReturnPart(tool_name="other_tool", content=_tracks_payload(50), tool_call_id="c1")])
+    last = ModelRequest(parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content={}, tool_call_id="c2")])
 
     out = compact_prior_tool_results([prior, last], SUMMARIZABLE)
 
@@ -103,8 +103,10 @@ def test_non_summarizable_tool_is_untouched() -> None:
 
 
 def test_small_result_is_untouched() -> None:
-    prior = ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content=_notes_payload(1), tool_call_id="c1")])
-    last = ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content={}, tool_call_id="c2")])
+    prior = ModelRequest(
+        parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content=_tracks_payload(1), tool_call_id="c1")]
+    )
+    last = ModelRequest(parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content={}, tool_call_id="c2")])
 
     out = compact_prior_tool_results([prior, last], SUMMARIZABLE)
 
@@ -113,7 +115,9 @@ def test_small_result_is_untouched() -> None:
 
 def test_single_message_returned_unchanged() -> None:
     msgs: list[ModelMessage] = [
-        ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content=_notes_payload(50), tool_call_id="c1")])
+        ModelRequest(
+            parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content=_tracks_payload(50), tool_call_id="c1")]
+        )
     ]
     out = compact_prior_tool_results(msgs, SUMMARIZABLE)
     assert out == msgs
@@ -131,12 +135,14 @@ def _capturing_model(received: list[list[ModelMessage]]) -> FunctionModel:
 
 
 def _history_with_big_result(last_response_tokens: int | None) -> list[ModelMessage]:
-    """A prior turn that listed notes; its final response carries the usage that sets `context_window_used`."""
+    """A prior turn that found relaxing tracks; its final response carries the usage that sets `context_window_used`."""
     usage = RequestUsage(input_tokens=last_response_tokens, output_tokens=0) if last_response_tokens else RequestUsage()
     return [
-        ModelRequest(parts=[UserPromptPart(content="list my notes")]),
-        ModelResponse(parts=[ToolCallPart(tool_name="list_notes", args={}, tool_call_id="c1")]),
-        ModelRequest(parts=[ToolReturnPart(tool_name="list_notes", content=_notes_payload(50), tool_call_id="c1")]),
+        ModelRequest(parts=[UserPromptPart(content="find me relaxing tracks")]),
+        ModelResponse(parts=[ToolCallPart(tool_name="find_relaxing_tracks", args={}, tool_call_id="c1")]),
+        ModelRequest(
+            parts=[ToolReturnPart(tool_name="find_relaxing_tracks", content=_tracks_payload(50), tool_call_id="c1")]
+        ),
         ModelResponse(parts=[TextPart(content="here they are")], usage=usage),
     ]
 
@@ -171,7 +177,7 @@ async def test_prior_results_kept_verbatim_while_window_has_room() -> None:
 
     tool_returns = _tool_returns(received)
     assert len(tool_returns) == 1
-    assert tool_returns[0].content == _notes_payload(50)
+    assert tool_returns[0].content == _tracks_payload(50)
 
 
 async def test_compaction_stays_on_after_a_compacted_turn_reports_low_usage() -> None:

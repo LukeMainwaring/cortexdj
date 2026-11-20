@@ -15,7 +15,7 @@ flowchart TB
     end
     subgraph features["features/"]
         chat
-        notes
+        sessions
     end
     subgraph kernel[Kernel]
         agents["agents/<br/>runtime: recipe, hooks, history, deps"]
@@ -29,33 +29,33 @@ flowchart TB
 
 ## How it works
 
-A slice is a folder with the files it needs: `model.py`, `schema.py`, `service.py`, `router.py` where the slice has a table or routes, and `tools.py` and `capability.py` where it talks to an agent. There are two: `chat` (threads and messages, the title generator, and the streaming endpoint) and `notes` (the example domain, with its three tools). Route handlers stay thin and call the slice's `service.py`; tools do the same, through the session on `AgentDeps`.
+A slice is a folder with the files it needs: `model.py`, `schema.py`, `service.py`, `router.py` where the slice has a table or routes, and `tools.py` and `capability.py` where it talks to an agent. There are two: `chat` (threads and messages, the title generator, and the streaming endpoint) and `sessions` (EEG sessions and a thread's brain context, with its tools). Route handlers stay thin and call the slice's `service.py`; tools do the same, through the session on `AgentDeps`.
 
 The kernel is `core/` (settings, `db.py` with the request session and the one for work outside a request, the startup and shutdown hook registries, logging with credential redaction, and Logfire observability), `shared/` (the base model and schema classes, and the scrubber), and `agents/` (the agent runtime: the shared recipe in `assistant.py`, the named-agent registry, the tool and output error hooks, the history compactor, and `AgentDeps`).
 
 Three files are composition roots and may import across slices:
 
 - `api.py` includes each slice's router, and the health router from the kernel.
-- `agents/capabilities.py` lists the capabilities the assistant is built from; the notes capability is the one entry.
+- `agents/capabilities.py` lists the capabilities the assistant is built from; the sessions capability is the one entry.
 - `agents/registry.py` maps agent names to builders and builds each one lazily on first use, so the app boots without a provider key. The assistant and the title agent are the two entries; an entry may reach another agent through `partial(get_agent, NAME)`, which is how a specialist would be handed to the capability that delegates to it.
 
 Two other places list every slice for narrower reasons: `features/__init__.py` imports each slice's models so Alembic sees every table, and the frontend's `features/tool-panel-registry.ts` aggregates each UI slice's tool-to-panel map.
 
-When a slice needs something another slice owns, `AGENTS.md` gives the shape: the type and a one-slot `register_<thing>` / `override_<thing>` seam go in `shared/`, and `api.py` registers the implementation at import. The template ships none, because its two slices need nothing from each other.
+When a slice needs something another slice owns, `AGENTS.md` gives the shape: the type and a one-slot `register_<thing>` / `override_<thing>` seam go in `shared/`, and `api.py` registers the implementation at import. There are two, `track_access` and `session_lookup`, both implemented by `sessions`.
 
 ## Why it's built this way
 
 `AGENTS.md` states the rule and the intent: copy a slice to add a domain, and register in one place so the wiring follows. `import-linter` enforces it from pre-commit with two contracts in `backend/pyproject.toml`: the slices are independent of each other, and `core`, `shared`, and `agents` never import `features`. Both contracts ignore the imports in the two composition roots inside the kernel, `agents/capabilities.py` and `agents/registry.py`. Today only the capability list imports a slice; the comment above the contracts says the registry's ignore only warns until a domain registers its own agent builder there. On the frontend, a Biome restricted-import rule makes `features/tool-panel-registry.ts` the only way into a slice.
 
-The same shape is what lets onboarding cut features. The `agent` feature is the `agents/` kernel plus the `chat` slice and the notes tools; `embeddings` is the embedder, the search columns and their indexes, a route, and one tool inside the notes slice, fenced with markers, plus the frontend's search-results panel, whose registration line carries a `// sf:` marker; `scrubbing` is one module in `shared/` and its three call sites. Because slices do not reach into each other, each cut leaves an app that still imports.
+The same shape is what lets onboarding cut features. The `agent` feature is the `agents/` kernel plus the `chat` slice; `scrubbing` is one module in `shared/` and its three call sites. Because slices do not reach into each other, each cut leaves an app that still imports.
 
-[ADR 0001](../adr/0001-test-tiers-and-fakes.md) is where the rule meets the tests: a feature's shared fakes live in its own `tests/integration/features/<name>/conftest.py`, never the shared one, so a prune takes them with the feature; a feature woven into another slice, like `embeddings` into notes, keeps them in that slice's conftest, marked so the prune still finds them; and tests fake only at seams the source declares (a dependency, an `override`, a constructor argument). The registry docstring records why agents are faked through `get_agent(NAME).override(model=...)` and never by swapping an entry: the built agent is cached for the process.
+[ADR 0001](../adr/0001-test-tiers-and-fakes.md) is where the rule meets the tests: a feature's shared fakes live in its own `tests/integration/features/<name>/conftest.py`, never the shared one; and tests fake only at seams the source declares (a dependency, an `override`, a constructor argument). The registry docstring records why agents are faked through `get_agent(NAME).override(model=...)` and never by swapping an entry: the built agent is cached for the process.
 
 ## How to explain this
 
 **In about a minute:**
 
-> The backend is organized by feature, not by layer. Each domain, like chat or notes, is its own folder with its model, service, routes, and agent tools together. Underneath is a small kernel with config, the database sessions, and the agent runtime. The rule is that a feature can import the kernel, but never another feature, and the kernel never imports a feature. So how does the assistant get the notes tools? Through a composition root: one file lists the capabilities the assistant is built from, and the registry builds it from that list. There are three files like that, routers, capabilities, agents, and they're the only place you can see the whole system at once. Adding a domain is copying a folder and adding one line in each root that applies.
+> The backend is organized by feature, not by layer. Each domain, like chat or sessions, is its own folder with its model, service, routes, and agent tools together. Underneath is a small kernel with config, the database sessions, and the agent runtime. The rule is that a feature can import the kernel, but never another feature, and the kernel never imports a feature. So how does the assistant get the sessions tools? Through a composition root: one file lists the capabilities the assistant is built from, and the registry builds it from that list. There are three files like that, routers, capabilities, agents, and they're the only place you can see the whole system at once. Adding a domain is copying a folder and adding one line in each root that applies.
 
 **Likely follow-ups:**
 

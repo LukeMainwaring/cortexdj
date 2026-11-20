@@ -1,6 +1,6 @@
 # CortexDJ
 
-A full-stack AI-app template: a FastAPI + Pydantic AI backend and a Next.js chat frontend, with a Notes example domain to copy. An instance replaces this paragraph and these sections with its own domain; the `domain-modeling` skill adds and sharpens entries as terms get settled.
+A full-stack AI-app template: a FastAPI + Pydantic AI backend and a Next.js chat frontend. An instance replaces this paragraph and these sections with its own domain; the `domain-modeling` skill adds and sharpens entries as terms get settled.
 
 ## Language
 
@@ -87,24 +87,6 @@ _Avoid_: Partial redaction, truncation
 **Redaction**:
 Scrubbing that keeps nothing of the identifier, only a placeholder naming its kind. Used for emails. Also what the request log and request span do to credential query parameters.
 _Avoid_: Removal, tokenization
-
-### Retrieval
-
-**Hybrid search**:
-Searching the notes two ways at once, by meaning and by wording, and merging the two rankings into one. Every note search is a hybrid search; there is no mode that runs only one leg.
-_Avoid_: Semantic search (one leg of it), vector search, RAG
-
-**Semantic leg**:
-The half of a hybrid search that ranks notes by how close their meaning is to the query's, using the stored embeddings. It finds a note that uses none of the user's words, and never a note that has no embedding.
-_Avoid_: Vector leg, dense retrieval, similarity search
-
-**Keyword leg**:
-The half of a hybrid search that ranks notes by the words they share with the query, after both are reduced to word stems and common words are dropped. A match in a note's title counts for more than a match in its content. It finds a note that names the exact thing the user asked about, embedding or not.
-_Avoid_: Full-text leg, lexical search, BM25 (Postgres ranks differently)
-
-**Reciprocal rank fusion**:
-How a hybrid search merges its two rankings: each leg that returned a note adds one over sixty plus the note's rank in that leg, and the notes are ordered by the sum. Only ranks count, so a note both legs found beats one only a single leg found. The sum is the result's score; it is not a similarity and means nothing outside the search that produced it.
-_Avoid_: RRF score as a similarity, blending, reranking
 
 ### Testing and evaluation
 

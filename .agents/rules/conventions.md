@@ -16,8 +16,8 @@ would otherwise get wrong, the ADR in `docs/adr/` that holds the rationale, and 
 wherever the code looks fixable but isn't.
 
 An agent tool's docstring is the model's tool description at runtime (Pydantic AI), so say
-when to call it rather than a nearby tool (`search_notes`: "Use this when the user wants to
-recall or find notes about a topic rather than listing all of them").
+when to call it rather than a nearby tool (`set_brain_context`: "Call when the user references a
+specific session or mood").
 
 ## Docs describe the current state
 

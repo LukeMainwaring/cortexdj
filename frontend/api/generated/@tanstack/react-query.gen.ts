@@ -4,8 +4,8 @@ import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOption
 import type { AxiosError } from 'axios';
 
 import { client } from '../client.gen';
-import { createNote, deleteThread, getBrainContext, getNote, getSession, getSessionSegments, getThreadMessages, listNotes, listSessions, listSessionsEnriched, listThreads, type Options, renameThread } from '../sdk.gen';
-import type { CreateNoteData, CreateNoteError, CreateNoteResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, GetBrainContextData, GetBrainContextError, GetBrainContextResponse, GetNoteData, GetNoteError, GetNoteResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListNotesData, ListNotesResponse, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedError, ListSessionsEnrichedResponse, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse } from '../types.gen';
+import { deleteThread, getBrainContext, getSession, getSessionSegments, getThreadMessages, listSessions, listSessionsEnriched, listThreads, type Options, renameThread } from '../sdk.gen';
+import type { DeleteThreadData, DeleteThreadError, DeleteThreadResponse, GetBrainContextData, GetBrainContextError, GetBrainContextResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedError, ListSessionsEnrichedResponse, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseURL' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -117,65 +117,6 @@ export const renameThreadMutation = (options?: Partial<Options<RenameThreadData>
     };
     return mutationOptions;
 };
-
-export const listNotesQueryKey = (options?: Options<ListNotesData>) => createQueryKey('listNotes', options);
-
-/**
- * List Notes
- *
- * List the user's notes, newest first.
- */
-export const listNotesOptions = (options?: Options<ListNotesData>) => queryOptions<ListNotesResponse, AxiosError<DefaultError>, ListNotesResponse, ReturnType<typeof listNotesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await listNotes({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listNotesQueryKey(options)
-});
-
-/**
- * Create Note
- *
- * Create a new note.
- */
-export const createNoteMutation = (options?: Partial<Options<CreateNoteData>>): UseMutationOptions<CreateNoteResponse, AxiosError<CreateNoteError>, Options<CreateNoteData>> => {
-    const mutationOptions: UseMutationOptions<CreateNoteResponse, AxiosError<CreateNoteError>, Options<CreateNoteData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await createNote({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const getNoteQueryKey = (options: Options<GetNoteData>) => createQueryKey('getNote', options);
-
-/**
- * Get Note
- *
- * Get a single note by id.
- */
-export const getNoteOptions = (options: Options<GetNoteData>) => queryOptions<GetNoteResponse, AxiosError<GetNoteError>, GetNoteResponse, ReturnType<typeof getNoteQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getNote({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getNoteQueryKey(options)
-});
 
 export const listSessionsQueryKey = (options?: Options<ListSessionsData>) => createQueryKey('listSessions', options);
 

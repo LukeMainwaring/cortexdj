@@ -6,35 +6,12 @@ unpersisted value for any tier; ``create_*`` persists through a session for the
 integration tier. Builders take ``**overrides`` (or keyword arguments with defaults, where
 the shape is typed) so a test states only the fields it is about. Add a builder here
 rather than a private helper in a test file once two test files need the same shape.
-
-Builders for cuttable features live inside ``# sf:`` marker blocks, imports included,
-so they vanish with their feature on prune. Do not hoist those imports to the top:
-keep this file importable in the backend-only variant.
 """
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from cortexdj.features.notes.model import Note
-
-
-def make_note(**overrides: object) -> Note:
-    """Unpersisted Note with sensible defaults; override any field (incl. ``embedding``)."""
-    data: dict[str, object] = {"title": "Groceries", "content": "milk, eggs, bread"}
-    data.update(overrides)
-    return Note(**data)
-
-
-async def create_note(db: AsyncSession, **overrides: object) -> Note:
-    """Persist a Note via ``db`` and return it (bypasses the embedder)."""
-    note = make_note(**overrides)
-    db.add(note)
-    await db.flush()
-    await db.refresh(note)
-    return note
-
 
 from datetime import UTC, datetime
 from uuid import uuid4
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 

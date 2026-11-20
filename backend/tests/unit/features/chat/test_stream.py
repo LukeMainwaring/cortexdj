@@ -72,10 +72,10 @@ def test_an_approved_trailing_tool_call_survives_when_the_stored_copy_is_sanitiz
                 "role": "assistant",
                 "parts": [
                     {
-                        "type": "tool-delete_note",
+                        "type": "tool-delete_session",
                         "toolCallId": "call-1",
                         "state": "approval-responded",
-                        "input": {"note_id": 7},
+                        "input": {"session_id": "s-7"},
                         "approval": {"id": "appr-1", "approved": True},
                     }
                 ],

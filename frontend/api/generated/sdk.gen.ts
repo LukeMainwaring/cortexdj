@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateNoteData, CreateNoteErrors, CreateNoteResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetNoteData, GetNoteErrors, GetNoteResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListNotesData, ListNotesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses } from './types.gen';
+import type { DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -64,43 +64,6 @@ export const renameThread = <ThrowOnError extends boolean = false>(options: Opti
         'Content-Type': 'application/json',
         ...options.headers
     }
-});
-
-/**
- * List Notes
- *
- * List the user's notes, newest first.
- */
-export const listNotes = <ThrowOnError extends boolean = false>(options?: Options<ListNotesData, ThrowOnError>): RequestResult<ListNotesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListNotesResponses, unknown, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/notes',
-    ...options
-});
-
-/**
- * Create Note
- *
- * Create a new note.
- */
-export const createNote = <ThrowOnError extends boolean = false>(options: Options<CreateNoteData, ThrowOnError>): RequestResult<CreateNoteResponses, CreateNoteErrors, ThrowOnError> => (options.client ?? client).post<CreateNoteResponses, CreateNoteErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/notes',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get Note
- *
- * Get a single note by id.
- */
-export const getNote = <ThrowOnError extends boolean = false>(options: Options<GetNoteData, ThrowOnError>): RequestResult<GetNoteResponses, GetNoteErrors, ThrowOnError> => (options.client ?? client).get<GetNoteResponses, GetNoteErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/notes/{note_id}',
-    ...options
 });
 
 /**

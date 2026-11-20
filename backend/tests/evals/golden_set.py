@@ -64,8 +64,8 @@ golden_set: Dataset[GoldenReply, bool, None] = Dataset(
             _turn(assistant_dataset, "friendly_greeting"),
             good="Hello! It's lovely to meet you.",
             bad=(
-                "Greetings. I am an assistant with access to your notes. I can list them, create new ones, "
-                "and search them by meaning. State your request in full, including any constraints, and I "
+                "Greetings. I am an assistant with access to your EEG sessions. I can list them, analyze them, "
+                "and compare them. State your request in full, including any constraints, and I "
                 "will process it."
             ),
         ),
