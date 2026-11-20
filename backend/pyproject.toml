@@ -30,6 +30,9 @@ dependencies = [
   "transformers>=5.23.0",
 ]
 
+[project.scripts]
+seed-sessions = "cortexdj.scripts.seed_sessions:main"
+
 [dependency-groups]
 dev = [
   "httpx>=0.28.1",
@@ -61,7 +64,7 @@ source = ["cortexdj"]
 branch = true
 # SQLAlchemy's async driver runs on greenlets; without this, lines after a DB await go uncounted.
 concurrency = ["greenlet", "thread"]
-omit = ["*/migrations/*", "*/__init__.py"]
+omit = ["*/migrations/*", "*/scripts/*", "*/__init__.py"]
 
 [tool.coverage.report]
 show_missing = true

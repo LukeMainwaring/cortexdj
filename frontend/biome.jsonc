@@ -88,8 +88,12 @@
                 "message": "Import relatively only from the same directory or below it; use the @/ alias otherwise."
               },
               {
-                "group": ["@/features/**", "!@/features/tool-panel-registry"],
-                "message": "A feature slice is reached only through @/features/tool-panel-registry; a slice never imports another slice."
+                "group": [
+                  "@/features/**",
+                  "!@/features/tool-panel-registry",
+                  "!@/features/header-slot-registry"
+                ],
+                "message": "A feature slice is reached only through @/features/tool-panel-registry or @/features/header-slot-registry; a slice never imports another slice."
               },
               {
                 "group": [
@@ -138,9 +142,10 @@
                   {
                     "group": [
                       "@/features/**",
-                      "!@/features/tool-panel-registry"
+                      "!@/features/tool-panel-registry",
+                      "!@/features/header-slot-registry"
                     ],
-                    "message": "A feature slice is reached only through @/features/tool-panel-registry; a slice never imports another slice."
+                    "message": "A feature slice is reached only through @/features/tool-panel-registry or @/features/header-slot-registry; a slice never imports another slice."
                   }
                 ]
               }

@@ -58,6 +58,7 @@ named in a check are never findings.
 ### Frontend
 
 - **A slice exports its tool-to-panel map from `tool-panels.ts`** (`NOTES_TOOL_PANELS`) and registers it in `features/tool-panel-registry.ts`. A new panel needs no edit to `message.tsx`, which looks panels up in the registry by tool name.
+- **A slice reaches the chat header through `features/header-slot-registry.ts`.** `chat-header.tsx` renders the registry's slots and never imports a slice; a slot component takes the thread id and fetches its own data through the slice's `use-*.ts` hook.
 - **The shadcn component over the raw markup**: `<Skeleton>` over `animate-pulse` placeholder blocks, `<Tooltip>` over `title=` on an interactive element, `<Separator>` for a standalone divider, and `<Card>` for a rounded, bordered `bg-card` box whatever its padding or text size; likewise `<AlertDialog>`, `<DropdownMenu>`, `<Collapsible>`, `<Sheet>`, and `<Alert>`. Exceptions: a hidden file input, a non-text input like `type="range"`, `title=` as a truncation hint on text, a border that is part of a container's layout, a pulsing status label like "Generating..." (text, not a placeholder), and `bg-card` on a surface that isn't a rounded, bordered box (a sticky bar, a full-bleed band). A raw `button`, `input`, `textarea`, or `hr` in an exception carries a `biome-ignore` that gives the reason.
 - **Use the variant.** Where a shadcn variant matches, the code uses it; `className` overrides only what the variant doesn't cover.
 - **`components/ui/` changes only to add a shadcn component or customize a variant.**

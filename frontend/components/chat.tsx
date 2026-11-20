@@ -150,7 +150,7 @@ export function Chat({
 
   return (
     <div className="bg-background flex h-dvh min-w-0 flex-col">
-      <ChatHeader />
+      <ChatHeader threadId={id} />
 
       <ChatActionsProvider actions={chatActions}>
         <Messages error={error} messages={messages} status={status} />

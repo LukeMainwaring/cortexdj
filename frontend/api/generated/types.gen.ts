@@ -5,6 +5,30 @@ export type ClientOptions = {
 };
 
 /**
+ * BrainContext
+ *
+ * The brain state a conversation is focused on; every field is optional and set independently.
+ */
+export type BrainContext = {
+    /**
+     * Latest Session Id
+     */
+    latest_session_id?: string | null;
+    /**
+     * Dominant Mood
+     */
+    dominant_mood?: string | null;
+    /**
+     * Avg Arousal
+     */
+    avg_arousal?: number | null;
+    /**
+     * Avg Valence
+     */
+    avg_valence?: number | null;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -66,6 +90,209 @@ export type NoteSchema = {
      * Updated At
      */
     updated_at: string;
+};
+
+/**
+ * SegmentListResponse
+ */
+export type SegmentListResponse = {
+    /**
+     * Segments
+     */
+    segments: Array<SegmentSchema>;
+    /**
+     * Total
+     */
+    total: number;
+    trajectory_summary?: TrajectorySummary | null;
+};
+
+/**
+ * SegmentSchema
+ */
+export type SegmentSchema = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Segment Index
+     */
+    segment_index: number;
+    /**
+     * Start Time
+     */
+    start_time: number;
+    /**
+     * End Time
+     */
+    end_time: number;
+    /**
+     * Arousal Score
+     */
+    arousal_score: number;
+    /**
+     * Valence Score
+     */
+    valence_score: number;
+    /**
+     * Dominant State
+     */
+    dominant_state: string;
+    /**
+     * Band Powers
+     */
+    band_powers: {
+        [key: string]: number;
+    };
+    /**
+     * Features
+     */
+    features?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * SessionListResponse
+ */
+export type SessionListResponse = {
+    /**
+     * Sessions
+     */
+    sessions: Array<SessionSchema>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * SessionSchema
+ */
+export type SessionSchema = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Participant Id
+     */
+    participant_id: string;
+    /**
+     * Dataset Source
+     */
+    dataset_source: string;
+    /**
+     * Recorded At
+     */
+    recorded_at: string;
+    /**
+     * Duration Seconds
+     */
+    duration_seconds: number;
+    /**
+     * Metadata Extra
+     */
+    metadata_extra?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * SessionSummaryListResponse
+ */
+export type SessionSummaryListResponse = {
+    /**
+     * Sessions
+     */
+    sessions: Array<SessionSummarySchema>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * SessionSummarySchema
+ */
+export type SessionSummarySchema = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Display Index
+     */
+    display_index: number;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Dominant State
+     */
+    dominant_state: string;
+    /**
+     * State Distribution
+     */
+    state_distribution: {
+        [key: string]: number;
+    };
+    /**
+     * Segment Count
+     */
+    segment_count: number;
+    /**
+     * Track Count
+     */
+    track_count: number;
+    /**
+     * Duration Seconds
+     */
+    duration_seconds: number;
+    /**
+     * Avg Arousal
+     */
+    avg_arousal: number;
+    /**
+     * Avg Valence
+     */
+    avg_valence: number;
+};
+
+/**
+ * SmoothedPoint
+ */
+export type SmoothedPoint = {
+    /**
+     * Start Time
+     */
+    start_time: number;
+    /**
+     * Arousal
+     */
+    arousal: number;
+    /**
+     * Valence
+     */
+    valence: number;
+    /**
+     * Quadrant
+     */
+    quadrant: string;
 };
 
 /**
@@ -148,6 +375,67 @@ export type ThreadSummary = {
      * Updated At
      */
     updated_at: string;
+};
+
+/**
+ * TrajectorySummary
+ */
+export type TrajectorySummary = {
+    /**
+     * Dwell Fractions
+     */
+    dwell_fractions: {
+        [key: string]: number;
+    };
+    /**
+     * Dominant Quadrant
+     */
+    dominant_quadrant: string;
+    /**
+     * Transition Count
+     */
+    transition_count: number;
+    /**
+     * Transitions
+     */
+    transitions: Array<TransitionEvent>;
+    /**
+     * Centroid
+     */
+    centroid: [
+        number,
+        number
+    ];
+    /**
+     * Dispersion
+     */
+    dispersion: number;
+    /**
+     * Path Length
+     */
+    path_length: number;
+    /**
+     * Smoothed
+     */
+    smoothed: Array<SmoothedPoint>;
+};
+
+/**
+ * TransitionEvent
+ */
+export type TransitionEvent = {
+    /**
+     * Time
+     */
+    time: number;
+    /**
+     * From Quadrant
+     */
+    from_quadrant: string;
+    /**
+     * To Quadrant
+     */
+    to_quadrant: string;
 };
 
 /**
@@ -354,3 +642,167 @@ export type GetNoteResponses = {
 };
 
 export type GetNoteResponse = GetNoteResponses[keyof GetNoteResponses];
+
+export type ListSessionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/sessions';
+};
+
+export type ListSessionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
+
+export type ListSessionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionListResponse;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type ListSessionsEnrichedData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Order
+         */
+        order?: 'recent' | 'stable';
+    };
+    url: '/api/sessions/enriched';
+};
+
+export type ListSessionsEnrichedErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSessionsEnrichedError = ListSessionsEnrichedErrors[keyof ListSessionsEnrichedErrors];
+
+export type ListSessionsEnrichedResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionSummaryListResponse;
+};
+
+export type ListSessionsEnrichedResponse = ListSessionsEnrichedResponses[keyof ListSessionsEnrichedResponses];
+
+export type GetSessionData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/sessions/{session_id}';
+};
+
+export type GetSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
+
+export type GetSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionSchema;
+};
+
+export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type GetSessionSegmentsData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/sessions/{session_id}/segments';
+};
+
+export type GetSessionSegmentsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSessionSegmentsError = GetSessionSegmentsErrors[keyof GetSessionSegmentsErrors];
+
+export type GetSessionSegmentsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SegmentListResponse;
+};
+
+export type GetSessionSegmentsResponse = GetSessionSegmentsResponses[keyof GetSessionSegmentsResponses];
+
+export type GetBrainContextData = {
+    body?: never;
+    path: {
+        /**
+         * Thread Id
+         */
+        thread_id: string;
+    };
+    query?: never;
+    url: '/api/brain-context/{thread_id}';
+};
+
+export type GetBrainContextErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBrainContextError = GetBrainContextErrors[keyof GetBrainContextErrors];
+
+export type GetBrainContextResponses = {
+    /**
+     * Response Getbraincontext
+     *
+     * Successful Response
+     */
+    200: BrainContext | null;
+};
+
+export type GetBrainContextResponse = GetBrainContextResponses[keyof GetBrainContextResponses];

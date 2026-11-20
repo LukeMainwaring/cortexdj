@@ -11,8 +11,9 @@ check in `REVIEW.md`. Test paths are relative to `backend/`, source paths to
 
 ## Copy targets
 
-- A route test: `tests/integration/features/notes/test_notes_api.py`.
-- An agent tool against the real database: `tests/integration/features/notes/test_notes_tools.py`.
+- A route test: `tests/integration/features/sessions/test_sessions_api.py`.
+- An agent tool against the real database: `tests/integration/features/sessions/test_sessions_tools.py`.
+- A `shared/` seam: `shared/session_lookup.py`, its test `tests/unit/shared/test_session_lookup.py`, and the registration in `api.py`.
 - An agent under `FunctionModel`: `tests/unit/agents/test_hooks.py`.
 - A pure-function unit test: `tests/unit/features/chat/test_title_generator.py`.
 - An eval case: `tests/evals/assistant_dataset.py`; a judge rubric: `tests/evals/judges.py`.
@@ -32,6 +33,8 @@ Fake only at these seams; everything else in `cortexdj` runs for real in a test
 | The database session (integration tier) | the `client` fixture, which sets `app.dependency_overrides` |
 | Title generation | `app.dependency_overrides[get_title_generator]`, already set by `tests/integration/features/chat/conftest.py` |
 | The embedder | `get_embedder().override(model=TestEmbeddingModel(...))`, already set by `tests/integration/features/notes/conftest.py` |
+| The EEG model | `override_eeg_model(model)` from `features/sessions/eeg_model.py`; `None` stands for no checkpoint |
+| A `shared/` seam (track access, session lookup) | its `override_<thing>(fake)` context manager; `None` stands for never registered |
 | Settings | `monkeypatch.setenv` or `delenv`, then `get_settings.cache_clear()` before and after. A test of a settings class constructs it directly (`AgentSettings(AGENT_MODEL=...)`) |
 
 ## Pydantic models or dataclasses

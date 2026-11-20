@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateNoteData, CreateNoteErrors, CreateNoteResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, GetNoteData, GetNoteErrors, GetNoteResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListNotesData, ListNotesResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses } from './types.gen';
+import type { CreateNoteData, CreateNoteErrors, CreateNoteResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetNoteData, GetNoteErrors, GetNoteResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListNotesData, ListNotesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -100,5 +100,63 @@ export const createNote = <ThrowOnError extends boolean = false>(options: Option
 export const getNote = <ThrowOnError extends boolean = false>(options: Options<GetNoteData, ThrowOnError>): RequestResult<GetNoteResponses, GetNoteErrors, ThrowOnError> => (options.client ?? client).get<GetNoteResponses, GetNoteErrors, ThrowOnError>({
     responseType: 'json',
     url: '/api/notes/{note_id}',
+    ...options
+});
+
+/**
+ * List Sessions
+ *
+ * List all EEG sessions.
+ */
+export const listSessions = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsData, ThrowOnError>): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsResponses, ListSessionsErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/sessions',
+    ...options
+});
+
+/**
+ * List Sessions Enriched
+ *
+ * List EEG sessions with derived display labels and quadrant distributions.
+ *
+ * `order=recent` (default) returns newest first; `order=stable` returns
+ * chronological-insertion order (Session 01 → Session NN).
+ */
+export const listSessionsEnriched = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsEnrichedData, ThrowOnError>): RequestResult<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/sessions/enriched',
+    ...options
+});
+
+/**
+ * Get Session
+ *
+ * Get a specific EEG session.
+ */
+export const getSession = <ThrowOnError extends boolean = false>(options: Options<GetSessionData, ThrowOnError>): RequestResult<GetSessionResponses, GetSessionErrors, ThrowOnError> => (options.client ?? client).get<GetSessionResponses, GetSessionErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/sessions/{session_id}',
+    ...options
+});
+
+/**
+ * Get Session Segments
+ *
+ * Get all EEG segments for a session, plus a trajectory summary.
+ */
+export const getSessionSegments = <ThrowOnError extends boolean = false>(options: Options<GetSessionSegmentsData, ThrowOnError>): RequestResult<GetSessionSegmentsResponses, GetSessionSegmentsErrors, ThrowOnError> => (options.client ?? client).get<GetSessionSegmentsResponses, GetSessionSegmentsErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/sessions/{session_id}/segments',
+    ...options
+});
+
+/**
+ * Get Brain Context
+ *
+ * Get the brain context a chat thread is focused on; null when none has been set.
+ */
+export const getBrainContext = <ThrowOnError extends boolean = false>(options: Options<GetBrainContextData, ThrowOnError>): RequestResult<GetBrainContextResponses, GetBrainContextErrors, ThrowOnError> => (options.client ?? client).get<GetBrainContextResponses, GetBrainContextErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/brain-context/{thread_id}',
     ...options
 });
