@@ -4,8 +4,8 @@ Loads DEAP .dat files, runs model inference on segments,
 and populates sessions, eeg_segments, tracks, and session_tracks tables.
 
 Usage:
-    uv run seed-sessions
-    uv run seed-sessions --participants 1 2 3
+    uv run --directory backend seed-sessions
+    uv run --directory backend seed-sessions --participants 1 2 3
 """
 
 import argparse
@@ -18,8 +18,9 @@ from pathlib import Path
 import numpy as np
 from sqlalchemy import select
 
-from cortexdj.core.config import get_settings
-from cortexdj.dependencies.db import get_async_sqlalchemy_session
+from cortexdj.core.db import get_async_sqlalchemy_session
+from cortexdj.core.paths import DEAP_DATA_DIR
+from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, Track
 from cortexdj.ml.dataset import (
     NUM_EEG_CHANNELS,
     SEGMENT_SAMPLES,
@@ -28,15 +29,9 @@ from cortexdj.ml.dataset import (
 )
 from cortexdj.ml.predict import EEGModel, EEGPredictionResult, load_model, predict_segment
 from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE, compute_band_powers
-from cortexdj.models.eeg_segment import EegSegment
-from cortexdj.models.session import Session
-from cortexdj.models.session_track import SessionTrack
-from cortexdj.models.track import Track
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-config = get_settings()
 
 # Stimulus track names for seeded sessions
 STIMULUS_TRACKS = [
@@ -201,7 +196,7 @@ async def seed_all(
     data_dir: str | None,
     model_type: str,
 ) -> None:
-    resolved_dir = Path(data_dir) if data_dir else Path(config.DEAP_DATA_DIR)
+    resolved_dir = Path(data_dir) if data_dir else DEAP_DATA_DIR
 
     if not resolved_dir.exists():
         logger.error(f"Data directory not found: {resolved_dir}")
