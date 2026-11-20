@@ -66,12 +66,29 @@ class PostgresSettings(BaseSettings):
     POSTGRES_PORT: int
 
 
+class SpotifySettings(BaseSettings):
+    # Empty ID or secret means Spotify is not configured: the app boots, the auth routes
+    # answer 503, and the assistant saves mood playlists locally (features/spotify/).
+    SPOTIFY_CLIENT_ID: str = ""
+    SPOTIFY_CLIENT_SECRET: str = ""
+    # Must match a redirect URI registered on the Spotify app, and the callback route
+    # (/api/spotify/callback) on the API port.
+    SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8003/api/spotify/callback"
+    # Where the OAuth callback sends the browser back to (its /settings/spotify page).
+    FRONTEND_URL: str = "http://localhost:3003"
+
+    @property
+    def spotify_configured(self) -> bool:
+        return bool(self.SPOTIFY_CLIENT_ID and self.SPOTIFY_CLIENT_SECRET)
+
+
 class Settings(
     ApiSettings,
     AgentSettings,
     EegSettings,
     ObservabilitySettings,
     PostgresSettings,
+    SpotifySettings,
 ):
     model_config = SettingsConfigDict(
         env_file=str(_REPO_ROOT / ".env"),
