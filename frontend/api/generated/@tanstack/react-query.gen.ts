@@ -4,8 +4,8 @@ import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOption
 import type { AxiosError } from 'axios';
 
 import { client } from '../client.gen';
-import { deleteThread, getBrainContext, getSession, getSessionSegments, getThreadMessages, listSessions, listSessionsEnriched, listThreads, type Options, renameThread } from '../sdk.gen';
-import type { DeleteThreadData, DeleteThreadError, DeleteThreadResponse, GetBrainContextData, GetBrainContextError, GetBrainContextResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedError, ListSessionsEnrichedResponse, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse } from '../types.gen';
+import { connectSpotify, deleteThread, disconnectSpotify, getBrainContext, getSession, getSessionSegments, getSpotifyStatus, getThreadMessages, listSessions, listSessionsEnriched, listThreads, type Options, renameThread, spotifyCallback } from '../sdk.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetBrainContextData, GetBrainContextError, GetBrainContextResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedError, ListSessionsEnrichedResponse, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseURL' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -316,3 +316,82 @@ export const getBrainContextOptions = (options: Options<GetBrainContextData>) =>
     },
     queryKey: getBrainContextQueryKey(options)
 });
+
+export const connectSpotifyQueryKey = (options?: Options<ConnectSpotifyData>) => createQueryKey('connectSpotify', options);
+
+/**
+ * Connect Spotify
+ *
+ * Get the Spotify authorization URL to start OAuth flow.
+ */
+export const connectSpotifyOptions = (options?: Options<ConnectSpotifyData>) => queryOptions<ConnectSpotifyResponse, AxiosError<DefaultError>, ConnectSpotifyResponse, ReturnType<typeof connectSpotifyQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await connectSpotify({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: connectSpotifyQueryKey(options)
+});
+
+export const spotifyCallbackQueryKey = (options?: Options<SpotifyCallbackData>) => createQueryKey('spotifyCallback', options);
+
+/**
+ * Spotify Callback
+ *
+ * Handle Spotify OAuth callback and exchange code for tokens.
+ */
+export const spotifyCallbackOptions = (options?: Options<SpotifyCallbackData>) => queryOptions<unknown, AxiosError<SpotifyCallbackError>, unknown, ReturnType<typeof spotifyCallbackQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await spotifyCallback({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: spotifyCallbackQueryKey(options)
+});
+
+export const getSpotifyStatusQueryKey = (options?: Options<GetSpotifyStatusData>) => createQueryKey('getSpotifyStatus', options);
+
+/**
+ * Get Spotify Status
+ *
+ * Get the current Spotify connection status.
+ */
+export const getSpotifyStatusOptions = (options?: Options<GetSpotifyStatusData>) => queryOptions<GetSpotifyStatusResponse, AxiosError<DefaultError>, GetSpotifyStatusResponse, ReturnType<typeof getSpotifyStatusQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSpotifyStatus({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSpotifyStatusQueryKey(options)
+});
+
+/**
+ * Disconnect Spotify
+ *
+ * Disconnect Spotify by clearing stored tokens.
+ */
+export const disconnectSpotifyMutation = (options?: Partial<Options<DisconnectSpotifyData>>): UseMutationOptions<DisconnectSpotifyResponse, AxiosError<DefaultError>, Options<DisconnectSpotifyData>> => {
+    const mutationOptions: UseMutationOptions<DisconnectSpotifyResponse, AxiosError<DefaultError>, Options<DisconnectSpotifyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await disconnectSpotify({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};

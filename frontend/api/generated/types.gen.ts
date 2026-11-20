@@ -242,6 +242,16 @@ export type SmoothedPoint = {
 };
 
 /**
+ * SpotifyConnectionStatus
+ */
+export type SpotifyConnectionStatus = {
+    /**
+     * Connected
+     */
+    connected: boolean;
+};
+
+/**
  * ThreadDeleteResponse
  */
 export type ThreadDeleteResponse = {
@@ -681,3 +691,91 @@ export type GetBrainContextResponses = {
 };
 
 export type GetBrainContextResponse = GetBrainContextResponses[keyof GetBrainContextResponses];
+
+export type ConnectSpotifyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/spotify/connect';
+};
+
+export type ConnectSpotifyResponses = {
+    /**
+     * Response Connectspotify
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type ConnectSpotifyResponse = ConnectSpotifyResponses[keyof ConnectSpotifyResponses];
+
+export type SpotifyCallbackData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Code
+         */
+        code?: string | null;
+        /**
+         * State
+         */
+        state?: string | null;
+        /**
+         * Error
+         */
+        error?: string | null;
+    };
+    url: '/api/spotify/callback';
+};
+
+export type SpotifyCallbackErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpotifyCallbackError = SpotifyCallbackErrors[keyof SpotifyCallbackErrors];
+
+export type SpotifyCallbackResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GetSpotifyStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/spotify/status';
+};
+
+export type GetSpotifyStatusResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpotifyConnectionStatus;
+};
+
+export type GetSpotifyStatusResponse = GetSpotifyStatusResponses[keyof GetSpotifyStatusResponses];
+
+export type DisconnectSpotifyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/spotify/disconnect';
+};
+
+export type DisconnectSpotifyResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpotifyConnectionStatus;
+};
+
+export type DisconnectSpotifyResponse = DisconnectSpotifyResponses[keyof DisconnectSpotifyResponses];
