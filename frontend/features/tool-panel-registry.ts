@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { NOTES_TOOL_PANELS } from "./notes/tool-panels";
+import { SESSIONS_TOOL_PANELS } from "./sessions/tool-panels";
 
 // A panel gets both sides of the tool call because the two kinds of tool carry
 // their content on different sides: a function tool like `list_notes` has it in
@@ -20,4 +21,5 @@ export type ToolPanelMap = Record<string, ComponentType<ToolPanelProps>>;
 // back to the generic <ToolCall> output view.
 export const TOOL_PANELS: ToolPanelMap = {
   ...NOTES_TOOL_PANELS,
+  ...SESSIONS_TOOL_PANELS,
 };

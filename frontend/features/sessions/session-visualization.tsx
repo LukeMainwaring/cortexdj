@@ -16,13 +16,14 @@ import type {
   SegmentSchema,
   TrajectorySummary,
 } from "@/api/generated/types.gen";
-import { useSessionSegments } from "@/api/hooks/sessions";
+import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmotionTrajectory } from "./emotion-trajectory";
+import { useSessionSegments } from "./use-sessions";
 
-type Props = {
+interface Props {
   sessionId: string;
-};
+}
 
 const TOOLTIP_CONTENT_STYLE = {
   backgroundColor: "var(--popover)",
@@ -50,17 +51,17 @@ const BAND_COLORS: Record<Band, string> = {
   gamma: "#ef4444", // red
 };
 
-type TimelineRow = {
-  time: number;
-  arousal: number;
-  valence: number;
-  state: string;
-  delta: number;
-  theta: number;
+interface TimelineRow {
   alpha: number;
+  arousal: number;
   beta: number;
+  delta: number;
   gamma: number;
-};
+  state: string;
+  theta: number;
+  time: number;
+  valence: number;
+}
 
 function buildRows(segments: SegmentSchema[]): TimelineRow[] {
   return segments
@@ -88,7 +89,7 @@ function HeaderBadges({
 }) {
   if (!summary) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
+      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
         <span className="font-medium">Segments:</span>
         <span>{segmentCount}</span>
       </span>
@@ -96,18 +97,18 @@ function HeaderBadges({
   }
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
+      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
         <span className="font-medium">State:</span>
         <span className="capitalize">{summary.dominant_quadrant}</span>
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
+      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
         <span className="font-medium">Centroid:</span>
         <span>
           A {summary.centroid[0].toFixed(2)} · V{" "}
           {summary.centroid[1].toFixed(2)}
         </span>
       </span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
+      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
         <span className="font-medium">Segments:</span>
         <span>{segmentCount}</span>
       </span>
@@ -228,7 +229,7 @@ function PureSessionVisualization({ sessionId }: Props) {
 
   const rows = useMemo(
     () => (segmentsData?.segments ? buildRows(segmentsData.segments) : []),
-    [segmentsData],
+    [segmentsData]
   );
 
   const trajectorySummary = segmentsData?.trajectory_summary ?? null;
@@ -236,9 +237,9 @@ function PureSessionVisualization({ sessionId }: Props) {
 
   if (isLoading) {
     return (
-      <div className="my-2 rounded-lg border bg-card p-4 text-muted-foreground text-sm">
+      <Card className="text-muted-foreground my-2 p-4 text-sm">
         Loading EEG timeline…
-      </div>
+      </Card>
     );
   }
 
@@ -249,7 +250,7 @@ function PureSessionVisualization({ sessionId }: Props) {
         ? `Session ${sessionId.slice(0, 8)}… not found.`
         : "Failed to load EEG segments.";
     return (
-      <div className="my-2 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive text-sm">
+      <div className="border-destructive/40 bg-destructive/5 text-destructive my-2 rounded-lg border p-4 text-sm">
         {message}
       </div>
     );
@@ -257,16 +258,16 @@ function PureSessionVisualization({ sessionId }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="my-2 rounded-lg border bg-card p-4 text-muted-foreground text-sm">
+      <Card className="text-muted-foreground my-2 p-4 text-sm">
         No segments recorded for this session.
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="my-2 flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <Card className="my-2 flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="font-medium text-sm">EEG Session</div>
+        <div className="text-sm font-medium">EEG Session</div>
         <HeaderBadges segmentCount={rows.length} summary={trajectorySummary} />
       </div>
 
@@ -282,13 +283,13 @@ function PureSessionVisualization({ sessionId }: Props) {
               summary={trajectorySummary}
             />
           ) : (
-            <div className="rounded-md border border-dashed p-6 text-center text-muted-foreground text-sm">
+            <div className="text-muted-foreground rounded-md border border-dashed p-6 text-center text-sm">
               Trajectory summary unavailable.
             </div>
           )}
         </TabsContent>
         <TabsContent value="timeline">
-          <div className="mb-1 text-muted-foreground text-xs">
+          <div className="text-muted-foreground mb-1 text-xs">
             Arousal &amp; Valence
           </div>
           <TimelineChart rows={rows} />
@@ -296,12 +297,12 @@ function PureSessionVisualization({ sessionId }: Props) {
       </Tabs>
 
       <div>
-        <div className="mb-1 text-muted-foreground text-xs">
+        <div className="text-muted-foreground mb-1 text-xs">
           Frequency Band Powers
         </div>
         <BandPowersChart rows={rows} />
       </div>
-    </div>
+    </Card>
   );
 }
 

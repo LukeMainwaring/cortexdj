@@ -1,7 +1,7 @@
 "use client";
 
 import { Pause, Play } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useMotionValue } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   SegmentSchema,
@@ -9,10 +9,10 @@ import type {
 } from "@/api/generated/types.gen";
 import { Button } from "@/components/ui/button";
 
-type Props = {
+interface Props {
   segments: SegmentSchema[];
   summary: TrajectorySummary;
-};
+}
 
 const VIEWBOX = 520;
 const PAD = 48;
@@ -67,7 +67,9 @@ function formatTime(seconds: number): string {
 }
 
 function buildPath(points: { valence: number; arousal: number }[]): string {
-  if (points.length === 0) return "";
+  if (points.length === 0) {
+    return "";
+  }
   const [first, ...rest] = points;
   const head = `M ${toX(first.valence).toFixed(2)} ${toY(first.arousal).toFixed(2)}`;
   const tail = rest
@@ -77,32 +79,42 @@ function buildPath(points: { valence: number; arousal: number }[]): string {
 }
 
 export function EmotionTrajectory({ segments, summary }: Props) {
-  const smoothed = summary.smoothed;
+  const { smoothed } = summary;
 
   const sortedSegments = useMemo(
     () => segments.slice().sort((a, b) => a.segment_index - b.segment_index),
-    [segments],
+    [segments]
   );
 
   const pathD = useMemo(() => buildPath(smoothed), [smoothed]);
 
   const startTime = sortedSegments[0]?.start_time ?? 0;
-  const endTime = sortedSegments[sortedSegments.length - 1]?.end_time ?? 0;
+  const endTime = sortedSegments.at(-1)?.end_time ?? 0;
   const totalDuration = Math.max(0, endTime - startTime);
 
   const [progress, setProgress] = useState(0);
+  // React's CSS types now declare a string `pathLength` property, which
+  // shadows motion's numeric one on `style`; a MotionValue satisfies both.
+  const pathLength = useMotionValue(0);
+  useEffect(() => {
+    pathLength.set(progress);
+  }, [pathLength, progress]);
   const [isPlaying, setIsPlaying] = useState(true);
   const progressRef = useRef(0);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying) {
+      return;
+    }
     let rafId = 0;
     let startTs: number | null = null;
     const initial = progressRef.current >= 1 ? 0 : progressRef.current;
     progressRef.current = initial;
 
     const tick = (now: number) => {
-      if (startTs === null) startTs = now - initial * PLAYBACK_MS;
+      if (startTs === null) {
+        startTs = now - initial * PLAYBACK_MS;
+      }
       const p = Math.min(1, (now - startTs) / PLAYBACK_MS);
       progressRef.current = p;
       setProgress(p);
@@ -133,8 +145,9 @@ export function EmotionTrajectory({ segments, summary }: Props) {
   };
 
   const { headX, headY } = useMemo(() => {
-    if (smoothed.length === 0)
+    if (smoothed.length === 0) {
       return { headX: VIEWBOX / 2, headY: VIEWBOX / 2 };
+    }
     const last = smoothed.length - 1;
     const raw = progress * last;
     const idx = Math.min(last, Math.floor(raw));
@@ -150,7 +163,7 @@ export function EmotionTrajectory({ segments, summary }: Props) {
 
   if (sortedSegments.length < 2) {
     return (
-      <div className="rounded-md border border-dashed p-6 text-center text-muted-foreground text-sm">
+      <div className="text-muted-foreground rounded-md border border-dashed p-6 text-center text-sm">
         Not enough segments for a trajectory view.
       </div>
     );
@@ -159,20 +172,20 @@ export function EmotionTrajectory({ segments, summary }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs capitalize">
-          <span className="font-medium text-foreground/80">Dominant:</span>
+        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs capitalize">
+          <span className="text-foreground/80 font-medium">Dominant:</span>
           {summary.dominant_quadrant}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
-          <span className="font-medium text-foreground/80">Transitions:</span>
+        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+          <span className="text-foreground/80 font-medium">Transitions:</span>
           {summary.transition_count}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
-          <span className="font-medium text-foreground/80">Path:</span>
+        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+          <span className="text-foreground/80 font-medium">Path:</span>
           {summary.path_length.toFixed(2)}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
-          <span className="font-medium text-foreground/80">Dispersion:</span>
+        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+          <span className="text-foreground/80 font-medium">Dispersion:</span>
           {summary.dispersion.toFixed(2)}
         </span>
       </div>
@@ -182,7 +195,7 @@ export function EmotionTrajectory({ segments, summary }: Props) {
           const pct = Math.round((summary.dwell_fractions[key] ?? 0) * 100);
           return (
             <div
-              className="flex flex-1 items-center gap-1.5 rounded-md border bg-background/50 px-2 py-1 text-xs"
+              className="bg-background/50 flex flex-1 items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
               key={key}
             >
               <span
@@ -190,7 +203,7 @@ export function EmotionTrajectory({ segments, summary }: Props) {
                 className="size-2 rounded-full"
                 style={{ background: `var(--quadrant-${key})` }}
               />
-              <span className="capitalize text-muted-foreground">{key}</span>
+              <span className="text-muted-foreground capitalize">{key}</span>
               <span className="ml-auto font-medium tabular-nums">{pct}%</span>
             </div>
           );
@@ -199,7 +212,7 @@ export function EmotionTrajectory({ segments, summary }: Props) {
 
       <svg
         aria-label="Emotion trajectory through arousal-valence affect space"
-        className="w-full rounded-md border bg-background/40"
+        className="bg-background/40 w-full rounded-md border"
         role="img"
         viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
       >
@@ -288,7 +301,7 @@ export function EmotionTrajectory({ segments, summary }: Props) {
           strokeLinejoin="round"
           strokeOpacity={0.85}
           strokeWidth={3}
-          style={{ pathLength: progress }}
+          style={{ pathLength }}
         />
 
         {sortedSegments.map((s, i) => {
@@ -341,9 +354,10 @@ export function EmotionTrajectory({ segments, summary }: Props) {
         >
           {isPlaying ? <Pause /> : <Play />}
         </Button>
+        {/* biome-ignore lint/correctness/noRestrictedElements: a range slider, which shadcn's Input does not style */}
         <input
           aria-label="Trajectory playback position"
-          className="h-1 flex-1 cursor-pointer accent-foreground"
+          className="accent-foreground h-1 flex-1 cursor-pointer"
           max={1}
           min={0}
           onChange={handleScrub}
@@ -351,7 +365,7 @@ export function EmotionTrajectory({ segments, summary }: Props) {
           type="range"
           value={progress}
         />
-        <span className="tabular-nums text-muted-foreground text-xs">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {formatTime(elapsedSessionTime - startTime)} /{" "}
           {formatTime(totalDuration)}
         </span>

@@ -2,8 +2,8 @@
 
 import { memo } from "react";
 import type { SessionSummarySchema } from "@/api/generated/types.gen";
-import { useEnrichedSessions } from "@/api/hooks/sessions";
 import { useChatActions } from "@/components/chat-actions-provider";
+import { Card } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useEnrichedSessions } from "./use-sessions";
 
 const QUADRANT_ORDER = ["relaxed", "calm", "excited", "stressed"] as const;
 type Quadrant = (typeof QUADRANT_ORDER)[number];
@@ -35,7 +36,7 @@ function QuadrantBar({
   distribution: Record<string, number>;
 }) {
   return (
-    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="bg-muted flex h-1.5 w-full overflow-hidden rounded-full">
       {QUADRANT_ORDER.map((q) => {
         const fraction = distribution[q] ?? 0;
         if (fraction === 0) {
@@ -65,35 +66,32 @@ function SessionCard({
   const dominantTone =
     QUADRANT_TEXT[session.dominant_state as Quadrant] ?? "text-foreground";
   const label = `Session ${session.display_index.toString().padStart(2, "0")}`;
-  const isClickable = onAnalyze != null;
+  const isClickable = onAnalyze !== undefined;
 
-  // Raw <button> on purpose: Button's `h-10 px-4 py-2` and `opacity-50`
-  // disabled fade fight the card layout (we want disabled to look identical,
-  // not faded). Per the rule's escape clause in
-  // `.claude/rules/frontend/code-conventions.md`.
   const card = (
+    // biome-ignore lint/correctness/noRestrictedElements: Button's fixed height, padding, and faded disabled state fight the card layout; a disabled card must look identical, not faded
     <button
       className={cn(
-        "flex w-full flex-col gap-2 rounded-lg border border-border bg-card p-3 text-left transition-colors",
+        "border-border bg-card flex w-full flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
         isClickable
-          ? "cursor-pointer hover:border-foreground/40 hover:bg-muted/30 focus-visible:border-foreground/60 focus-visible:outline-none"
-          : "cursor-default",
+          ? "hover:border-foreground/40 hover:bg-muted/30 focus-visible:border-foreground/60 cursor-pointer focus-visible:outline-none"
+          : "cursor-default"
       )}
       disabled={!isClickable}
       onClick={isClickable ? () => onAnalyze(label) : undefined}
       type="button"
     >
       <div className="flex items-baseline justify-between">
-        <span className="font-medium text-foreground text-sm">{label}</span>
+        <span className="text-foreground text-sm font-medium">{label}</span>
         <span className="text-muted-foreground text-xs">
           ~{minutes.toFixed(0)} min
         </span>
       </div>
-      <div className={cn("font-medium text-xs", dominantTone)}>
+      <div className={cn("text-xs font-medium", dominantTone)}>
         {session.label}
       </div>
       <QuadrantBar distribution={session.state_distribution} />
-      <div className="text-[10px] text-muted-foreground">
+      <div className="text-muted-foreground text-[10px]">
         {session.track_count} tracks · {session.segment_count} segments
       </div>
     </button>
@@ -111,13 +109,13 @@ function SessionCard({
   );
 }
 
-type Props = {
+interface Props {
   // When provided, the panel renders exactly these sessions in this order —
   // typically the UUIDs the agent's `list_sessions` tool included in its
   // output. When null/undefined, the panel falls back to showing every
   // session it fetched.
   sessionIds?: string[] | null;
-};
+}
 
 // Fetch a generous slice so any subset the agent might choose is covered by
 // the cached query. 500 is well above the demo's ceiling (32 DEAP rows) and
@@ -128,7 +126,7 @@ const PANEL_FETCH_LIMIT = 500;
 const PureSessionListPanel = ({ sessionIds }: Props) => {
   const { data, isLoading, error } = useEnrichedSessions(
     PANEL_FETCH_LIMIT,
-    "recent",
+    "recent"
   );
   const chatActions = useChatActions();
   const handleAnalyze = chatActions
@@ -137,15 +135,15 @@ const PureSessionListPanel = ({ sessionIds }: Props) => {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-3 text-muted-foreground text-xs">
+      <Card className="text-muted-foreground p-3 text-xs">
         Loading sessions…
-      </div>
+      </Card>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-3 text-rose-600 text-xs dark:text-rose-400">
+      <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-3 text-xs text-rose-600 dark:text-rose-400">
         Couldn't load EEG sessions. Check that the backend is running and try
         again.
       </div>
@@ -157,14 +155,14 @@ const PureSessionListPanel = ({ sessionIds }: Props) => {
     sessionIds && sessionIds.length > 0
       ? sessionIds
           .map((id) => sessionsById.get(id))
-          .filter((s): s is NonNullable<typeof s> => s != null)
+          .filter((s): s is NonNullable<typeof s> => s !== undefined)
       : data.sessions;
 
   if (filteredSessions.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-3 text-muted-foreground text-xs">
+      <Card className="text-muted-foreground p-3 text-xs">
         No EEG sessions to show.
-      </div>
+      </Card>
     );
   }
 
@@ -177,7 +175,7 @@ const PureSessionListPanel = ({ sessionIds }: Props) => {
     <TooltipProvider delayDuration={200}>
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-0.5">
-          <div className="font-medium text-sm">{heading}</div>
+          <div className="text-sm font-medium">{heading}</div>
           <div className="text-muted-foreground text-xs">
             {showingSubset
               ? `${data.total} total · click a card to analyze`
@@ -189,7 +187,7 @@ const PureSessionListPanel = ({ sessionIds }: Props) => {
             <SessionCard key={s.id} onAnalyze={handleAnalyze} session={s} />
           ))}
         </div>
-        <div className="text-[10px] text-muted-foreground">
+        <div className="text-muted-foreground text-[10px]">
           Each card represents one listening sitting. Quadrant colors:{" "}
           <span className="text-emerald-500">relaxed</span> ·{" "}
           <span className="text-sky-500">calm</span> ·{" "}
