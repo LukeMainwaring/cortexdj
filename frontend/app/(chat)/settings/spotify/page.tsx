@@ -78,7 +78,7 @@ function SpotifyPageContent() {
   if (isStatusLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <Loader2 className="text-muted-foreground size-6 animate-spin" />
       </div>
     );
   }
@@ -88,7 +88,7 @@ function SpotifyPageContent() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="font-semibold text-lg">Spotify Integration</h2>
+        <h2 className="text-lg font-semibold">Spotify Integration</h2>
         <p className="text-muted-foreground text-sm">
           Connect your Spotify account to let CortexDJ curate playlists from
           your brain-state data and cross-reference your library with EEG
@@ -127,9 +127,9 @@ function SpotifyPageContent() {
         <CardContent className="space-y-4">
           {isConnected ? (
             <>
-              <div className="rounded-md bg-muted/50 p-4">
-                <p className="font-medium text-sm">What CortexDJ can do:</p>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground text-sm">
+              <div className="bg-muted/50 rounded-md p-4">
+                <p className="text-sm font-medium">What CortexDJ can do:</p>
+                <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-sm">
                   <li>Create and add to playlists on your Spotify account</li>
                   <li>Browse your playlists and saved tracks</li>
                   <li>View your recently played tracks for EEG correlation</li>
@@ -140,15 +140,15 @@ function SpotifyPageContent() {
                 onClick={handleDisconnect}
                 variant="outline"
               >
-                {isDisconnectPending && (
+                {isDisconnectPending ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                )}
+                ) : null}
                 Disconnect Spotify
               </Button>
             </>
           ) : (
             <>
-              <div className="rounded-md bg-muted/50 p-4">
+              <div className="bg-muted/50 rounded-md p-4">
                 <p className="text-muted-foreground text-xs">
                   All playlist changes require your explicit confirmation.
                 </p>
@@ -174,7 +174,7 @@ export default function SpotifyPage() {
     <Suspense
       fallback={
         <div className="flex h-full items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <Loader2 className="text-muted-foreground size-6 animate-spin" />
         </div>
       }
     >

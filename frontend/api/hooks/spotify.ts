@@ -3,15 +3,10 @@ import {
   disconnectSpotifyMutation,
   getSpotifyStatusOptions,
   getSpotifyStatusQueryKey,
-} from "../generated/@tanstack/react-query.gen";
-import { connectSpotify } from "../generated/sdk.gen";
+} from "@/api/generated/@tanstack/react-query.gen";
+import { connectSpotify } from "@/api/generated/sdk.gen";
 
-// Ensure client is configured with baseURL
-import "../client";
-
-export const useSpotifyStatus = () => {
-  return useQuery(getSpotifyStatusOptions());
-};
+export const useSpotifyStatus = () => useQuery(getSpotifyStatusOptions());
 
 export const useSpotifyConnectUrl = () => {
   const mutationResult = useMutation({
@@ -21,9 +16,7 @@ export const useSpotifyConnectUrl = () => {
     },
   });
 
-  const getConnectUrl = () => {
-    return mutationResult.mutateAsync();
-  };
+  const getConnectUrl = () => mutationResult.mutateAsync();
 
   return {
     getConnectUrl,
@@ -40,9 +33,7 @@ export const useDisconnectSpotify = () => {
     },
   });
 
-  const disconnect = () => {
-    return mutationResult.mutateAsync({});
-  };
+  const disconnect = () => mutationResult.mutateAsync({});
 
   return {
     disconnect,
