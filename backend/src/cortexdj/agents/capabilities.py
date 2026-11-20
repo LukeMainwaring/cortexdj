@@ -12,7 +12,8 @@ from pydantic_ai.capabilities import AgentCapability
 
 from cortexdj.agents.deps import AgentDeps
 from cortexdj.features.sessions.capability import SessionsCapability
+from cortexdj.features.spotify.capability import SpotifyCapability
 
-ENABLED_CAPABILITIES: list[AgentCapability[AgentDeps]] = [SessionsCapability()]
+ENABLED_CAPABILITIES: list[AgentCapability[AgentDeps]] = [SessionsCapability(), SpotifyCapability()]
 
 __all__ = ["ENABLED_CAPABILITIES"]
