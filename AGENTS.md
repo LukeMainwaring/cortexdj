@@ -1,6 +1,6 @@
 # AGENTS.md
 
-CortexDJ is a full-stack AI app: a FastAPI + Pydantic AI backend and a Next.js chat frontend. It is being ported onto a fresh instance of its upstream template. Until the port finishes, the running app is the template's example domain, **Notes** — a vertical feature slice you copy as the pattern when a domain is ported in.
+CortexDJ is a full-stack AI app: a FastAPI + Pydantic AI backend and a Next.js chat frontend. It is being ported onto a fresh instance of its upstream template. The first domain slice, **`sessions`** (EEG sessions, trajectories, brain context), is ported and running. The template's example domain, **Notes**, is still in the tree beside it as the second copy of the pattern; domains still to port are `spotify` and `retrieval`.
 
 **`legacy/`** holds the pre-port source (`legacy/backend/`, `legacy/frontend/`, `legacy/docs/`, `legacy/DEVELOPMENT.md`). Nothing in it runs and every check excludes it. Code leaves it with `git mv` as it is ported, so file history follows; do not edit, lint, or test it in place. `README.md` still describes the pre-port app. The pre-port tree is also readable at the `pre-port` tag.
 
@@ -26,6 +26,10 @@ docker compose up -d
 
 # Apply pending migrations
 ./backend/scripts/migrate-docker.sh
+
+# Seed the EEG sessions from the 32 DEAP files in backend/data/deap (several minutes;
+# needs Postgres up and migrated; --participants 1 2 3 seeds a subset)
+uv run --directory backend seed-sessions
 ```
 
 Checks, lightest first. While working, run the first two; before finishing, run the last three once each.
@@ -73,10 +77,12 @@ FastAPI Python backend (package `cortexdj`), async throughout, organized **featu
 - **`src/cortexdj/app.py`**: FastAPI entry point with a lifespan handler that runs the startup-hook registry. Don't add ad-hoc startup logic here — register a hook (see `core/startup.py`).
 - **`src/cortexdj/api.py`**: the **router aggregator** — include a feature's router here and it's mounted. A composition root (may import across features).
 - **`src/cortexdj/core/`**: platform kernel — `config.py` (settings), `db.py`, `startup.py` (the **startup-hook registry**), `logging.py`, `health.py`, `paths.py` (the data paths under `backend/data/`). Never cut by a feature prune.
-- **`src/cortexdj/shared/`**: cross-feature primitives — `model_base.py` (`Base`), `schema_base.py` (`BaseSchema`).
+- **`src/cortexdj/shared/`**: cross-feature primitives — `model_base.py` (`Base`), `schema_base.py` (`BaseSchema`), and the seams one slice offers the others: `track_access.py` (find tracks by mood, read tracks, save a track's Spotify id) and `session_lookup.py` (a session's participant id), both implemented by `sessions` and registered in `api.py`.
 - **`src/cortexdj/agents/`**: the feature-agnostic Pydantic AI **agent runtime** — `assistant.py` holds `build_agent`, the shared recipe (hooks, history compaction, prompt caching, optional thinking, tool timeout) and builds the assistant from `ENABLED_CAPABILITIES` (the capability registry in `capabilities.py`); `registry.py` is the **named-agent registry** (`get_agent(ASSISTANT)`, `get_agent(THREAD_TITLE)`) that builds lazily and caches; plus `title_agent.py`, `deps.py`, `hooks.py`, `history_processor.py`. Convention: tools and output validators let exceptions propagate to `hooks.on_tool_execute_error` / `hooks.on_output_process_error` for structured recovery rather than catching inline.
 - **`src/cortexdj/ml/`**: the **ML inference kernel** for the two EEG pipelines, the quadrant classifier and the contrastive EEG↔CLAP encoder — models, datasets, preprocessing, metrics, `predict.py`, `pretrained.py`, `device.py`. Training code is not in this package.
-- **`src/cortexdj/features/<name>/`**: one vertical slice per domain — `model.py`, `schema.py`, `service.py`, `router.py`, and (if it talks to the agent) `tools.py` + `capability.py`. **Copy a slice to add a domain.** Handlers stay thin and delegate to `service.py`. Ships with `notes` and `chat` (threads, messages, title generation, the streaming `/agent/chat` endpoint).
+- **`src/cortexdj/features/<name>/`**: one vertical slice per domain — `model.py`, `schema.py`, `service.py`, `router.py`, and (if it talks to the agent) `tools.py` + `capability.py`. **Copy a slice to add a domain.** Handlers stay thin and delegate to `service.py`. The slices are `chat` (threads, messages, title generation, the streaming `/agent/chat` endpoint), `sessions`, and the example `notes`.
+- **`src/cortexdj/features/sessions/`**: EEG sessions, segments, tracks, and a thread's brain context. Beyond the role files it has `trajectory.py` (the affect-path analytics), `emotion.py`, and `eeg_model.py`, the **EEG model holder**: a startup hook loads the `EEG_MODEL_BACKEND` checkpoint into it, a missing checkpoint is a startup warning, and only `get_model_info` and the rule that hides it read it (`override_eeg_model` in tests). Brain context is the slice's own table keyed by `thread_id` with a string foreign key to `threads`; the capability reads it from the database on every run and `GET /brain-context/{thread_id}` serves it to the frontend.
+- **`src/cortexdj/scripts/`**: command-line entry points (`seed-sessions`, declared under `[project.scripts]`). Outside `features/` and the kernel, so a script may import across features; it loads what it needs itself rather than through the app's startup hooks.
 - **`src/cortexdj/migrations/`**: Alembic migrations for PostgreSQL. `env.py` does `import cortexdj.features` so autogenerate sees every slice's tables.
 
 **Dependency direction:** a feature may import `core/`, `shared/`, `agents/`, `ml/`; the kernel never imports a feature; `ml/` imports only `core/`; a feature never imports another feature. Only `api.py`, `agents/capabilities.py`, and `agents/registry.py` import across features. When a feature or the runtime needs something another feature owns, the type and a one-slot `register_<thing>` / `override_<thing>` seam go in `shared/`, `api.py` registers the implementation at import, and a call before registration raises a `<Thing>NotRegistered` error. Never a direct import.
@@ -85,7 +91,7 @@ FastAPI Python backend (package `cortexdj`), async throughout, organized **featu
 
 Next.js with the App Router. The generated API client and TanStack Query wrappers keep the UI in sync with the backend's OpenAPI schema.
 
-- **`features/<name>/`**: domain UI slices, mirroring the backend's `features/<name>/` (the example is `features/notes/`). A slice's tool panels register in **`features/tool-panel-registry.ts`**, the frontend analog of `ENABLED_CAPABILITIES`. Everything else (`app/`, `api/`, `components/ui` + `components/elements`, the chat shell, `lib/`, `hooks/`) is the shared kernel.
+- **`features/<name>/`**: domain UI slices, mirroring the backend's `features/<name>/` (the example is `features/notes/`). A slice's tool panels register in **`features/tool-panel-registry.ts`**, the frontend analog of `ENABLED_CAPABILITIES`, and what a slice shows in the chat header (the brain-context badge) registers in **`features/header-slot-registry.ts`**; the shell reaches a slice only through those two files. Everything else (`app/`, `api/`, `components/ui` + `components/elements`, the chat shell, `lib/`, `hooks/`) is the shared kernel.
 - **`api/hooks/`**: TanStack Query wrappers around the generated client (e.g. `threads.ts`); follow this pattern when wrapping new generated endpoints.
 - **`api/generated/`**: generated from the backend OpenAPI schema via `pnpm -C frontend generate-client`.
 

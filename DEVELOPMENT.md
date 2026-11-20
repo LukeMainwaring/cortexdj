@@ -12,6 +12,7 @@ cp .env.sample .env            # set OPENAI_API_KEY and/or ANTHROPIC_API_KEY
 
 docker compose up -d           # PostgreSQL (pgvector) and the backend on :8003
 ./backend/scripts/migrate-docker.sh
+uv run --directory backend seed-sessions   # EEG sessions from backend/data/deap (see below)
 
 pnpm -C frontend install
 pnpm -C frontend generate-client
@@ -22,7 +23,15 @@ The model checkpoints live in `backend/data/checkpoints/`, which is not in git;
 `./backend/scripts/download-checkpoints.sh` fetches them from a GitHub Release (it needs the
 `gh` CLI). The backend container sees `backend/data` at `/app/data` through a bind mount.
 The first model load in the container downloads the CBraMod backbone from the Hugging Face hub
-into the `huggingface_cache` volume.
+into the `huggingface_cache` volume. Without a checkpoint the backend still boots: it logs a
+warning and the assistant does not offer `get_model_info`.
+
+`seed-sessions` reads the 32 DEAP participant files (`backend/data/deap/s01.dat` to `s32.dat`;
+`backend/data/DEAP_SETUP.md` says how to get them), classifies every 4-second segment with the
+checkpoint it loads itself (`--model cbramod` by default, ground-truth labels when there is no
+checkpoint), and writes one session per participant. It runs on the host against the Postgres
+container, takes several minutes for all 32, and appends: run it once on a fresh database.
+`--participants 1 2 3` seeds a subset.
 
 The frontend needs Node 26 or newer (`engines.node` in `frontend/package.json`, enforced by
 `engineStrict` in `frontend/pnpm-workspace.yaml`); CI runs 26. `packageManager` pins pnpm, and
