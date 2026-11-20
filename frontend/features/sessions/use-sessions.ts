@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  getBrainContextOptions,
   getSessionSegmentsOptions,
   listSessionsEnrichedOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
@@ -24,3 +25,10 @@ export const useSessionSegments = (sessionId: string) =>
       return failureCount < 2;
     },
   });
+
+// The brain context the agent pinned to this thread with `set_brain_context`,
+// or null. A thread that doesn't exist yet also answers null, so the query
+// needs no gate on a new chat. A finished turn refreshes it through
+// useInvalidateThread, which invalidates every query keyed by the thread id.
+export const useBrainContext = (threadId: string) =>
+  useQuery(getBrainContextOptions({ path: { thread_id: threadId } }));

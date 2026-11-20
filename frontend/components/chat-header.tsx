@@ -9,9 +9,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { HEADER_SLOTS } from "@/features/header-slot-registry";
 import { useStartNewChat } from "@/hooks/use-start-new-chat";
 
-function PureChatHeader() {
+function PureChatHeader({ threadId }: { threadId: string }) {
   const { open, isMobile } = useSidebar();
   const startNewChat = useStartNewChat();
 
@@ -26,7 +27,11 @@ function PureChatHeader() {
         </TooltipContent>
       </Tooltip>
 
-      <div className="order-1 min-w-0 flex-1" />
+      <div className="order-1 flex min-w-0 flex-1 items-center gap-2">
+        {Object.entries(HEADER_SLOTS).map(([key, Slot]) => (
+          <Slot key={key} threadId={threadId} />
+        ))}
+      </div>
 
       {(!open || isMobile) && (
         <Button
