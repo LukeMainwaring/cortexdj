@@ -6,10 +6,6 @@ unpersisted value for any tier; ``create_*`` persists through a session for the
 integration tier. Builders take ``**overrides`` (or keyword arguments with defaults, where
 the shape is typed) so a test states only the fields it is about. Add a builder here
 rather than a private helper in a test file once two test files need the same shape.
-
-Builders for cuttable features live inside ``# sf:`` marker blocks, imports included,
-so they vanish with their feature on prune. Do not hoist those imports to the top:
-keep this file importable in the backend-only variant.
 """
 
 from datetime import UTC, datetime

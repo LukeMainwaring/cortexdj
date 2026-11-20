@@ -41,7 +41,7 @@ Three files are composition roots and may import across slices:
 
 Two other places list every slice for narrower reasons: `features/__init__.py` imports each slice's models so Alembic sees every table, and the frontend's `features/tool-panel-registry.ts` aggregates each UI slice's tool-to-panel map.
 
-When a slice needs something another slice owns, `AGENTS.md` gives the shape: the type and a one-slot `register_<thing>` / `override_<thing>` seam go in `shared/`, and `api.py` registers the implementation at import. The template ships none, because its two slices need nothing from each other.
+When a slice needs something another slice owns, `AGENTS.md` gives the shape: the type and a one-slot `register_<thing>` / `override_<thing>` seam go in `shared/`, and `api.py` registers the implementation at import. There are two, `track_access` and `session_lookup`, both implemented by `sessions`.
 
 ## Why it's built this way
 
