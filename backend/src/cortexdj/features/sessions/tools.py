@@ -212,12 +212,15 @@ async def set_brain_context(
     if ctx.conversation_id is None:
         raise ToolFailed("Cannot set brain context without a thread ID.")
 
-    updates = BrainContext(
-        latest_session_id=session_id,
-        dominant_mood=dominant_mood,
-        avg_arousal=avg_arousal,
-        avg_valence=avg_valence,
-    )
+    # Only the arguments the model gave: a field passed to BrainContext counts as set even
+    # when it is None, and the merge would then clear what an earlier call stored.
+    given = {
+        "latest_session_id": session_id,
+        "dominant_mood": dominant_mood,
+        "avg_arousal": avg_arousal,
+        "avg_valence": avg_valence,
+    }
+    updates = BrainContext.model_validate({name: value for name, value in given.items() if value is not None})
 
     merged = await session_service.merge_brain_context(ctx.deps.db, ctx.conversation_id, updates)
 

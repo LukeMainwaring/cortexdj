@@ -68,3 +68,17 @@ async def test_save_track_spotify_id_for_an_unknown_track_does_nothing(db_sessio
     await save_track_spotify_id(db_session, "no-such-track", "sp-1")
 
     assert await Track.get_by_spotify_id(db_session, "sp-1") is None
+
+
+async def test_find_tracks_by_mood_counts_its_limit_in_tracks_not_listens(db_session: AsyncSession) -> None:
+    repeated = await create_track(db_session, title="Weightless", artist="Marconi Union")
+    other = await create_track(db_session, title="Watermark", artist="Enya")
+    for order in range(3):
+        session = await create_session(db_session)
+        await create_session_track(db_session, session.id, repeated.id, track_order=order, dominant_state="calm")
+    last = await create_session(db_session)
+    await create_session_track(db_session, last.id, other.id, dominant_state="calm")
+
+    found = await find_tracks_by_mood(db_session, "calm", limit=2)
+
+    assert {t.track_id for t in found} == {repeated.id, other.id}

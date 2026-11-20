@@ -106,7 +106,18 @@ class SessionTrack(Base):
 
     @classmethod
     async def get_by_state(cls, db: AsyncSession, dominant_state: str, *, limit: int = 50) -> Sequence[SessionTrack]:
-        result = await db.execute(select(cls).where(cls.dominant_state == dominant_state).limit(limit))
+        """One row per distinct track heard in ``dominant_state``, at most ``limit`` tracks.
+
+        Distinct before the limit: every session plays the same stimulus tracks, so a limit
+        on raw rows would spend itself on repeats of a few tracks.
+        """
+        result = await db.execute(
+            select(cls)
+            .where(cls.dominant_state == dominant_state)
+            .distinct(cls.track_id)
+            .order_by(cls.track_id, cls.created_at)
+            .limit(limit)
+        )
         return result.scalars().all()
 
     @classmethod

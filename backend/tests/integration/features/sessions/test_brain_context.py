@@ -121,3 +121,15 @@ async def test_a_request_without_stored_context_has_no_context_block(db_session:
     await create_thread(db_session, "t-ctx")
 
     assert "Active Brain Context" not in await _instructions_seen(db_session, "t-ctx")
+
+
+async def test_set_brain_context_tool_keeps_the_fields_a_call_does_not_name(db_session: AsyncSession) -> None:
+    await create_thread(db_session, "t-ctx")
+    ctx = make_run_context(make_deps(db_session), conversation_id="t-ctx")
+    await session_tools.set_brain_context(ctx, session_id="sess-1", avg_arousal=0.3, avg_valence=0.7)
+
+    await session_tools.set_brain_context(ctx, dominant_mood="relaxed")
+
+    assert await session_service.get_brain_context(db_session, "t-ctx") == BrainContext(
+        latest_session_id="sess-1", dominant_mood="relaxed", avg_arousal=0.3, avg_valence=0.7
+    )

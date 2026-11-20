@@ -193,12 +193,7 @@ async def find_tracks_by_mood(db: AsyncSession, target_state: str, limit: int = 
     session_tracks = await SessionTrack.get_by_state(db, target_state, limit=limit)
 
     results: list[MoodTrack] = []
-    seen_track_ids: set[str] = set()
     for st in session_tracks:
-        if st.track_id in seen_track_ids:
-            continue
-        seen_track_ids.add(st.track_id)
-
         track = await Track.get(db, st.track_id)
         if track:
             results.append(
