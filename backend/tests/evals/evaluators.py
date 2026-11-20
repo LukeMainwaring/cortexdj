@@ -17,8 +17,8 @@ from tests.evals.agent_run import AgentOutput, AgentTurn
 class MaxCallsOf(Evaluator[AgentTurn, AgentOutput, None]):
     """At most ``max_calls`` calls of the tool named ``tool_name``, failed attempts included.
 
-    ``MaxToolCalls`` alone counts every tool, so a turn that creates two notes and searches
-    once would read as three searches. This hands it a copy of the span tree holding only the
+    ``MaxToolCalls`` alone counts every tool, so a turn that analyzes two sessions and lists
+    them once would read as three listings. This hands it a copy of the span tree holding only the
     named tool's spans, so which spans count as a call (not deferred, not an output function)
     and a missing tree are still decided by the library. Do not count the spans here instead;
     that drops those rules. ``max_calls=0`` checks a tool was not called at all.

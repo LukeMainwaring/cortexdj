@@ -8,9 +8,7 @@ in ``golden_set.py``.
 
 from pydantic_evals import Case, Dataset
 
-from cortexdj.features.notes import tools as notes_tools
 from tests.evals.agent_run import AgentOutput, AgentTurn
-from tests.evals.evaluators import MaxCallsOf
 from tests.evals.judges import FRIENDLY_GREETING
 
 assistant_dataset: Dataset[AgentTurn, AgentOutput, None] = Dataset(
@@ -19,12 +17,7 @@ assistant_dataset: Dataset[AgentTurn, AgentOutput, None] = Dataset(
         Case(
             name="friendly_greeting",
             inputs=AgentTurn(prompt="Say hello in one short, friendly sentence."),
-            evaluators=(
-                FRIENDLY_GREETING.judge(),
-                # A greeting gives no reason to read the notes. The tool is named off its function,
-                # so a rename cannot make this pass by matching nothing.
-                MaxCallsOf(tool_name=notes_tools.list_notes.__name__, max_calls=0, evaluation_name="no_notes_lookup"),
-            ),
+            evaluators=(FRIENDLY_GREETING.judge(),),
         ),
     ],
 )

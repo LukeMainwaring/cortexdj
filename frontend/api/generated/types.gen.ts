@@ -39,60 +39,6 @@ export type HttpValidationError = {
 };
 
 /**
- * NoteCreate
- */
-export type NoteCreate = {
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Content
-     */
-    content: string;
-};
-
-/**
- * NoteListResponse
- */
-export type NoteListResponse = {
-    /**
-     * Notes
-     */
-    notes: Array<NoteSchema>;
-    /**
-     * Total
-     */
-    total: number;
-};
-
-/**
- * NoteSchema
- */
-export type NoteSchema = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Content
-     */
-    content: string;
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Updated At
-     */
-    updated_at: string;
-};
-
-/**
  * SegmentListResponse
  */
 export type SegmentListResponse = {
@@ -571,77 +517,6 @@ export type RenameThreadResponses = {
 };
 
 export type RenameThreadResponse = RenameThreadResponses[keyof RenameThreadResponses];
-
-export type ListNotesData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/notes';
-};
-
-export type ListNotesResponses = {
-    /**
-     * Successful Response
-     */
-    200: NoteListResponse;
-};
-
-export type ListNotesResponse = ListNotesResponses[keyof ListNotesResponses];
-
-export type CreateNoteData = {
-    body: NoteCreate;
-    path?: never;
-    query?: never;
-    url: '/api/notes';
-};
-
-export type CreateNoteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CreateNoteError = CreateNoteErrors[keyof CreateNoteErrors];
-
-export type CreateNoteResponses = {
-    /**
-     * Successful Response
-     */
-    201: NoteSchema;
-};
-
-export type CreateNoteResponse = CreateNoteResponses[keyof CreateNoteResponses];
-
-export type GetNoteData = {
-    body?: never;
-    path: {
-        /**
-         * Note Id
-         */
-        note_id: string;
-    };
-    query?: never;
-    url: '/api/notes/{note_id}';
-};
-
-export type GetNoteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetNoteError = GetNoteErrors[keyof GetNoteErrors];
-
-export type GetNoteResponses = {
-    /**
-     * Successful Response
-     */
-    200: NoteSchema;
-};
-
-export type GetNoteResponse = GetNoteResponses[keyof GetNoteResponses];
 
 export type ListSessionsData = {
     body?: never;

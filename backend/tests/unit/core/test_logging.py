@@ -35,9 +35,9 @@ def test_credential_keys_match_in_any_spelling() -> None:
 
 
 def test_a_url_with_nothing_to_redact_is_logged_as_sent() -> None:
-    url = URL("http://test/api/notes/search?q=a%20b%2Bc")
+    url = URL("http://test/api/sessions?q=a%20b%2Bc")
 
-    assert redact_url(url) == "http://test/api/notes/search?q=a%20b%2Bc"
+    assert redact_url(url) == "http://test/api/sessions?q=a%20b%2Bc"
 
 
 def test_the_uvicorn_access_log_redacts_a_token_query_param(caplog: pytest.LogCaptureFixture) -> None:

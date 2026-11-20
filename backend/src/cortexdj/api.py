@@ -15,7 +15,6 @@ from cortexdj.core.health import health_router
 from cortexdj.core.startup import register_startup_hook
 from cortexdj.features.chat.router import thread_router
 from cortexdj.features.chat.stream import agent_router
-from cortexdj.features.notes.router import notes_router
 from cortexdj.features.sessions import service as session_service
 from cortexdj.features.sessions.eeg_model import load_eeg_model_at_startup
 from cortexdj.features.sessions.router import brain_context_router, sessions_router
@@ -41,6 +40,5 @@ api_router.include_router(agent_router)
 api_router.include_router(thread_router)
 
 # features
-api_router.include_router(notes_router)
 api_router.include_router(sessions_router)
 api_router.include_router(brain_context_router)

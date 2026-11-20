@@ -11,9 +11,8 @@ runtime from doing.
 from pydantic_ai.capabilities import AgentCapability
 
 from cortexdj.agents.deps import AgentDeps
-from cortexdj.features.notes.capability import NotesCapability
 from cortexdj.features.sessions.capability import SessionsCapability
 
-ENABLED_CAPABILITIES: list[AgentCapability[AgentDeps]] = [NotesCapability(), SessionsCapability()]
+ENABLED_CAPABILITIES: list[AgentCapability[AgentDeps]] = [SessionsCapability()]
 
 __all__ = ["ENABLED_CAPABILITIES"]

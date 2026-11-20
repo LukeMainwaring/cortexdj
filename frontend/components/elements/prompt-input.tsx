@@ -27,7 +27,7 @@ export type PromptInputTextareaProps = ComponentProps<typeof Textarea> & {
 
 export const PromptInputTextarea = ({
   className,
-  placeholder = "Ask me anything, or have me take a note...",
+  placeholder = "Ask about your brain state or sessions...",
   disableAutoResize = false,
   ...props
 }: PromptInputTextareaProps) => {
