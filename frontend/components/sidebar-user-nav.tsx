@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronUp, MoonIcon, SettingsIcon, SunIcon } from "lucide-react";
+import {
+  ChevronUp,
+  MoonIcon,
+  Music,
+  SettingsIcon,
+  SunIcon,
+} from "lucide-react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import {
@@ -51,6 +58,12 @@ export function SidebarUserNav() {
               {mounted
                 ? `Toggle ${resolvedTheme === "light" ? "dark" : "light"} mode`
                 : "Toggle theme"}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link href="/settings/spotify">
+                <Music />
+                Spotify Settings
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
