@@ -2,19 +2,19 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 
-from cortexdj.dependencies.db import AsyncPostgresSessionDep
-from cortexdj.models.eeg_segment import EegSegment
-from cortexdj.schemas.eeg_segment import SegmentListResponse, SegmentSchema
-from cortexdj.schemas.session import (
+from cortexdj.core.db import AsyncPostgresSessionDep
+from cortexdj.features.sessions import service as session_service
+from cortexdj.features.sessions.schema import (
+    BrainContext,
+    SegmentListResponse,
+    SegmentSchema,
     SessionListResponse,
     SessionSchema,
     SessionSummaryListResponse,
-    SessionSummarySchema,
 )
-from cortexdj.services import session as session_service
-from cortexdj.services.trajectory import compute_trajectory_summary
 
 sessions_router = APIRouter(prefix="/sessions", tags=["sessions"])
+brain_context_router = APIRouter(prefix="/brain-context", tags=["sessions"])
 
 
 @sessions_router.get("")
@@ -40,10 +40,7 @@ async def list_sessions_enriched(
     chronological-insertion order (Session 01 → Session NN).
     """
     summaries, total = await session_service.list_sessions_enriched(db, limit=limit, offset=offset, order=order)
-    return SessionSummaryListResponse(
-        sessions=[SessionSummarySchema.model_validate(s) for s in summaries],
-        total=total,
-    )
+    return SessionSummaryListResponse(sessions=summaries, total=total)
 
 
 @sessions_router.get("/{session_id}")
@@ -58,9 +55,15 @@ async def get_session(db: AsyncPostgresSessionDep, session_id: str) -> SessionSc
 @sessions_router.get("/{session_id}/segments")
 async def get_session_segments(db: AsyncPostgresSessionDep, session_id: str) -> SegmentListResponse:
     """Get all EEG segments for a session, plus a trajectory summary."""
-    segments = await EegSegment.get_by_session(db, session_id)
+    segments, trajectory_summary = await session_service.get_session_segments(db, session_id)
     return SegmentListResponse(
         segments=[SegmentSchema.model_validate(s) for s in segments],
         total=len(segments),
-        trajectory_summary=compute_trajectory_summary(segments),
+        trajectory_summary=trajectory_summary,
     )
+
+
+@brain_context_router.get("/{thread_id}")
+async def get_brain_context(db: AsyncPostgresSessionDep, thread_id: str) -> BrainContext | None:
+    """Get the brain context a chat thread is focused on; null when none has been set."""
+    return await session_service.get_brain_context(db, thread_id)

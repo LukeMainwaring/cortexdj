@@ -11,15 +11,15 @@ import logging
 from collections.abc import Sequence
 from math import sqrt
 
-from cortexdj.ml.dataset import scores_to_quadrant
-
-logger = logging.getLogger(__name__)
-from cortexdj.models.eeg_segment import EegSegment
-from cortexdj.schemas.eeg_segment import (
+from cortexdj.features.sessions.model import EegSegment
+from cortexdj.features.sessions.schema import (
     SmoothedPoint,
     TrajectorySummary,
     TransitionEvent,
 )
+from cortexdj.ml.dataset import scores_to_quadrant
+
+logger = logging.getLogger(__name__)
 
 EMOTION_STATES: tuple[str, ...] = ("relaxed", "calm", "excited", "stressed")
 
@@ -75,14 +75,14 @@ def compute_trajectory_summary(
         if s.dominant_state in dwell:
             dwell[s.dominant_state] += 1.0
         else:
-            logger.warning("Unknown dominant_state %r on segment %s", s.dominant_state, s.id)
+            logger.warning(f"Unknown dominant_state {s.dominant_state!r} on segment {s.id}")
     for k in dwell:
         dwell[k] = round(dwell[k] / n, 4)
 
     dominant_quadrant = max(dwell, key=lambda k: dwell[k])
 
     transitions: list[TransitionEvent] = []
-    for prev, curr in zip(segments[:-1], segments[1:]):
+    for prev, curr in zip(segments[:-1], segments[1:], strict=True):
         if prev.dominant_state != curr.dominant_state:
             transitions.append(
                 TransitionEvent(
@@ -101,7 +101,7 @@ def compute_trajectory_summary(
 
     path_length = sum(
         sqrt((b.valence_score - a.valence_score) ** 2 + (b.arousal_score - a.arousal_score) ** 2)
-        for a, b in zip(segments[:-1], segments[1:])
+        for a, b in zip(segments[:-1], segments[1:], strict=True)
     )
 
     return TrajectorySummary(
