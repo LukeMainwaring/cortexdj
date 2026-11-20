@@ -228,13 +228,18 @@ class ThreadBrainContext(Base):
 
     @classmethod
     async def update_fields(cls, db: AsyncSession, thread_id: str, fields: dict[str, Any]) -> ThreadBrainContext:
-        """Overwrite only the given columns, creating the row on the thread's first context."""
-        context = await cls.get(db, thread_id)
-        if context is None:
-            context = cls(thread_id=thread_id)
-            db.add(context)
-        for name, value in fields.items():
-            setattr(context, name, value)
-        await db.flush()
+        """Overwrite only the given columns, creating the row on the thread's first context.
+
+        The write runs in a savepoint: the session is the agent run's shared one, and a
+        failed insert (no such thread) would otherwise leave it unusable for every later tool.
+        """
+        async with db.begin_nested():
+            context = await cls.get(db, thread_id)
+            if context is None:
+                context = cls(thread_id=thread_id)
+                db.add(context)
+            for name, value in fields.items():
+                setattr(context, name, value)
+            await db.flush()
         await db.refresh(context)
         return context

@@ -5,6 +5,7 @@ from httpx import AsyncClient
 from pydantic_ai.exceptions import ToolFailed
 from pydantic_ai.messages import InstructionPart, ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.agents.registry import ASSISTANT, get_agent
@@ -27,6 +28,14 @@ async def test_merge_creates_the_row_then_overwrites_only_the_fields_set(db_sess
     merged = await session_service.merge_brain_context(db_session, "t-ctx", BrainContext(dominant_mood="excited"))
     assert merged.dominant_mood == "excited"
     assert merged.latest_session_id == "sess-1", "fields not set on the update must survive the merge"
+
+
+async def test_a_context_for_a_missing_thread_fails_and_leaves_the_session_usable(db_session: AsyncSession) -> None:
+    with pytest.raises(IntegrityError):
+        await session_service.merge_brain_context(db_session, "t-missing", BrainContext(dominant_mood="calm"))
+
+    # The run's other tools share this session, so the failed insert must not poison it.
+    assert await session_service.get_brain_context(db_session, "t-missing") is None
 
 
 async def test_endpoint_returns_the_threads_context(client: AsyncClient, db_session: AsyncSession) -> None:
