@@ -30,8 +30,8 @@ class SpotifyToken(Base):
 
     @classmethod
     async def get(cls, db: AsyncSession) -> SpotifyToken | None:
-        # A primary-key get, like ThreadBrainContext.get: the assistant reads the token on
-        # every model step, and the unit tier's mock session answers db.get with no row.
+        # A primary-key get: the assistant reads the token on every model step, and the
+        # session answers a repeat read in the same request from its identity map.
         return await db.get(cls, _SINGLETON_ID)
 
     @classmethod

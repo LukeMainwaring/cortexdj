@@ -67,8 +67,8 @@ class PostgresSettings(BaseSettings):
 
 
 class SpotifySettings(BaseSettings):
-    # Empty ID or secret means Spotify is not configured: the app boots, the auth routes
-    # answer 503, and the assistant saves mood playlists locally (features/spotify/).
+    # Empty ID or secret means Spotify is not configured: the app boots, connecting answers
+    # 503, and the assistant's Spotify tools fail with a message saying so (features/spotify/).
     SPOTIFY_CLIENT_ID: str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
     # Must match a redirect URI registered on the Spotify app, and the callback route
