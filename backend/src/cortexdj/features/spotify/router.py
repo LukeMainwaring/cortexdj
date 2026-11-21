@@ -16,6 +16,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from cortexdj.core.config import get_settings
 from cortexdj.core.db import AsyncPostgresSessionDep
 from cortexdj.features.spotify import service as spotify_service
+from cortexdj.features.spotify.client import get_spotify_client
 from cortexdj.features.spotify.model import SpotifyToken
 from cortexdj.features.spotify.schema import SpotifyConnectionStatus
 
@@ -113,9 +114,10 @@ async def spotify_callback(
 
 @spotify_auth_router.get("/status")
 async def get_spotify_status(db: AsyncPostgresSessionDep) -> SpotifyConnectionStatus:
-    """Get the current Spotify connection status."""
-    connected = await SpotifyToken.is_connected(db)
-    return SpotifyConnectionStatus(connected=connected)
+    """Whether the assistant can use Spotify right now."""
+    # Asks the client getter, not just whether a login is stored: a stored login whose
+    # refresh fails hides the assistant's Spotify tools, and the settings page must agree.
+    return SpotifyConnectionStatus(connected=await get_spotify_client(db) is not None)
 
 
 @spotify_auth_router.post("/disconnect")

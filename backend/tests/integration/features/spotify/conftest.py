@@ -5,9 +5,8 @@ row, and make a token refresh fail before it reaches the network (spotipy refuse
 manager without a client id). spotipy also reads ``SPOTIPY_CLIENT_ID`` from the environment
 as a fallback, so that goes too.
 
-Do not add a fixture that configures Spotify: ``client.py`` caches the app client for the
-process once settings are configured, so every later test would get a real client that
-calls Spotify.
+Do not add a fixture that configures Spotify: a test that then stored an expired token
+would send a real refresh request.
 """
 
 from collections.abc import Iterator

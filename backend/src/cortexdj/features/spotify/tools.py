@@ -24,10 +24,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _spotify_not_configured() -> ToolFailed:
-    return ToolFailed("Spotify is not configured. Please set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET.")
-
-
 def _requires_connection() -> ToolFailed:
     return ToolFailed("Spotify is not connected. Go to Settings > Spotify to connect.")
 
@@ -40,16 +36,20 @@ def _spotify_api_error(operation: str, error: Exception) -> ToolFailed:
     return ToolFailed(f"Failed to {operation}: {error!s}")
 
 
-async def _get_user_client(ctx: RunContext[AgentDeps]) -> spotipy.Spotify:
-    """The user's own client, or ToolFailed when Spotify is not connected."""
-    resolved = await get_spotify_client(ctx.deps.db)
-    if not resolved.is_user or resolved.client is None:
+async def _require_client(ctx: RunContext[AgentDeps]) -> spotipy.Spotify:
+    """The user's client, or ToolFailed when Spotify is not connected.
+
+    The capability hides every tool here without a login, so this fails only when the
+    user disconnects, or a refresh fails, between tool preparation and the call.
+    """
+    client = await get_spotify_client(ctx.deps.db)
+    if client is None:
         raise _requires_connection()
-    return resolved.client
+    return client
 
 
 # ---------------------------------------------------------------------------
-# EEG-based tools (always available)
+# Mood playlists
 # ---------------------------------------------------------------------------
 
 
@@ -83,7 +83,7 @@ async def build_mood_playlist(
 
     playlist_name = name or f"CortexDJ: {mood.capitalize()} Mix"
 
-    resolved_client = await get_spotify_client(ctx.deps.db)
+    client = await _require_client(ctx)
 
     internal_ids = [t.track_id for t in tracks]
     db_tracks = await track_access.get_tracks(ctx.deps.db, internal_ids)
@@ -92,9 +92,14 @@ async def build_mood_playlist(
 
     async def _resolve(t: TrackInfo) -> tuple[TrackInfo, str | None]:
         async with semaphore:
-            return t, await spotify_service.resolve_track_spotify_id(resolved_client.client, t)
+            return t, await spotify_service.resolve_track_spotify_id(client, t)
 
-    resolution = await asyncio.gather(*(_resolve(t) for t in db_tracks))
+    try:
+        resolution = await asyncio.gather(*(_resolve(t) for t in db_tracks))
+    except spotipy.SpotifyException as e:
+        if e.http_status == 401:
+            raise _token_expired() from e
+        raise
     resolved_pairs: list[tuple[TrackInfo, str]] = [(t, sid) for t, sid in resolution if sid]
     dropped_count = len(db_tracks) - len(resolved_pairs)
 
@@ -123,20 +128,20 @@ async def build_mood_playlist(
     ctx.deps.db.add(playlist)
     await ctx.deps.db.flush()
 
-    # Only the user's own login can create a playlist on Spotify; without it the
-    # playlist stays local.
     spotify_result = await spotify_service.create_playlist(
         playlist_name,
         spotify_track_ids,
+        client=client,
         description=f"Auto-curated by CortexDJ based on brain state: {mood}",
-        client=resolved_client.client if resolved_client.is_user else None,
     )
 
     if spotify_result.get("spotify_playlist_id"):
         playlist.spotify_playlist_id = spotify_result["spotify_playlist_id"]
         await ctx.deps.db.flush()
 
-    response: dict[str, Any] = {
+    # A failure on Spotify's side is not raised: the playlist is saved in the database and
+    # its tracks are the result, and ``note`` tells the model the copy on Spotify failed.
+    return {
         "playlist_name": playlist_name,
         "mood": mood,
         "track_count": len(resolved_pairs),
@@ -148,26 +153,19 @@ async def build_mood_playlist(
         "note": spotify_result.get("note"),
     }
 
-    # Not raised: the playlist is saved locally and its tracks are the result; only the
-    # copy on the user's Spotify account failed, which the message tells the model.
-    if resolved_client.is_user and not spotify_result.get("spotify_playlist_id"):
-        response["message"] = spotify_result.get("note") or "Spotify playlist creation failed."
-
-    return response
-
 
 # ---------------------------------------------------------------------------
-# Spotify user-authenticated tools (hidden when not connected)
+# The user's Spotify library
 # ---------------------------------------------------------------------------
 
 
 async def get_listening_history(ctx: RunContext[AgentDeps], limit: int = 20) -> dict[str, Any]:
     """Get recent Spotify listening history.
 
-    Requires Spotify to be connected. Returns recently played tracks
+    Returns recently played tracks
     which can be correlated with EEG session data.
     """
-    client = await _get_user_client(ctx)
+    client = await _require_client(ctx)
 
     try:
         results = await spotify_service.run_spotify(client.current_user_recently_played, limit=limit)
@@ -200,10 +198,10 @@ async def get_my_playlists(
 ) -> dict[str, Any]:
     """Get the user's Spotify playlists.
 
-    Requires Spotify to be connected. Useful for finding existing playlists
+    Useful for finding existing playlists
     or correlating with EEG session data.
     """
-    client = await _get_user_client(ctx)
+    client = await _require_client(ctx)
 
     try:
         items, total = await spotify_service.fetch_all_pages(
@@ -224,46 +222,6 @@ async def get_my_playlists(
                 "playlist_id": playlist["id"],
             }
             for playlist in items
-        ],
-        "total": total,
-        "fetched_count": len(items),
-    }
-    if max_results is not None and len(items) >= max_results and len(items) < total:
-        response["capped"] = True
-    return response
-
-
-async def get_my_saved_tracks(
-    ctx: RunContext[AgentDeps],
-    max_results: int | None = 50,
-) -> dict[str, Any]:
-    """Get tracks saved in the user's Spotify library.
-
-    Requires Spotify to be connected. Useful for cross-referencing
-    the user's library with EEG session data.
-    """
-    client = await _get_user_client(ctx)
-
-    try:
-        items, total = await spotify_service.fetch_all_pages(
-            client.current_user_saved_tracks,
-            limit=50,
-            max_items=max_results,
-        )
-    except spotipy.SpotifyException as e:
-        if e.http_status == 401:
-            raise _token_expired() from e
-        raise _spotify_api_error("get saved tracks", e) from e
-
-    response: dict[str, Any] = {
-        "saved_tracks": [
-            {
-                "name": item["track"]["name"],
-                "artists": [a["name"] for a in item["track"]["artists"]],
-                "track_id": item["track"]["id"],
-                "added_at": item.get("added_at"),
-            }
-            for item in items
         ],
         "total": total,
         "fetched_count": len(items),
@@ -297,7 +255,7 @@ async def add_tracks_to_playlist(
             "with user_confirmed=True after they approve."
         )
 
-    client = await _get_user_client(ctx)
+    client = await _require_client(ctx)
 
     if not track_ids:
         raise ToolFailed("No track IDs provided. Please specify at least one track to add.")
@@ -329,7 +287,7 @@ async def add_tracks_to_playlist(
 
 
 # ---------------------------------------------------------------------------
-# Public Spotify tools (available whenever Spotify is configured)
+# Catalog search
 # ---------------------------------------------------------------------------
 
 
@@ -344,15 +302,15 @@ async def search_tracks(
         query: Search query (e.g., "Bohemian Rhapsody", "Queen", "chill electronic")
         max_results: Total tracks to return (default 10, max 200)
     """
-    client = (await get_spotify_client(ctx.deps.db)).client
-    if client is None:
-        raise _spotify_not_configured()
+    client = await _require_client(ctx)
 
     max_results = max(1, min(200, max_results))
 
     try:
         all_tracks, total_available = await spotify_service.search_paginated(client, query, "track", max_results)
     except spotipy.SpotifyException as e:
+        if e.http_status == 401:
+            raise _token_expired() from e
         raise _spotify_api_error("search tracks", e) from e
 
     return {
@@ -368,34 +326,4 @@ async def search_tracks(
         ],
         "total_results": total_available,
         "fetched_count": len(all_tracks),
-    }
-
-
-async def get_track_info(
-    ctx: RunContext[AgentDeps],
-    track_id: str,
-) -> dict[str, Any]:
-    """Get detailed information about a specific Spotify track.
-
-    Args:
-        track_id: The Spotify track ID
-    """
-    client = (await get_spotify_client(ctx.deps.db)).client
-    if client is None:
-        raise _spotify_not_configured()
-
-    try:
-        track = await spotify_service.run_spotify(client.track, track_id)
-    except spotipy.SpotifyException as e:
-        raise _spotify_api_error("get track info", e) from e
-
-    return {
-        "name": track["name"],
-        "artists": [a["name"] for a in track["artists"]],
-        "album": track["album"]["name"],
-        "release_date": track["album"].get("release_date"),
-        "duration_ms": track["duration_ms"],
-        "popularity": track["popularity"],
-        "explicit": track["explicit"],
-        "spotify_url": track["external_urls"].get("spotify"),
     }

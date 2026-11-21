@@ -14,5 +14,4 @@ assistant can only offer to add them to a playlist the user already has
 (`add_tracks_to_playlist`) or to build a mood playlist without them. The retrieved tracks
 carry Spotify ids, so a new playlist from a given list of ids needs no lookup.
 
-**To settle:** a new tool or a new argument on the existing one, and whether it saves locally
-when the user has no Spotify login, as `build_mood_playlist` does.
+**To settle:** a new tool or a new argument on the existing one.

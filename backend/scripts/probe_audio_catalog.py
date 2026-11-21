@@ -36,9 +36,8 @@ async def main() -> int:
     args.miss_log.unlink(missing_ok=True)
 
     async with get_async_sqlalchemy_session() as db:
-        spotify = await get_spotify_client(db)
-        client = spotify.client
-        if client is None or not spotify.is_user:
+        client = await get_spotify_client(db)
+        if client is None:
             print("NO USER TOKEN — connect Spotify in the UI first", file=sys.stderr)
             return 2
 

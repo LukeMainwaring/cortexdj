@@ -108,7 +108,7 @@ pnpm -C frontend dev
 # Visit http://localhost:3003
 ```
 
-Spotify is optional: without it the app runs and the assistant's Spotify tools are unavailable. To use it, create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), register `http://127.0.0.1:8003/api/spotify/callback` as its redirect URI, put `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in `.env`, and recreate the backend with `docker compose up -d backend`. Then connect your account under Settings → Spotify Settings in the sidebar.
+Spotify is optional: without it the app runs and the assistant's Spotify tools are unavailable. To use it, create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), register `http://127.0.0.1:8003/api/spotify/callback` as its redirect URI, put `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in `.env`, and recreate the backend with `docker compose up -d backend`. Then connect your account under Settings → Spotify Settings in the sidebar; the assistant's Spotify tools appear once it is connected.
 
 The track index that retrieval searches is built by `seed-track-index`, which cannot finish until the open ticket [audio-decoding 01](.scratch/audio-decoding/issues/01-decode-m4a-previews.md) is done, so a fresh setup has every feature except retrieval.
 

@@ -208,17 +208,10 @@ async def _main_async() -> int:
     limit = args.limit if args.limit is not None else settings.TRACK_INDEX_POOL_SIZE
 
     async with get_async_sqlalchemy_session() as db:
-        # Prefer the user's login (reaches saved tracks) but fall back to client
-        # credentials if Spotify isn't connected in the UI yet — that still
-        # supports the genre-seed path.
-        spotify = await get_spotify_client(db)
-        client = spotify.client
+        client = await get_spotify_client(db)
         if client is None:
-            print("error: Spotify not configured", file=sys.stderr)
+            print("error: Spotify is not connected. Connect it in the app (Settings > Spotify) first", file=sys.stderr)
             return 2
-        if not spotify.is_user and not args.skip_library:
-            logger.info("No user OAuth token — falling back to client-credentials (no saved tracks)")
-            args.skip_library = True
 
         # Only now, with a client in hand: a run that cannot start keeps the last run's log.
         MISS_LOG_PATH.unlink(missing_ok=True)

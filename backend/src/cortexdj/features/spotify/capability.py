@@ -1,10 +1,11 @@
 """Spotify for the assistant: mood playlists, track search, and the user's own library.
 
-Which Spotify client a call uses is ``client.get_spotify_client``'s decision, made from
-the database session on every model step: the four library tools need the user's own
-login and are hidden without it, so the model never offers a tool that can only fail.
-The instructions are all static, so they sit in the cached prefix
-(``docs/adr/0002-prompt-caching-in-the-shared-recipe.md``).
+Every tool here runs on the user's own Spotify login (``client.get_spotify_client``), so
+without one ``prepare_tools`` hides them all and the model never offers a tool that can
+only fail. That is decided from the database session on every model step. The
+instructions are all static, so they sit in the cached prefix
+(``docs/adr/0002-prompt-caching-in-the-shared-recipe.md``); they say what to tell the
+user when the tools are missing.
 """
 
 from dataclasses import dataclass
@@ -20,24 +21,20 @@ from cortexdj.features.spotify.tools import (
     build_mood_playlist,
     get_listening_history,
     get_my_playlists,
-    get_my_saved_tracks,
-    get_track_info,
     search_tracks,
 )
 
 _SPOTIFY_INSTRUCTIONS = """
-## Playlist & Track Tools
+## Spotify Tools
 
-- **build_mood_playlist** — Build a playlist from tracks matching a brain-derived mood (requires user confirmation)
+Offered only while the user's Spotify account is connected. If they are not offered and the
+user asks for one, say Spotify is not connected and point them to Settings > Spotify.
+
+- **build_mood_playlist** — Build a Spotify playlist from tracks matching a brain-derived mood (requires user confirmation)
 - **search_tracks** — Search Spotify for tracks by name, artist, or keywords
-- **get_track_info** — Get detailed metadata for a specific Spotify track
-
-## Spotify Library (requires Spotify connection)
-
 - **get_listening_history** — Fetch recently played tracks from Spotify
 - **get_my_playlists** — Browse the user's Spotify playlists
-- **get_my_saved_tracks** — Access the user's saved Spotify library
-- **add_tracks_to_playlist** — Add tracks to an existing Spotify playlist
+- **add_tracks_to_playlist** — Add tracks to an existing Spotify playlist (requires user confirmation)
 
 - For playlist building, explain the brain-music connection
 
@@ -48,14 +45,14 @@ _SPOTIFY_INSTRUCTIONS = """
 - Prefer add_tracks_to_playlist for existing playlists rather than creating new ones
 """.strip()
 
-_SPOTIFY_ONLY_TOOLS = frozenset(
-    {
-        get_listening_history.__name__,
-        get_my_playlists.__name__,
-        get_my_saved_tracks.__name__,
-        add_tracks_to_playlist.__name__,
-    }
+_TOOLS = (
+    build_mood_playlist,
+    search_tracks,
+    get_listening_history,
+    get_my_playlists,
+    add_tracks_to_playlist,
 )
+_TOOL_NAMES = frozenset(tool.__name__ for tool in _TOOLS)
 
 
 @dataclass
@@ -68,7 +65,6 @@ class SpotifyCapability(AbstractCapability[AgentDeps]):
             get_listening_history.__name__,
             search_tracks.__name__,
             get_my_playlists.__name__,
-            get_my_saved_tracks.__name__,
         }
     )
 
@@ -77,14 +73,8 @@ class SpotifyCapability(AbstractCapability[AgentDeps]):
         # overlapping operations; pydantic-ai would otherwise run a response's several
         # tool calls concurrently.
         ts: FunctionToolset[AgentDeps] = FunctionToolset(sequential=True)
-        ts.tool(build_mood_playlist)
-        ts.tool(search_tracks)
-        ts.tool(get_track_info)
-        # Hidden by prepare_tools when the user has not connected Spotify
-        ts.tool(get_listening_history)
-        ts.tool(get_my_playlists)
-        ts.tool(get_my_saved_tracks)
-        ts.tool(add_tracks_to_playlist)
+        for tool in _TOOLS:
+            ts.tool(tool)
         return ts
 
     def get_instructions(self) -> str:
@@ -95,7 +85,7 @@ class SpotifyCapability(AbstractCapability[AgentDeps]):
         ctx: RunContext[AgentDeps],
         tool_defs: list[ToolDefinition],
     ) -> list[ToolDefinition]:
-        """Hide the Spotify library tools unless the user's own Spotify login is connected."""
-        if not (await get_spotify_client(ctx.deps.db)).is_user:
-            return [td for td in tool_defs if td.name not in _SPOTIFY_ONLY_TOOLS]
+        """Hide the Spotify tools unless the user's Spotify login is connected."""
+        if await get_spotify_client(ctx.deps.db) is None:
+            return [td for td in tool_defs if td.name not in _TOOL_NAMES]
         return tool_defs

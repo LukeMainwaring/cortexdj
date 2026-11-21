@@ -1,9 +1,8 @@
 """Spotify Web API calls the slice's tools and auth routes make, on a client the caller passes in.
 
-Which client to use is ``client.get_spotify_client``'s decision, not this module's: the
-user's own login can create playlists and read their library, the app's client
-credentials only search and read public track data. spotipy is synchronous, so every
-call goes through ``run_spotify`` to keep it off the event loop.
+The client is always the user's own login, from ``client.get_spotify_client``; a caller
+with no client does not call this module. spotipy is synchronous, so every call goes
+through ``run_spotify`` to keep it off the event loop.
 """
 
 import asyncio
@@ -90,11 +89,7 @@ async def search_paginated(
     return all_items, total_available
 
 
-async def search_tracks(client: spotipy.Spotify | None, query: str, *, max_results: int = 10) -> list[dict[str, Any]]:
-    """Search tracks; an empty list when there is no client (Spotify not configured)."""
-    if client is None:
-        return []
-
+async def search_tracks(client: spotipy.Spotify, query: str, *, max_results: int = 10) -> list[dict[str, Any]]:
     max_results = max(1, min(200, max_results))
     all_tracks, _ = await search_paginated(client, query, "track", max_results)
 
@@ -110,14 +105,16 @@ async def search_tracks(client: spotipy.Spotify | None, query: str, *, max_resul
     ]
 
 
-async def resolve_track_spotify_id(client: spotipy.Spotify | None, track: TrackInfo) -> str | None:
+async def resolve_track_spotify_id(client: spotipy.Spotify, track: TrackInfo) -> str | None:
     """Return the Spotify track ID for `track`, looking it up if missing.
 
     Pure lookup — does NOT touch the DB. Callers persist the returned ID serially through
     ``track_access.save_track_spotify_id``, because this function is typically run
     concurrently via `asyncio.gather` and `AsyncSession` is not safe for concurrent use.
 
-    Returns None if no match is found or Spotify is unconfigured.
+    Returns None if no match is found or the search fails. A login Spotify rejects (401)
+    is raised instead: it fails every lookup the same way, and the caller tells the user
+    to reconnect.
     """
     if track.spotify_track_id:
         return track.spotify_track_id
@@ -130,6 +127,8 @@ async def resolve_track_spotify_id(client: spotipy.Spotify | None, track: TrackI
     try:
         results = await search_tracks(client, query, max_results=1)
     except Exception as e:  # noqa: BLE001 — one bad lookup shouldn't fail the whole playlist
+        if isinstance(e, spotipy.SpotifyException) and e.http_status == 401:
+            raise
         logger.warning(f"Spotify search failed for '{track.title}' by '{track.artist}': {e}")
         return None
 
@@ -145,11 +144,10 @@ async def create_playlist(
     name: str,
     track_ids: list[str],
     *,
+    client: spotipy.Spotify,
     description: str = "",
-    client: spotipy.Spotify | None = None,
 ) -> dict[str, Any]:
-    """When a user-authenticated client is provided, creates a real playlist
-    on the user's Spotify account. Otherwise returns a local-only record.
+    """Create a private playlist on the user's Spotify account and add the tracks.
 
     A failure on Spotify's side is logged and comes back as a record with no
     ``spotify_playlist_id`` and a ``note``, not an exception: the caller has already
@@ -157,17 +155,6 @@ async def create_playlist(
     """
     if not track_ids:
         raise ValueError("create_playlist called with no track IDs")
-
-    if client is None:
-        logger.info(f"Would create Spotify playlist '{name}' with {len(track_ids)} tracks")
-        return {
-            "name": name,
-            "track_count": len(track_ids),
-            "description": description,
-            "spotify_url": None,
-            "spotify_playlist_id": None,
-            "note": "Connect Spotify in Settings to create real playlists.",
-        }
 
     try:
         user_info = await run_spotify(client.current_user)
