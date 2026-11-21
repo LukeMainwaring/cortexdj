@@ -108,56 +108,6 @@ export type SegmentSchema = {
 };
 
 /**
- * SessionListResponse
- */
-export type SessionListResponse = {
-    /**
-     * Sessions
-     */
-    sessions: Array<SessionSchema>;
-    /**
-     * Total
-     */
-    total: number;
-};
-
-/**
- * SessionSchema
- */
-export type SessionSchema = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Participant Id
-     */
-    participant_id: string;
-    /**
-     * Dataset Source
-     */
-    dataset_source: string;
-    /**
-     * Recorded At
-     */
-    recorded_at: string;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Metadata Extra
-     */
-    metadata_extra?: {
-        [key: string]: unknown;
-    } | null;
-    /**
-     * Created At
-     */
-    created_at: string;
-};
-
-/**
  * SessionSummaryListResponse
  */
 export type SessionSummaryListResponse = {
@@ -576,40 +526,6 @@ export type RenameThreadResponses = {
 
 export type RenameThreadResponse = RenameThreadResponses[keyof RenameThreadResponses];
 
-export type ListSessionsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Limit
-         */
-        limit?: number;
-        /**
-         * Offset
-         */
-        offset?: number;
-    };
-    url: '/api/sessions';
-};
-
-export type ListSessionsErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
-
-export type ListSessionsResponses = {
-    /**
-     * Successful Response
-     */
-    200: SessionListResponse;
-};
-
-export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
-
 export type ListSessionsEnrichedData = {
     body?: never;
     path?: never;
@@ -618,14 +534,6 @@ export type ListSessionsEnrichedData = {
          * Limit
          */
         limit?: number;
-        /**
-         * Offset
-         */
-        offset?: number;
-        /**
-         * Order
-         */
-        order?: 'recent' | 'stable';
     };
     url: '/api/sessions/enriched';
 };
@@ -647,36 +555,6 @@ export type ListSessionsEnrichedResponses = {
 };
 
 export type ListSessionsEnrichedResponse = ListSessionsEnrichedResponses[keyof ListSessionsEnrichedResponses];
-
-export type GetSessionData = {
-    body?: never;
-    path: {
-        /**
-         * Session Id
-         */
-        session_id: string;
-    };
-    query?: never;
-    url: '/api/sessions/{session_id}';
-};
-
-export type GetSessionErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
-
-export type GetSessionResponses = {
-    /**
-     * Successful Response
-     */
-    200: SessionSchema;
-};
-
-export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
 
 export type GetSessionSegmentsData = {
     body?: never;

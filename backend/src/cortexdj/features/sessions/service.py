@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, Literal
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,21 +35,11 @@ async def get_session_participant_id(db: AsyncSession, session_id: str) -> str |
     return session.participant_id if session is not None else None
 
 
-async def list_sessions(db: AsyncSession, *, limit: int = 50, offset: int = 0) -> tuple[Sequence[Session], int]:
-    return await Session.list_all(db, limit=limit, offset=offset)
-
-
-async def list_sessions_enriched(
-    db: AsyncSession,
-    *,
-    limit: int = 50,
-    offset: int = 0,
-    order: Literal["recent", "stable"] = "recent",
-) -> tuple[list[SessionSummarySchema], int]:
-    """Return sessions enriched with display index, dominant-state label, and segment stats.
+async def list_sessions_enriched(db: AsyncSession, *, limit: int = 50) -> tuple[list[SessionSummarySchema], int]:
+    """Return the newest sessions with display index, dominant-state label, and segment stats.
 
     display_index is a 1-based ordinal computed from chronological insertion
-    order; `order` only controls the returned ordering. Indices are *not*
+    order, whatever order the sessions are returned in. Indices are *not*
     persisted, so a deletion renumbers every subsequent session — acceptable
     for the single-tenant demo but should become a real column before
     multi-user sessions land.
@@ -62,8 +52,7 @@ async def list_sessions_enriched(
     index_by_id: dict[str, int] = {sid: i + 1 for i, (sid, _) in enumerate(chronological)}
     duration_by_id: dict[str, float] = dict(chronological)
 
-    ordered = list(reversed(chronological)) if order == "recent" else chronological
-    page_ids = [sid for sid, _ in ordered[offset : offset + limit]]
+    page_ids = [sid for sid, _ in reversed(chronological)][:limit]
     if not page_ids:
         return [], total
 
@@ -81,9 +70,8 @@ async def list_sessions_enriched(
 
     summaries: list[SessionSummarySchema] = []
     for sid in page_ids:
-        counts = state_counts.get(sid, {})
-        total_segs = seg_totals.get(sid, 0) or 1
-        distribution = {state: count / total_segs for state, count in counts.items()}
+        segment_count = seg_totals[sid]
+        distribution = {state: count / segment_count for state, count in state_counts[sid].items()}
         dominant_state, dominant_fraction = (
             max(distribution.items(), key=lambda kv: kv[1]) if distribution else ("unknown", 0.0)
         )
@@ -94,11 +82,11 @@ async def list_sessions_enriched(
                 label=_build_label(dominant_state, dominant_fraction),
                 dominant_state=dominant_state,
                 state_distribution=distribution,
-                segment_count=seg_totals.get(sid, 0),
+                segment_count=segment_count,
                 track_count=track_counts.get(sid, 0),
                 duration_seconds=duration_by_id[sid],
-                avg_arousal=(weighted_arousal[sid] / seg_totals[sid]) if seg_totals.get(sid) else 0.0,
-                avg_valence=(weighted_valence[sid] / seg_totals[sid]) if seg_totals.get(sid) else 0.0,
+                avg_arousal=weighted_arousal[sid] / segment_count if segment_count else 0.0,
+                avg_valence=weighted_valence[sid] / segment_count if segment_count else 0.0,
             )
         )
 

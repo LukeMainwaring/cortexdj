@@ -13,9 +13,7 @@ import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 
-import numpy as np
 from sqlalchemy import select
 
 from cortexdj.core.db import get_async_sqlalchemy_session
@@ -78,27 +76,13 @@ STIMULUS_TRACKS = [
 ]
 
 
-def _load_participant_data(
-    participant_id: int,
-    data_dir: Path,
-) -> tuple[np.ndarray, np.ndarray] | None:
-    file_path = data_dir / f"s{participant_id:02d}.dat"
+async def seed_participant(participant_id: int, model: EEGModel | None) -> int:
+    file_path = DEAP_DATA_DIR / f"s{participant_id:02d}.dat"
     if not file_path.exists():
         logger.warning(f"  File not found: {file_path}")
-        return None
-    return load_deap_participant(file_path)
-
-
-async def seed_participant(
-    participant_id: int,
-    data_dir: Path,
-    model: EEGModel | None,
-) -> int:
-    result = _load_participant_data(participant_id, data_dir)
-    if result is None:
         return 0
 
-    data, labels = result
+    data, labels = load_deap_participant(file_path)
     n_trials = data.shape[0]
 
     seeded = 0
@@ -172,34 +156,27 @@ async def seed_participant(
                 )
                 db.add(eeg_segment)
 
-            if segment_results:
-                avg_a = sum(r.arousal_score for r in segment_results) / len(segment_results)
-                avg_v = sum(r.valence_score for r in segment_results) / len(segment_results)
-                session_track = SessionTrack(
-                    id=str(uuid.uuid4()),
-                    session_id=session_id,
-                    track_id=track_id,
-                    track_order=trial_idx,
-                    avg_arousal=avg_a,
-                    avg_valence=avg_v,
-                    dominant_state=scores_to_quadrant(avg_a * 10, avg_v * 10),
-                )
-                db.add(session_track)
+            avg_a = sum(r.arousal_score for r in segment_results) / len(segment_results)
+            avg_v = sum(r.valence_score for r in segment_results) / len(segment_results)
+            session_track = SessionTrack(
+                id=str(uuid.uuid4()),
+                session_id=session_id,
+                track_id=track_id,
+                track_order=trial_idx,
+                avg_arousal=avg_a,
+                avg_valence=avg_v,
+                dominant_state=scores_to_quadrant(avg_a * 10, avg_v * 10),
+            )
+            db.add(session_track)
 
             seeded += 1
 
     return seeded
 
 
-async def seed_all(
-    participants: list[int],
-    data_dir: str | None,
-    model_type: str,
-) -> None:
-    resolved_dir = Path(data_dir) if data_dir else DEAP_DATA_DIR
-
-    if not resolved_dir.exists():
-        logger.error(f"Data directory not found: {resolved_dir}")
+async def seed_all(participants: list[int], model_type: str) -> None:
+    if not DEAP_DATA_DIR.exists():
+        logger.error(f"Data directory not found: {DEAP_DATA_DIR}")
         logger.error("See backend/data/DEAP_SETUP.md for download instructions.")
         return
 
@@ -212,10 +189,9 @@ async def seed_all(
 
     total_seeded = 0
     for p in participants:
-        count = await seed_participant(p, resolved_dir, model)
-        if count > 0:
-            logger.info(f"  [{p}] Seeded {count} trials")
-            total_seeded += count
+        count = await seed_participant(p, model)
+        logger.info(f"  [{p}] Seeded {count} trials")
+        total_seeded += count
 
     logger.info(f"Done! Seeded {total_seeded} total trials from {len(participants)} participants")
 
@@ -223,7 +199,6 @@ async def seed_all(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed CortexDJ database with EEG data")
     parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
-    parser.add_argument("--data-dir", type=str, default=None)
     parser.add_argument(
         "--model",
         choices=["eegnet", "cbramod"],
@@ -232,4 +207,4 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    asyncio.run(seed_all(args.participants, args.data_dir, args.model))
+    asyncio.run(seed_all(args.participants, args.model))

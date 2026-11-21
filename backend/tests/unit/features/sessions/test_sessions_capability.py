@@ -20,22 +20,15 @@ async def _offered_tool_names(eeg_model: EEGModel | None) -> set[str]:
     return {t.name for t in params.function_tools}
 
 
-async def test_hides_get_model_info_when_no_eeg_model_is_loaded() -> None:
-    assert "get_model_info" not in await _offered_tool_names(None)
-
-
 async def test_offers_get_model_info_when_an_eeg_model_is_held() -> None:
     assert "get_model_info" in await _offered_tool_names(EEGNetClassifier())
 
 
-async def test_set_brain_context_is_offered_without_a_model() -> None:
-    assert "set_brain_context" in await _offered_tool_names(None)
-
-
-async def test_session_and_insight_tools_are_offered_without_a_model() -> None:
+async def test_only_get_model_info_is_hidden_when_no_eeg_model_is_loaded() -> None:
     offered = await _offered_tool_names(None)
 
-    for always in ("list_sessions", "analyze_session", "explain_brain_state", "compare_sessions"):
+    assert "get_model_info" not in offered
+    for always in ("list_sessions", "analyze_session", "explain_brain_state", "compare_sessions", "set_brain_context"):
         assert always in offered
 
 

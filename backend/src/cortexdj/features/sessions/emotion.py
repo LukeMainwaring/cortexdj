@@ -1,11 +1,4 @@
 # Emotion quadrants based on arousal-valence model (Russell, 1980)
-QUADRANT_DESCRIPTIONS: dict[str, str] = {
-    "excited": "High energy, positive mood — engaged, enthusiastic",
-    "stressed": "High energy, negative mood — tense, anxious",
-    "relaxed": "Low energy, positive mood — calm, peaceful",
-    "calm": "Low energy, negative mood — subdued, melancholic",
-}
-
 BRAIN_STATE_EXPLANATIONS: dict[str, str] = {
     "excited": (
         "Your brain showed high beta activity (14-30 Hz) and elevated alpha power, "
@@ -28,10 +21,6 @@ BRAIN_STATE_EXPLANATIONS: dict[str, str] = {
         "more contemplative or slightly detached from the stimulus."
     ),
 }
-
-
-def quadrant_to_mood_description(state: str) -> str:
-    return QUADRANT_DESCRIPTIONS.get(state, f"Unknown state: {state}")
 
 
 def get_brain_state_explanation(state: str) -> str:

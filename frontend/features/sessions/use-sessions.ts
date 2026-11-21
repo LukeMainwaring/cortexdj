@@ -5,25 +5,24 @@ import {
   listSessionsEnrichedOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
 
-export const useEnrichedSessions = (
-  limit = 50,
-  order: "recent" | "stable" = "recent"
-) =>
+// Fetch a generous slice so any subset the agent might choose is covered by
+// the cached query. 500 is well above the demo's ceiling (32 DEAP rows) and
+// still a single query — if the catalog ever scales past this we should
+// fetch the requested ids directly instead of filtering client-side.
+const ENRICHED_SESSIONS_LIMIT = 500;
+
+export const useEnrichedSessions = () =>
   useQuery({
-    ...listSessionsEnrichedOptions({ query: { limit, order } }),
+    ...listSessionsEnrichedOptions({
+      query: { limit: ENRICHED_SESSIONS_LIMIT },
+    }),
     staleTime: 60_000,
   });
 
 export const useSessionSegments = (sessionId: string) =>
   useQuery({
     ...getSessionSegmentsOptions({ path: { session_id: sessionId } }),
-    retry: (failureCount, error) => {
-      // A missing session stays missing.
-      if (error?.response?.status === 404) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+    retry: 2,
   });
 
 // The brain context the agent pinned to this thread with `set_brain_context`,

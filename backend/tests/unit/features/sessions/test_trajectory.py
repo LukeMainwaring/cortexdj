@@ -6,10 +6,8 @@ from math import isclose, sqrt
 from cortexdj.features.sessions.model import EegSegment
 from cortexdj.features.sessions.trajectory import (
     compute_trajectory_summary,
-    quadrant_from_scores,
     smooth_trajectory,
 )
-from cortexdj.ml.dataset import scores_to_quadrant
 
 
 def _segment(index: int, arousal: float, valence: float, state: str, start: float) -> EegSegment:
@@ -28,15 +26,6 @@ def _segment(index: int, arousal: float, valence: float, state: str, start: floa
     )
 
 
-class TestQuadrantFromScores:
-    def test_parity_with_scores_to_quadrant(self) -> None:
-        # quadrant_from_scores takes 0-1 inputs and must agree with the 0-10
-        # canonical mapping used by ml.dataset and ml.predict.
-        cases = [(0.2, 0.2), (0.2, 0.8), (0.8, 0.2), (0.8, 0.8), (0.5, 0.5)]
-        for a, v in cases:
-            assert quadrant_from_scores(a, v) == scores_to_quadrant(a * 10, v * 10)
-
-
 class TestSmoothTrajectory:
     def test_empty(self) -> None:
         assert smooth_trajectory([]) == []
@@ -49,7 +38,7 @@ class TestSmoothTrajectory:
             _segment(3, 0.70, 0.70, "excited", 12.0),
             _segment(4, 0.90, 0.90, "excited", 16.0),
         ]
-        points = smooth_trajectory(segs, window=3)
+        points = smooth_trajectory(segs)
 
         # Endpoints use a 2-wide half-window; interior uses full 3-wide.
         assert isclose(points[0].arousal, (0.10 + 0.30) / 2, abs_tol=1e-4)
