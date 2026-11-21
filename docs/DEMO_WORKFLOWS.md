@@ -104,7 +104,7 @@ Unlike `build_mood_playlist` (which curates from tracks already labeled in the E
 - *"What tracks would match the vibe of Session 12?"*
 - *"Find new songs for this session's mood"*
 
-**Prereqs:** The retrieval index must be populated (`uv run --directory backend seed-track-index`) and a contrastive checkpoint must exist (`uv run --directory backend train-contrastive` or via Modal). If the index is empty the tool returns a `note` with operator instructions, which the agent relays verbatim instead of hallucinating a recovery.
+**Prereqs:** The retrieval index must be populated (`uv run --directory backend seed-track-index`) and a contrastive checkpoint must exist (`./backend/scripts/download-checkpoints.sh`). If the index is empty the tool returns a `note` with operator instructions, which the agent relays verbatim instead of hallucinating a recovery.
 
 ---
 
@@ -210,7 +210,7 @@ The full end-to-end retrieval demo: analyze a session and discover new matching 
 - Agent proposes a playlist name and the top-5 track list, waits for your confirmation, then calls `build_mood_playlist` with `user_confirmed=True`
 - If Spotify is connected, the playlist is created live; otherwise saved locally
 
-**What to watch for across the session:** The two inline visualizations side by side are the feature's best screenshot. Notice that retrieved tracks are typically ones the user has never heard in this database — that's the fundamental difference from `find_relaxing_tracks`, which filters the EEG-labeled history. If similarity scores are weak across the board (near zero), the contrastive checkpoint is likely underfit — run a full Modal training pass (`modal run backend/scripts/modal_train.py --command train-contrastive`) for a real checkpoint.
+**What to watch for across the session:** The two inline visualizations side by side are the feature's best screenshot. Notice that retrieved tracks are typically ones the user has never heard in this database — that's the fundamental difference from `find_relaxing_tracks`, which filters the EEG-labeled history. If similarity scores are weak across the board (near zero), the contrastive checkpoint is likely underfit — download the released one (`./backend/scripts/download-checkpoints.sh`).
 
 ---
 
@@ -295,5 +295,5 @@ These workflows will become available as upcoming roadmap features are implement
 - **Expand tool calls:** Click the collapsible tool call indicators to show input parameters and raw output JSON. This demonstrates the agent's reasoning pipeline.
 - **Brain context persistence:** Refresh the page mid-workflow to show that brain context survives page reloads — it's stored in the thread's database column, not browser state.
 - **Spotify connection:** Workflows using `get_listening_history`, `get_my_playlists`, `get_my_saved_tracks`, or `add_tracks_to_playlist` require Spotify to be connected in Settings. The tools are hidden from the agent when not connected.
-- **Contrastive retrieval prereqs:** `retrieve_tracks_from_brain_state` requires a populated `track_audio_embeddings` index (run `seed-track-index`) and a contrastive checkpoint (`train-contrastive` locally or via Modal). If either is missing, the tool returns a structured payload with operator-fix instructions that the agent relays verbatim — no silent hallucinations.
+- **Contrastive retrieval prereqs:** `retrieve_tracks_from_brain_state` requires a populated `track_audio_embeddings` index (run `seed-track-index`) and a contrastive checkpoint (`./backend/scripts/download-checkpoints.sh`). If either is missing, the tool returns a structured payload with operator-fix instructions that the agent relays verbatim — no silent hallucinations.
 - **User confirmation gates:** `build_mood_playlist` and `add_tracks_to_playlist` always ask for confirmation before executing. The agent will never create or modify playlists without explicit approval.

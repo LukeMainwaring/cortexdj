@@ -1,7 +1,7 @@
 # CortexDJ Roadmap
 
 > Forward-looking plan. Shipped features are documented in [README.md](../README.md).
-> Pretrained model details: [pretrained-models-analysis.md](pretrained-models-analysis.md). Dataset catalog: [datasets-analysis.md](datasets-analysis.md).
+> Pretrained model details: [pretrained-models-analysis.md](research/pretrained-models-analysis.md). Dataset catalog: [datasets-analysis.md](research/datasets-analysis.md).
 
 ## Phase 1: Near-term polish
 
@@ -13,7 +13,7 @@
 
 - SEED dataset support (15 participants, film clips) — adds discrete emotion labels (positive/neutral/negative) alongside DEAP's continuous valence/arousal
 - AMIGOS dataset support (40 participants, short + long video clips)
-- DREAMER + MAHNOB-HCI + FACED via [EEGain](https://github.com/EmotionLab/EEGain) — leave-one-dataset-out generalization eval; FACED specifically enables direct REVE-comparison (see [datasets-analysis.md](datasets-analysis.md) Tier A / Path A)
+- DREAMER + MAHNOB-HCI + FACED via [EEGain](https://github.com/EmotionLab/EEGain) — leave-one-dataset-out generalization eval; FACED specifically enables direct REVE-comparison (see [datasets-analysis.md](research/datasets-analysis.md) Tier A / Path A)
 - Adopt EEGain as the unified dataset layer (DEAP/SEED/SEED-IV/DREAMER/MAHNOB-HCI/AMIGOS preprocessing standardized to 128 Hz / 4-s windows); plug CBraMod heads on top — supersedes the earlier "dataset-agnostic loader" line item
 - MNE-Python raw data preprocessing — ICA artifact removal, re-referencing
 
@@ -32,7 +32,7 @@
 ## Phase 4: Advanced ML
 
 - EEG data augmentation — Gaussian noise, temporal jittering, channel dropout
-- Extend the autoresearch harness (`backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out; warm the Modal image to cut the ~15-min cold-start on each run
+- Extend the autoresearch harness (`legacy/backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out; warm the Modal image to cut the ~15-min cold-start on each run
 - Evaluate pretrained encoders beyond CBraMod — CodeBrain (smallest-diff swap; shares the `(B, n_chans, n_times)` input contract), EEGPT, BENDR, REVE, LUNA — as drop-in backbone replacements (note: REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement)
 - Plot TSception (Ding 2020, DEAP-benchmarked) and DGCNN (Song 2018, the SEED graph baseline) as from-scratch comparators in the encoder sweep above — separates foundation-model pretraining wins from architecture wins
 - Personalized fine-tuning — few-shot adaptation of the CBraMod encoder to individual users on top of DEAP fine-tuning
@@ -40,7 +40,7 @@
 - Attention visualization — transformer attention weights as channel/timepoint importance maps (consider EEGMiner's learnable Gaussian filters + PLV connectivity as a non-attention interpretability comparator)
 - Model ensemble — combine EEGNet (DE features) and CBraMod (raw EEG) predictions
 - Discrete emotion classification — add a positive/neutral/negative head once SEED support lands (Phase 2); DEAP itself ships only continuous valence/arousal/dominance/liking
-- (Stretch) HBN-EEG intermediate-pretraining stage — masked-prediction or relative-positioning on 3,000-subject movie-watching data, between public CBraMod backbone and DEAP fine-tuning. Gated on Phase 2 / EEG↔CLAP work identifying a representation-quality bottleneck. See [datasets-analysis.md](datasets-analysis.md) Tier C / Path C.
+- (Stretch) HBN-EEG intermediate-pretraining stage — masked-prediction or relative-positioning on 3,000-subject movie-watching data, between public CBraMod backbone and DEAP fine-tuning. Gated on Phase 2 / EEG↔CLAP work identifying a representation-quality bottleneck. See [datasets-analysis.md](research/datasets-analysis.md) Tier C / Path C.
 
 ## Phase 5: Spotify Deep Integration
 
@@ -52,14 +52,14 @@
 
 ### Deferred research: EEG↔CLAP contrastive retrieval
 
-An EEG-to-audio contrastive encoder was wired end-to-end (`ml/contrastive*.py`, `services/retrieval.py`, `track_audio_embeddings` pgvector index) but does not produce usable retrieval signal at DEAP scale — within-subject cross-trial eval also plateaued at the per-pool uniform-random baseline, ruling out subject transfer as the bottleneck. Four-second EEG windows encode mood/arousal/attention, not the timbral and harmonic track identity that dominates LAION-CLAP audio embeddings.
+An EEG-to-audio contrastive encoder was wired end-to-end (`ml/contrastive*.py`, `features/retrieval/service.py`, `track_audio_embeddings` pgvector index) but does not produce usable retrieval signal at DEAP scale — within-subject cross-trial eval also plateaued at the per-pool uniform-random baseline, ruling out subject transfer as the bottleneck. Four-second EEG windows encode mood/arousal/attention, not the timbral and harmonic track identity that dominates LAION-CLAP audio embeddings.
 
 Directions that would make this tractable:
 
 - Per-user calibration + continual learning from explicit (thumbs) and implicit (skip/replay) in-app feedback
 - Longer-integration EEG windows (30s+) or multimodal fusion (skin conductance, fNIRS) to raise per-inference SNR
 - Retrieve against emotion-quadrant centroids rather than specific track identities, aligning the target with what EEG actually encodes
-- Re-train on music-listening datasets (MUSIN-G, NMED-T, NMED-H, OpenMIIR) where EEG was recorded during music perception and full-song audio is provided alongside — replaces DEAP's video-clip-with-30s-iTunes-preview chain at every weak link. See [datasets-analysis.md](datasets-analysis.md) Tier B / Path B.
+- Re-train on music-listening datasets (MUSIN-G, NMED-T, NMED-H, OpenMIIR) where EEG was recorded during music perception and full-song audio is provided alongside — replaces DEAP's video-clip-with-30s-iTunes-preview chain at every weak link. See [datasets-analysis.md](research/datasets-analysis.md) Tier B / Path B.
 
 ## Phase 6: Platform
 
@@ -71,3 +71,13 @@ Directions that would make this tractable:
 
 - Expand pytest suite — async integration tests with model mocking
 - Frontend test infrastructure — zero current coverage on `frontend/components/`
+
+## Backlog
+
+Ideas not yet promoted into a phase above.
+
+- **Discovery mode** — play new tracks and label brain response to build a preference model (depends on Phase 3 live BCI)
+- **Social playlists** — "music that makes both of us relaxed" from two users' brain data (depends on Phase 6 multi-user)
+- **Time-of-day patterns** — learn circadian preferences (morning calming, noon energizing) from longitudinal per-user history
+- **API access** — REST endpoints for third-party integrations (other music apps, research tools)
+- **Research mode** — BIDS-format data export for academic use
