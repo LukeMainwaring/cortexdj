@@ -15,11 +15,24 @@ class TestSmoothTrajectory:
 
     def test_window_3_rolling_mean(self) -> None:
         segs = [
-            make_eeg_segment("s", start_time=0.0, arousal_score=0.10, valence_score=0.10, dominant_state="calm"),
-            make_eeg_segment("s", start_time=4.0, arousal_score=0.30, valence_score=0.30, dominant_state="calm"),
-            make_eeg_segment("s", start_time=8.0, arousal_score=0.50, valence_score=0.50, dominant_state="excited"),
-            make_eeg_segment("s", start_time=12.0, arousal_score=0.70, valence_score=0.70, dominant_state="excited"),
-            make_eeg_segment("s", start_time=16.0, arousal_score=0.90, valence_score=0.90, dominant_state="excited"),
+            make_eeg_segment(
+                "s",
+                segment_index=i,
+                start_time=4.0 * i,
+                end_time=4.0 * i + 4.0,
+                arousal_score=arousal,
+                valence_score=valence,
+                dominant_state=state,
+            )
+            for i, (arousal, valence, state) in enumerate(
+                [
+                    (0.10, 0.10, "calm"),
+                    (0.30, 0.30, "calm"),
+                    (0.50, 0.50, "excited"),
+                    (0.70, 0.70, "excited"),
+                    (0.90, 0.90, "excited"),
+                ]
+            )
         ]
         points = smooth_trajectory(segs)
 
@@ -37,10 +50,23 @@ class TestComputeTrajectorySummary:
 
     def test_dwell_transitions_and_metrics(self) -> None:
         segs = [
-            make_eeg_segment("s", start_time=0.0, arousal_score=0.2, valence_score=0.2, dominant_state="calm"),
-            make_eeg_segment("s", start_time=4.0, arousal_score=0.2, valence_score=0.2, dominant_state="calm"),
-            make_eeg_segment("s", start_time=8.0, arousal_score=0.8, valence_score=0.8, dominant_state="excited"),
-            make_eeg_segment("s", start_time=12.0, arousal_score=0.2, valence_score=0.8, dominant_state="relaxed"),
+            make_eeg_segment(
+                "s",
+                segment_index=i,
+                start_time=4.0 * i,
+                end_time=4.0 * i + 4.0,
+                arousal_score=arousal,
+                valence_score=valence,
+                dominant_state=state,
+            )
+            for i, (arousal, valence, state) in enumerate(
+                [
+                    (0.2, 0.2, "calm"),
+                    (0.2, 0.2, "calm"),
+                    (0.8, 0.8, "excited"),
+                    (0.2, 0.8, "relaxed"),
+                ]
+            )
         ]
 
         summary = compute_trajectory_summary(segs)
