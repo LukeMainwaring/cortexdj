@@ -207,8 +207,6 @@ async def _main_async() -> int:
     settings = get_settings()
     limit = args.limit if args.limit is not None else settings.TRACK_INDEX_POOL_SIZE
 
-    MISS_LOG_PATH.unlink(missing_ok=True)
-
     async with get_async_sqlalchemy_session() as db:
         # Prefer the user's login (reaches saved tracks) but fall back to client
         # credentials if Spotify isn't connected in the UI yet — that still
@@ -221,6 +219,9 @@ async def _main_async() -> int:
         if not spotify.is_user and not args.skip_library:
             logger.info("No user OAuth token — falling back to client-credentials (no saved tracks)")
             args.skip_library = True
+
+        # Only now, with a client in hand: a run that cannot start keeps the last run's log.
+        MISS_LOG_PATH.unlink(missing_ok=True)
 
         candidates = await _gather_candidates(client, limit=limit, skip_library=args.skip_library)
         logger.info(f"Gathered {len(candidates)} unique candidates after dedupe")

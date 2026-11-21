@@ -53,7 +53,7 @@ collide.
 The dump is not in git and a fresh clone has none: there, the table stays empty and
 `retrieve_tracks_from_brain_state` says the index is empty. A lost database with no dump
 loses the index. Do not run `seed-track-index` or `fetch-deap-audio` to check them (`--help`
-is safe): each deletes its miss log under `backend/data/` before it does anything else.
+is safe): each deletes its miss log under `backend/data/` as soon as it has a Spotify client.
 
 Spotify is optional. With `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` blank the app boots,
 `/api/spotify/connect` answers 503, and the assistant cannot search Spotify. To use it, create an app at

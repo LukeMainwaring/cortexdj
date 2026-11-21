@@ -69,7 +69,6 @@ async def _main_async() -> int:
         print(f"error: {STIMULI_PATH} not found — run the stimulus curation step first", file=sys.stderr)
         return 2
 
-    MISS_LOG_PATH.unlink(missing_ok=True)
     stimuli = json.loads(STIMULI_PATH.read_text())
     print(f"Loaded {len(stimuli)} DEAP stimuli from {STIMULI_PATH.name}")
 
@@ -78,6 +77,9 @@ async def _main_async() -> int:
     if client is None:
         print("error: Spotify client-credentials not configured (check .env)", file=sys.stderr)
         return 2
+
+    # Only now, with a client in hand: a run that cannot start keeps the last run's log.
+    MISS_LOG_PATH.unlink(missing_ok=True)
 
     resolved: list[dict[str, Any]] = []
     hits = 0
