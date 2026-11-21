@@ -1,9 +1,11 @@
 # Review guide
 
-Repo-specific review checks. Neither `/code-review` nor `codex review` reads this file on its
-own: they, and any harness that loads AGENTS.md, reach it through AGENTS.md's line for review
-requests. Keep it to what the built-in reviewers cannot know about this repo — they own
-methodology, verification, and severity.
+Review checks for CortexDJ: a FastAPI and Pydantic AI backend cut into feature slices
+(`chat`, `sessions`, `spotify`, `retrieval`) over a small kernel, and a Next.js chat frontend.
+Neither `/code-review` nor `codex review` reads this file on its own: they, and any harness
+that loads AGENTS.md, reach it through AGENTS.md's line for review requests. Keep it to what
+the built-in reviewers cannot know about this repo — they own methodology, verification, and
+severity.
 
 ## Skip what the toolchain already enforces
 
@@ -28,7 +30,7 @@ named in a check are never findings.
 
 ### Any stack
 
-- **Names say what the code does.** Functions and behavioral modules are verb-first and specific (`generate_thread_title`, `list_sessions`, `analyze_session`), never `process`, `handle`, `manage`, or `run`. Exception: framework-convention names stay as they are: `deps.py`, `hooks.py`, `app.py`, a slice's role files (`model.py`, `schema.py`, `service.py`, `router.py`), and React event handlers named `handleX` (`handleSubmit`, `handleDelete`).
+- **Names say what the code does.** Functions and behavioral modules are verb-first and specific (`generate_thread_title`, `analyze_session`, `encode_session_to_clap_space`, `build_mood_playlist`), never `process`, `handle`, `manage`, or `run`. Exception: framework-convention names stay as they are: `deps.py`, `hooks.py`, `app.py`, a slice's role files (`model.py`, `schema.py`, `service.py`, `router.py`), and React event handlers named `handleX` (`handleSubmit`, `handleDelete`).
 - **No grab-bag modules.** No `utils.py`, `helpers.py`, `misc.py`, or `common.py`: code with no home names a missing concept. Exception: `frontend/lib/utils.ts`, shadcn's home for `cn()`.
 - **Docstrings carry intent.** A module or public entry point whose purpose isn't obvious from its name has a docstring: one line on what it is, the non-obvious why, the ADR in `docs/adr/` that holds the rationale, and a "do not" wherever the code looks fixable but isn't. It never restates the name or the signature. A new non-obvious decision is the next numbered ADR, not a paragraph in `AGENTS.md`.
 - **Docstrings hold slow-changing content**: contracts, invariants, rationale, not step-by-step logic that drifts out of sync. A comment gives the non-obvious why at one line; it never restates what the line does.
@@ -37,13 +39,16 @@ named in a check are never findings.
 ### Backend
 
 - **Fake only at the seams** in `.agents/rules/backend/code-conventions.md` (Testing). Flag a test that patches any other `cortexdj` function or module global (`monkeypatch.setattr`), and name the seam the source should grow instead: a FastAPI dependency, an `override` context manager, or a constructor argument.
-- **Fakes live with their feature.** A fake more than one test file uses goes in the feature's own `tests/integration/features/<name>/conftest.py`, never the shared `tests/integration/conftest.py`, so a prune deletes it with the feature. A woven feature (`scrubbing`) puts its fakes in the host slice's conftest, inside its `# sf:` markers or as a whole file registered under the feature in `.template/features.toml`. A double only one test uses stays in that test.
+- **Fakes live with their feature.** A fake more than one test file uses goes in the feature's own `tests/integration/features/<name>/conftest.py`, never the shared `tests/integration/conftest.py`, which imports no feature code. A double only one test uses stays in that test.
 - **Settings a test reconfigures are read at run time.** The Settings seam reaches only code that calls `get_settings()` when it runs; a module-level `config = get_settings()` is read once at import. Flag a module-level read in code a test must reconfigure, and one without a comment saying why it is read at import and not to copy it.
 - **Tests assert on what a caller can observe** (a return value, a response, stored state read back), with expected values written as literals. Exception: an integration test may go below the API (two real connections racing on the `engine` fixture, spans from the app's own engine) with a comment saying why no endpoint can observe it.
 - **Test data comes from the builders** in `tests/factories.py` (`make_*` / `create_*`); a shape two test files need gets a builder there.
 - **Logging uses f-strings**: `logger.info(f"Created {item.id}")`.
 - **No `Args:` / `Returns:` sections** that repeat the type annotations. Exceptions: agent tools, where Pydantic AI sends `Args:` to the model, and router endpoint docstrings, which stay even when short because FastAPI surfaces them in OpenAPI.
-- **Shared resources arrive by dependency injection.** A route reaches a DB session or a loaded model or client through a FastAPI dependency; a resource loaded at startup is reached through typed dependency injection, never imported in a route.
+- **Shared resources arrive by dependency injection.** A route reaches a DB session or a loaded model or client through a FastAPI dependency; a resource loaded at startup is reached through typed dependency injection, never imported in a route. The two loaded models live in holders (`features/sessions/eeg_model.py`, `features/retrieval/encoder.py`): a route takes one as a dependency (`ContrastiveEncoderDep`), a tool reads the getter, and both pass it to the service as an argument, so a service never reads a holder.
+- **Another slice's data arrives through a `shared/` seam.** `spotify` reaches tracks only through `shared/track_access.py`, and `retrieval` reads a session's participant only through `shared/session_lookup.py`. Flag a slice that copies another slice's query or model to get around the import rule, and a seam that hands out an ORM row where a frozen dataclass or a plain value would do.
+- **The Spotify client comes from the getter.** Tools, the capability's `prepare_tools`, and scripts call `get_spotify_client(db)` (`features/spotify/client.py`) and branch on `is_user`; flag a client built anywhere else or carried on `AgentDeps`.
+- **Vector search stays in the retrieval slice.** Similarity queries over `track_audio_embeddings` go through `TrackAudioEmbedding.search_similar`, ordered by `cosine_distance` so the HNSW index applies; flag a vector query written anywhere else. The index is declared on the model and created with `op.create_index`, never raw SQL.
 - **A router imports its slice's service under an alias**: `from cortexdj.features.sessions import service as session_service`, then `session_service.list_sessions(...)`.
 - **Blocking secondary work in a route runs as `BackgroundTasks`.** Exception: work that needs a row the request has locked runs as a tracked `asyncio.create_task`, since `BackgroundTasks` run before the request's session commits and would deadlock (title generation in `features/chat/stream.py`).
 - **Agents come from the registry.** Every tool-using agent is assembled with `build_agent` (`agents/assistant.py`), and every agent is obtained by name through `get_agent` (`agents/registry.py`). Flag a call site that calls a builder. Exception: a test of the builder itself, since `get_agent` returns the agent cached for the process.
@@ -54,6 +59,8 @@ named in a check are never findings.
 
 - **Tools that share the session run in sequence.** A capability whose tools share `AgentDeps.db` builds its toolset with `FunctionToolset(sequential=True)`; the reason is in the comment at that line in `features/sessions/capability.py`.
 - **Tools raise.** A tool body raises an error rather than returning an error dictionary.
+- **A tool that cannot work is hidden.** A tool that needs something a run may not have (a loaded checkpoint, the user's Spotify login) is dropped in its capability's `prepare_tools`, as `get_model_info` and the four library tools are, so the model is never offered a call that can only fail.
+- **A tool that writes to the user's Spotify account waits for a yes.** `build_mood_playlist` and `add_tracks_to_playlist` take `user_confirmed` and do nothing without it; flag a new writing tool with no such gate.
 
 ### Frontend
 

@@ -5,10 +5,10 @@ model: inherit
 effort: high
 ---
 
-You help a solo developer decide what to build next on a project that was
-scaffolded from the CortexDJ full-stack AI template — so the project's
-specific name, domain, and feature set are whatever the developer chose during
-onboarding. **Never assume the domain; read it from the project itself.**
+You help a solo developer decide what to build next on CortexDJ: a chat app
+whose assistant analyzes EEG sessions recorded during music listening and
+curates Spotify playlists and track matches from them. **Read the current
+state from the project itself; do not rely on this summary.**
 
 ## Analysis Process
 
@@ -23,15 +23,16 @@ anything memorized in this prompt:
    resolved is planned work that may have no tickets yet. If `docs/architecture/README.md` exists, it is the architecture
    guide, one page per topic. Recent commit history (`git log --oneline -20`)
    shows what just landed.
-2. **Assess what's present**: The CortexDJ scaffold is *subtractive* — the
-   agent and/or frontend may have been pruned during onboarding. Inspect the
-   codebase to learn the stack that actually exists rather than assuming:
-   - `backend/pyproject.toml` and `frontend/package.json` (if present) for the stack
-   - `backend/src/*/features/*/` (model/schema/service/router per slice) for the backend surface
-   - `backend/src/*/features/*/capability.py` for agent tools (only if the agent was kept)
-   - `frontend/` for the UI (only if the frontend was kept)
+2. **Assess what's present**: Inspect the codebase to learn what is actually
+   built rather than assuming:
+   - `backend/pyproject.toml` and `frontend/package.json` for the stack
+   - `backend/src/cortexdj/features/*/` (model/schema/service/router per slice) for the backend surface
+   - `backend/src/cortexdj/features/*/capability.py` for the assistant's tools
+   - `backend/src/cortexdj/ml/` for the EEG models the app runs
+   - `frontend/features/` and `frontend/components/` for the UI
+   - `docs/ROADMAP.md` for the planned phases and the backlog
    - `docs/adr/` for decisions already taken and the alternatives rejected
-   - `backend/tests/evals/` for what agent behaviour is measured (only if the agent was kept)
+   - `backend/tests/evals/` for what agent behaviour is measured
 3. **Identify gaps**: Determine what's missing or incomplete relative to the
    stated goals.
 4. **Recommend actions**: Provide 2-3 prioritized recommendations with clear,
@@ -56,8 +57,7 @@ Structure your recommendations as:
 
 ### Current State Summary
 
-Brief, concrete assessment of where the project stands and which parts of the
-scaffold are present.
+Brief, concrete assessment of where the project stands.
 
 ### Recommended Next Steps
 
@@ -83,8 +83,6 @@ Note alternatives you considered and why they ranked lower.
 - This is a personal project: favor practical progress over enterprise patterns.
 - Be specific and actionable — vague advice like "improve the architecture" is not
   helpful. Name the file, endpoint, model, slice, or capability you'd touch.
-- Respect what was pruned: don't recommend agent or frontend work if that feature
-  was cut, unless you're explicitly proposing to add it back (and say so).
 
 ## Issue Tracker Maintenance
 
