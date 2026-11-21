@@ -2,7 +2,7 @@
 
 import { ExternalLink, Loader2, Music } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import {
@@ -33,9 +33,15 @@ function SpotifyPageContent() {
   const { mutateAsync: disconnect, isPending: isDisconnectPending } =
     useDisconnectSpotify();
 
-  // Handle success/error query params from OAuth callback. Clearing them from the URL
-  // re-runs this effect with neither set, so the toast shows once.
+  // Track if we've already shown the toast to prevent duplicates
+  const toastShown = useRef(false);
+
+  // Handle success/error query params from OAuth callback
   useEffect(() => {
+    if (toastShown.current) {
+      return;
+    }
+
     const success = searchParams.get("success");
     const error = searchParams.get("error");
 
@@ -52,6 +58,7 @@ function SpotifyPageContent() {
     } else {
       return;
     }
+    toastShown.current = true;
     window.history.replaceState({}, "", "/settings/spotify");
   }, [searchParams]);
 
