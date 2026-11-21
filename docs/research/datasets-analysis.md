@@ -35,7 +35,7 @@ EEG recorded during actual music perception, with raw audio distributed alongsid
 | **NMED-H** (Stanford, sibling) | 48 | 125 | unspecified | Hindi pop songs | Familiarity + enjoyment | Yes | Stanford Digital Repository |
 | **OpenMIIR** (Stober et al.) | 10 | 64 | 512 | 12 short fragments | Perception **and imagination** conditions | Yes | PDDL public domain |
 
-**Why this tier matters:** today `contrastive_dataset.py` pairs each DEAP 4s EEG window with the CLAP embedding of a 30-second iTunes preview of the music video the subject watched — every link in that chain is weak. MUSIN-G replaces all of them at once: actual listening, full songs, raw audio in the same archive, plus a second supervision signal (familiarity/enjoyment) the InfoNCE loss doesn't currently use. NMED-T+H additionally share a common stimulus set across subjects, making cross-subject embedding alignment far easier than DEAP's 40 unique stimuli.
+**Why this tier matters:** today the contrastive encoder is trained on pairs of a DEAP 4s EEG window with the CLAP embedding of a 30-second iTunes preview of the music video the subject watched — every link in that chain is weak. MUSIN-G replaces all of them at once: actual listening, full songs, raw audio in the same archive, plus a second supervision signal (familiarity/enjoyment) the InfoNCE loss doesn't currently use. NMED-T+H additionally share a common stimulus set across subjects, making cross-subject embedding alignment far easier than DEAP's 40 unique stimuli.
 
 **Caveat:** combined sample size across all four is ~98 subjects, smaller than the DEAP-scale signal regime. Best treated as a 1–2 week timeboxed experiment, not a foundation.
 

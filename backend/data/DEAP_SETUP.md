@@ -37,13 +37,7 @@ CortexDJ's loader automatically strips the baseline and extracts the 32 EEG chan
 
 ## Label Binarization
 
-The 1–9 Likert self-reports get binarized to low/high for the dual-head classifier. The dataset code (`ml/dataset.py`, `label_split_strategy`) has three strategies:
-
-- **`median_per_subject`** (default, recommended): each subject is split at their own Likert median per axis, giving balanced classes per subject and removing per-subject rating-scale bias.
-- **`median_global`**: pooled median across all 32 subjects. Slightly less balanced per-fold but deterministic across subjects.
-- **`fixed_5`**: `>= 5` threshold — produces a ~24/76 high/low split on DEAP. Only useful for reproducing papers that adopted this convention.
-
-The label split strategy is encoded in the `.npz` cache key, so switching is free after the first build.
+The shipped checkpoints were trained with the 1–9 Likert self-reports binarized to low/high at each subject's own median per axis. That gives balanced classes per subject and removes per-subject rating-scale bias, but it means their accuracy figures are not comparable to papers that threshold at `>= 5`, which produces a ~24/76 high/low split on DEAP.
 
 ## Seed the sessions
 

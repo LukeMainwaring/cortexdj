@@ -49,8 +49,6 @@ from a 29.98 s stereo 44.1 kHz AAC file.
 - Whether the rest of `seed-track-index` still works once decoding does: the Spotify
   candidate fetch, the iTunes preview lookup, and the CLAP encoder have not run
   since before the librosa upgrade either.
-- Training (`ml/contrastive_dataset.py`) calls the same function and has the same
-  fault.
 
 ## Acceptance criteria (provisional until planning)
 
