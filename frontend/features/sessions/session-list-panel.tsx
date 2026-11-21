@@ -60,25 +60,18 @@ function SessionCard({
   onAnalyze,
 }: {
   session: SessionSummarySchema;
-  onAnalyze?: (label: string) => void;
+  onAnalyze: (label: string) => void;
 }) {
   const minutes = session.duration_seconds / 60;
   const dominantTone =
     QUADRANT_TEXT[session.dominant_state as Quadrant] ?? "text-foreground";
   const label = `Session ${session.display_index.toString().padStart(2, "0")}`;
-  const isClickable = onAnalyze !== undefined;
 
   const card = (
-    // biome-ignore lint/correctness/noRestrictedElements: Button's fixed height, padding, and faded disabled state fight the card layout; a disabled card must look identical, not faded
+    // biome-ignore lint/correctness/noRestrictedElements: Button's fixed height and padding fight the card layout
     <button
-      className={cn(
-        "border-border bg-card flex w-full flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
-        isClickable
-          ? "hover:border-foreground/40 hover:bg-muted/30 focus-visible:border-foreground/60 cursor-pointer focus-visible:outline-none"
-          : "cursor-default"
-      )}
-      disabled={!isClickable}
-      onClick={isClickable ? () => onAnalyze(label) : undefined}
+      className="border-border bg-card hover:border-foreground/40 hover:bg-muted/30 focus-visible:border-foreground/60 flex w-full cursor-pointer flex-col gap-2 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none"
+      onClick={() => onAnalyze(label)}
       type="button"
     >
       <div className="flex items-baseline justify-between">
@@ -97,10 +90,6 @@ function SessionCard({
     </button>
   );
 
-  if (!isClickable) {
-    return card;
-  }
-
   return (
     <Tooltip>
       <TooltipTrigger asChild>{card}</TooltipTrigger>
@@ -117,21 +106,11 @@ interface Props {
   sessionIds?: string[] | null;
 }
 
-// Fetch a generous slice so any subset the agent might choose is covered by
-// the cached query. 500 is well above the demo's ceiling (32 DEAP rows) and
-// still a single query — if the catalog ever scales past this we should
-// fetch the requested ids directly instead of filtering client-side.
-const PANEL_FETCH_LIMIT = 500;
-
 const PureSessionListPanel = ({ sessionIds }: Props) => {
-  const { data, isLoading, error } = useEnrichedSessions(
-    PANEL_FETCH_LIMIT,
-    "recent"
-  );
+  const { data, isLoading, error } = useEnrichedSessions();
   const chatActions = useChatActions();
-  const handleAnalyze = chatActions
-    ? (label: string) => chatActions.sendMessage(`Analyze ${label}`)
-    : undefined;
+  const handleAnalyze = (label: string) =>
+    chatActions?.sendMessage(`Analyze ${label}`);
 
   if (isLoading) {
     return (

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetAudioPreviewData, GetAudioPreviewErrors, GetAudioPreviewResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses } from './types.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetAudioPreviewData, GetAudioPreviewErrors, GetAudioPreviewResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -67,38 +67,13 @@ export const renameThread = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * List Sessions
- *
- * List all EEG sessions.
- */
-export const listSessions = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsData, ThrowOnError>): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsResponses, ListSessionsErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/sessions',
-    ...options
-});
-
-/**
  * List Sessions Enriched
  *
- * List EEG sessions with derived display labels and quadrant distributions.
- *
- * `order=recent` (default) returns newest first; `order=stable` returns
- * chronological-insertion order (Session 01 → Session NN).
+ * List EEG sessions, newest first, with derived display labels and quadrant distributions.
  */
 export const listSessionsEnriched = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsEnrichedData, ThrowOnError>): RequestResult<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsEnrichedResponses, ListSessionsEnrichedErrors, ThrowOnError>({
     responseType: 'json',
     url: '/api/sessions/enriched',
-    ...options
-});
-
-/**
- * Get Session
- *
- * Get a specific EEG session.
- */
-export const getSession = <ThrowOnError extends boolean = false>(options: Options<GetSessionData, ThrowOnError>): RequestResult<GetSessionResponses, GetSessionErrors, ThrowOnError> => (options.client ?? client).get<GetSessionResponses, GetSessionErrors, ThrowOnError>({
-    responseType: 'json',
-    url: '/api/sessions/{session_id}',
     ...options
 });
 

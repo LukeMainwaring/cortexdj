@@ -64,20 +64,17 @@ interface TimelineRow {
 }
 
 function buildRows(segments: SegmentSchema[]): TimelineRow[] {
-  return segments
-    .slice()
-    .sort((a, b) => a.segment_index - b.segment_index)
-    .map((s) => ({
-      time: Number(s.start_time.toFixed(1)),
-      arousal: s.arousal_score,
-      valence: s.valence_score,
-      state: s.dominant_state,
-      delta: s.band_powers.delta ?? 0,
-      theta: s.band_powers.theta ?? 0,
-      alpha: s.band_powers.alpha ?? 0,
-      beta: s.band_powers.beta ?? 0,
-      gamma: s.band_powers.gamma ?? 0,
-    }));
+  return segments.map((s) => ({
+    time: Number(s.start_time.toFixed(1)),
+    arousal: s.arousal_score,
+    valence: s.valence_score,
+    state: s.dominant_state,
+    delta: s.band_powers.delta ?? 0,
+    theta: s.band_powers.theta ?? 0,
+    alpha: s.band_powers.alpha ?? 0,
+    beta: s.band_powers.beta ?? 0,
+    gamma: s.band_powers.gamma ?? 0,
+  }));
 }
 
 function HeaderBadges({
@@ -224,7 +221,6 @@ function PureSessionVisualization({ sessionId }: Props) {
     data: segmentsData,
     isLoading,
     isError,
-    error,
   } = useSessionSegments(sessionId);
 
   const rows = useMemo(
@@ -244,14 +240,9 @@ function PureSessionVisualization({ sessionId }: Props) {
   }
 
   if (isError) {
-    const status = error?.response?.status;
-    const message =
-      status === 404
-        ? `Session ${sessionId.slice(0, 8)}… not found.`
-        : "Failed to load EEG segments.";
     return (
       <div className="border-destructive/40 bg-destructive/5 text-destructive my-2 rounded-lg border p-4 text-sm">
-        {message}
+        Failed to load EEG segments.
       </div>
     );
   }

@@ -81,15 +81,10 @@ function buildPath(points: { valence: number; arousal: number }[]): string {
 export function EmotionTrajectory({ segments, summary }: Props) {
   const { smoothed } = summary;
 
-  const sortedSegments = useMemo(
-    () => segments.slice().sort((a, b) => a.segment_index - b.segment_index),
-    [segments]
-  );
-
   const pathD = useMemo(() => buildPath(smoothed), [smoothed]);
 
-  const startTime = sortedSegments[0]?.start_time ?? 0;
-  const endTime = sortedSegments.at(-1)?.end_time ?? 0;
+  const startTime = segments[0]?.start_time ?? 0;
+  const endTime = segments.at(-1)?.end_time ?? 0;
   const totalDuration = Math.max(0, endTime - startTime);
 
   const [progress, setProgress] = useState(0);
@@ -161,7 +156,7 @@ export function EmotionTrajectory({ segments, summary }: Props) {
 
   const elapsedSessionTime = startTime + progress * totalDuration;
 
-  if (sortedSegments.length < 2) {
+  if (segments.length < 2) {
     return (
       <div className="text-muted-foreground rounded-md border border-dashed p-6 text-center text-sm">
         Not enough segments for a trajectory view.
@@ -172,10 +167,6 @@ export function EmotionTrajectory({ segments, summary }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs capitalize">
-          <span className="text-foreground/80 font-medium">Dominant:</span>
-          {summary.dominant_quadrant}
-        </span>
         <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
           <span className="text-foreground/80 font-medium">Transitions:</span>
           {summary.transition_count}
@@ -304,8 +295,8 @@ export function EmotionTrajectory({ segments, summary }: Props) {
           style={{ pathLength }}
         />
 
-        {sortedSegments.map((s, i) => {
-          const threshold = i / Math.max(sortedSegments.length - 1, 1);
+        {segments.map((s, i) => {
+          const threshold = i / Math.max(segments.length - 1, 1);
           const visible = progress >= threshold;
           return (
             <circle

@@ -29,20 +29,6 @@ class Session(Base):
         return result.scalar_one_or_none()
 
     @classmethod
-    async def list_all(cls, db: AsyncSession, *, limit: int = 50, offset: int = 0) -> tuple[Sequence[Session], int]:
-        count_result = await db.execute(select(func.count(cls.id)))
-        total = count_result.scalar() or 0
-        result = await db.execute(select(cls).order_by(cls.recorded_at.desc()).limit(limit).offset(offset))
-        return result.scalars().all(), total
-
-    @classmethod
-    async def get_by_participant(cls, db: AsyncSession, participant_id: str) -> Sequence[Session]:
-        result = await db.execute(
-            select(cls).where(cls.participant_id == participant_id).order_by(cls.recorded_at.desc())
-        )
-        return result.scalars().all()
-
-    @classmethod
     async def list_chronological_ids(cls, db: AsyncSession) -> list[tuple[str, float]]:
         """Return all (id, duration_seconds) pairs ordered by insertion time.
 

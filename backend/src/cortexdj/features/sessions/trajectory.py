@@ -24,26 +24,13 @@ logger = logging.getLogger(__name__)
 EMOTION_STATES: tuple[str, ...] = ("relaxed", "calm", "excited", "stressed")
 
 
-def quadrant_from_scores(arousal: float, valence: float) -> str:
-    """Map arousal/valence in ``[0, 1]`` to a canonical emotion quadrant.
-
-    Thin wrapper around :func:`cortexdj.ml.dataset.scores_to_quadrant`, which
-    expects 0-10 inputs. Kept here so the trajectory service owns a single
-    quadrant-mapping surface.
-    """
-    return scores_to_quadrant(arousal * 10, valence * 10)
-
-
-def smooth_trajectory(segments: Sequence[EegSegment], window: int = 3) -> list[SmoothedPoint]:
-    """Rolling-mean arousal/valence across a time-ordered segment list."""
+def smooth_trajectory(segments: Sequence[EegSegment]) -> list[SmoothedPoint]:
+    """Three-segment rolling-mean arousal/valence across a time-ordered segment list."""
     if not segments:
         return []
-    half = window // 2
     points: list[SmoothedPoint] = []
     for i, seg in enumerate(segments):
-        lo = max(0, i - half)
-        hi = min(len(segments), i + half + 1)
-        window_segs = segments[lo:hi]
+        window_segs = segments[max(0, i - 1) : i + 2]
         avg_a = sum(s.arousal_score for s in window_segs) / len(window_segs)
         avg_v = sum(s.valence_score for s in window_segs) / len(window_segs)
         points.append(
@@ -51,7 +38,8 @@ def smooth_trajectory(segments: Sequence[EegSegment], window: int = 3) -> list[S
                 start_time=seg.start_time,
                 arousal=round(avg_a, 4),
                 valence=round(avg_v, 4),
-                quadrant=quadrant_from_scores(avg_a, avg_v),
+                # The scores are 0-1; scores_to_quadrant takes 0-10.
+                quadrant=scores_to_quadrant(avg_a * 10, avg_v * 10),
             )
         )
     return points
