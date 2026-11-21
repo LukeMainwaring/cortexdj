@@ -1,7 +1,11 @@
 from datetime import datetime
 from typing import Any
 
-from .base import BaseSchema
+from cortexdj.shared.schema_base import BaseSchema
+
+
+class SpotifyConnectionStatus(BaseSchema):
+    connected: bool
 
 
 class PlaylistSchema(BaseSchema):

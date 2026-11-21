@@ -28,6 +28,7 @@ dependencies = [
   "scipy>=1.18.1",
   "librosa>=1.0.1",
   "transformers>=5.23.0",
+  "spotipy>=2.26.0",
 ]
 
 [project.scripts]
@@ -77,7 +78,7 @@ skip_covered = false
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["braindecode.*", "scipy.*"]
+module = ["braindecode.*", "scipy.*", "spotipy.*"]
 ignore_missing_imports = true
 
 

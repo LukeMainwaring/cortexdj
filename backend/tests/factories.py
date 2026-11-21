@@ -8,12 +8,13 @@ the shape is typed) so a test states only the fields it is about. Add a builder 
 rather than a private helper in a test file once two test files need the same shape.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
+from cortexdj.features.spotify.model import SpotifyToken
 
 
 def make_session(**overrides: object) -> Session:
@@ -106,6 +107,21 @@ async def create_brain_context(db: AsyncSession, thread_id: str, **overrides: ob
     await db.flush()
     await db.refresh(context)
     return context
+
+
+async def create_spotify_token(db: AsyncSession, **overrides: object) -> SpotifyToken:
+    """Persist the user's Spotify login, valid for another hour so reading it needs no refresh."""
+    data: dict[str, object] = {
+        "access_token": "access-token",
+        "refresh_token": "refresh-token",
+        "expires_at": datetime.now(UTC) + timedelta(hours=1),
+    }
+    data.update(overrides)
+    token = SpotifyToken(**data)
+    db.add(token)
+    await db.flush()
+    await db.refresh(token)
+    return token
 
 
 from typing import Any

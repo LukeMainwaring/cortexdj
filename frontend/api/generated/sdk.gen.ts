@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses } from './types.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -121,5 +121,49 @@ export const getSessionSegments = <ThrowOnError extends boolean = false>(options
 export const getBrainContext = <ThrowOnError extends boolean = false>(options: Options<GetBrainContextData, ThrowOnError>): RequestResult<GetBrainContextResponses, GetBrainContextErrors, ThrowOnError> => (options.client ?? client).get<GetBrainContextResponses, GetBrainContextErrors, ThrowOnError>({
     responseType: 'json',
     url: '/api/brain-context/{thread_id}',
+    ...options
+});
+
+/**
+ * Connect Spotify
+ *
+ * Get the Spotify authorization URL to start OAuth flow.
+ */
+export const connectSpotify = <ThrowOnError extends boolean = false>(options?: Options<ConnectSpotifyData, ThrowOnError>): RequestResult<ConnectSpotifyResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ConnectSpotifyResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/connect',
+    ...options
+});
+
+/**
+ * Spotify Callback
+ *
+ * Handle Spotify OAuth callback and exchange code for tokens.
+ */
+export const spotifyCallback = <ThrowOnError extends boolean = false>(options?: Options<SpotifyCallbackData, ThrowOnError>): RequestResult<SpotifyCallbackResponses, SpotifyCallbackErrors, ThrowOnError> => (options?.client ?? client).get<SpotifyCallbackResponses, SpotifyCallbackErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/callback',
+    ...options
+});
+
+/**
+ * Get Spotify Status
+ *
+ * Get the current Spotify connection status.
+ */
+export const getSpotifyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetSpotifyStatusData, ThrowOnError>): RequestResult<GetSpotifyStatusResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetSpotifyStatusResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/status',
+    ...options
+});
+
+/**
+ * Disconnect Spotify
+ *
+ * Disconnect Spotify by clearing stored tokens.
+ */
+export const disconnectSpotify = <ThrowOnError extends boolean = false>(options?: Options<DisconnectSpotifyData, ThrowOnError>): RequestResult<DisconnectSpotifyResponses, unknown, ThrowOnError> => (options?.client ?? client).post<DisconnectSpotifyResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/spotify/disconnect',
     ...options
 });

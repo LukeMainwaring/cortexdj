@@ -1,6 +1,7 @@
-"""Spotify OAuth endpoints.
+"""Spotify OAuth endpoints for the single local user (CortexDJ has no user accounts).
 
-Simplified from Earworm's implementation: no user auth (single-user local app).
+The callback's full path, ``/api/spotify/callback``, must equal ``SPOTIFY_REDIRECT_URI``
+and the redirect URI registered on the Spotify app; do not move it without changing both.
 """
 
 import logging
@@ -13,14 +14,12 @@ from fastapi.responses import RedirectResponse
 from spotipy.oauth2 import SpotifyOAuth
 
 from cortexdj.core.config import get_settings
-from cortexdj.dependencies.db import AsyncPostgresSessionDep
-from cortexdj.models.spotify_token import SpotifyToken
-from cortexdj.schemas.spotify import SpotifyConnectionStatus
-from cortexdj.services.spotify import SPOTIFY_SCOPES, run_spotify
+from cortexdj.core.db import AsyncPostgresSessionDep
+from cortexdj.features.spotify import service as spotify_service
+from cortexdj.features.spotify.model import SpotifyToken
+from cortexdj.features.spotify.schema import SpotifyConnectionStatus
 
 logger = logging.getLogger(__name__)
-
-config = get_settings()
 
 spotify_auth_router = APIRouter(prefix="/spotify", tags=["spotify"])
 
@@ -33,6 +32,7 @@ _STATE_TTL_SECONDS = 600  # 10 minutes
 
 
 def get_oauth_manager() -> SpotifyOAuth:
+    config = get_settings()
     if not config.SPOTIFY_CLIENT_ID or not config.SPOTIFY_CLIENT_SECRET:
         raise HTTPException(
             status_code=503,
@@ -42,7 +42,7 @@ def get_oauth_manager() -> SpotifyOAuth:
         client_id=config.SPOTIFY_CLIENT_ID,
         client_secret=config.SPOTIFY_CLIENT_SECRET,
         redirect_uri=config.SPOTIFY_REDIRECT_URI,
-        scope=SPOTIFY_SCOPES,
+        scope=spotify_service.SPOTIFY_SCOPES,
     )
 
 
@@ -72,7 +72,7 @@ async def spotify_callback(
     error: str | None = None,
 ) -> RedirectResponse:
     """Handle Spotify OAuth callback and exchange code for tokens."""
-    redirect_base = f"{config.FRONTEND_URL}/settings/spotify"
+    redirect_base = f"{get_settings().FRONTEND_URL}/settings/spotify"
 
     if error:
         logger.info(f"Spotify OAuth denied: {error}")
@@ -88,7 +88,7 @@ async def spotify_callback(
     oauth = get_oauth_manager()
 
     try:
-        token_info = await run_spotify(oauth.get_access_token, code, as_dict=True, check_cache=False)
+        token_info = await spotify_service.run_spotify(oauth.get_access_token, code, as_dict=True, check_cache=False)
 
         if not token_info:
             logger.error("Failed to get access token from Spotify")

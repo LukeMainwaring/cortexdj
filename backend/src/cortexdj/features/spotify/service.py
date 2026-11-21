@@ -1,29 +1,21 @@
-"""Spotify API service using Client Credentials and User OAuth flows.
+"""Spotify Web API calls the slice's tools and auth routes make, on a client the caller passes in.
 
-Client Credentials flow is used for public search operations.
-User OAuth flow is used for playlist creation and listening history.
+Which client to use is ``client.get_spotify_client``'s decision, not this module's: the
+user's own login can create playlists and read their library, the app's client
+credentials only search and read public track data. spotipy is synchronous, so every
+call goes through ``run_spotify`` to keep it off the event loop.
 """
 
 import asyncio
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from cortexdj.core.config import get_settings
-
-if TYPE_CHECKING:
-    from cortexdj.models.track import Track
-
-config = get_settings()
+from cortexdj.shared.track_access import TrackInfo
 
 logger = logging.getLogger(__name__)
-
-_spotify_client: spotipy.Spotify | None = None
 
 
 SPOTIFY_SCOPES = (
@@ -31,68 +23,9 @@ SPOTIFY_SCOPES = (
 )
 
 
-def get_spotify_client() -> spotipy.Spotify | None:
-    """Returns None if Spotify credentials are not configured."""
-    global _spotify_client
-    if _spotify_client is None and config.spotify_configured:
-        _spotify_client = spotipy.Spotify(
-            auth_manager=SpotifyClientCredentials(
-                client_id=config.SPOTIFY_CLIENT_ID,
-                client_secret=config.SPOTIFY_CLIENT_SECRET,
-            )
-        )
-    return _spotify_client
-
-
 async def run_spotify[T](func: Callable[..., T], *args: object, **kwargs: object) -> T:
     """Wrap synchronous spotipy call in asyncio.to_thread for async compatibility."""
     return await asyncio.to_thread(func, *args, **kwargs)
-
-
-async def get_user_spotify_client(db: AsyncSession) -> spotipy.Spotify | None:
-    """Get a user-authenticated Spotify client from stored OAuth tokens.
-
-    Auto-refreshes if token is expired or expires within 5 minutes.
-    Returns None if no tokens are stored (user hasn't connected Spotify).
-    """
-    from cortexdj.models.spotify_token import SpotifyToken
-
-    token = await SpotifyToken.get(db)
-    if token is None:
-        return None
-
-    now = datetime.now(UTC)
-    buffer = timedelta(minutes=5)
-    needs_refresh = token.expires_at <= now + buffer
-
-    access_token = token.access_token
-
-    if needs_refresh and token.refresh_token:
-        logger.info("Refreshing Spotify access token")
-        try:
-            oauth = SpotifyOAuth(
-                client_id=config.SPOTIFY_CLIENT_ID,
-                client_secret=config.SPOTIFY_CLIENT_SECRET,
-                redirect_uri=config.SPOTIFY_REDIRECT_URI,
-                scope=SPOTIFY_SCOPES,
-            )
-            token_info = await run_spotify(oauth.refresh_access_token, token.refresh_token)
-
-            if token_info:
-                expires_at = datetime.fromtimestamp(token_info["expires_at"], tz=UTC)
-                await SpotifyToken.upsert(
-                    db,
-                    access_token=token_info["access_token"],
-                    refresh_token=token_info.get("refresh_token", token.refresh_token),
-                    expires_at=expires_at,
-                )
-                access_token = token_info["access_token"]
-                logger.info("Successfully refreshed Spotify access token")
-        except Exception:
-            logger.warning("Failed to refresh Spotify token, falling back to Client Credentials")
-            return None
-
-    return spotipy.Spotify(auth=access_token)
 
 
 async def fetch_all_pages(
@@ -157,8 +90,8 @@ async def search_paginated(
     return all_items, total_available
 
 
-async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, Any]]:
-    client = get_spotify_client()
+async def search_tracks(client: spotipy.Spotify | None, query: str, *, max_results: int = 10) -> list[dict[str, Any]]:
+    """Search tracks; an empty list when there is no client (Spotify not configured)."""
     if client is None:
         return []
 
@@ -177,13 +110,12 @@ async def search_tracks(query: str, *, max_results: int = 10) -> list[dict[str, 
     ]
 
 
-async def resolve_track_spotify_id(track: Track) -> str | None:
+async def resolve_track_spotify_id(client: spotipy.Spotify | None, track: TrackInfo) -> str | None:
     """Return the Spotify track ID for `track`, looking it up if missing.
 
-    Pure lookup — does NOT touch the DB. Callers are responsible for persisting
-    the returned ID onto `track.spotify_track_id` serially, because this
-    function is typically run concurrently via `asyncio.gather` and
-    `AsyncSession` is not safe for concurrent use.
+    Pure lookup — does NOT touch the DB. Callers persist the returned ID serially through
+    ``track_access.save_track_spotify_id``, because this function is typically run
+    concurrently via `asyncio.gather` and `AsyncSession` is not safe for concurrent use.
 
     Returns None if no match is found or Spotify is unconfigured.
     """
@@ -196,7 +128,7 @@ async def resolve_track_spotify_id(track: Track) -> str | None:
     query = f'track:"{title}" artist:"{artist}"'
 
     try:
-        results = await search_tracks(query, max_results=1)
+        results = await search_tracks(client, query, max_results=1)
     except Exception as e:  # noqa: BLE001 — one bad lookup shouldn't fail the whole playlist
         logger.warning(f"Spotify search failed for '{track.title}' by '{track.artist}': {e}")
         return None
@@ -218,6 +150,10 @@ async def create_playlist(
 ) -> dict[str, Any]:
     """When a user-authenticated client is provided, creates a real playlist
     on the user's Spotify account. Otherwise returns a local-only record.
+
+    A failure on Spotify's side is logged and comes back as a record with no
+    ``spotify_playlist_id`` and a ``note``, not an exception: the caller has already
+    saved the playlist locally and still reports it.
     """
     if not track_ids:
         raise ValueError("create_playlist called with no track IDs")

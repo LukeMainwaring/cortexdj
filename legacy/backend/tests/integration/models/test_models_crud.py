@@ -6,14 +6,11 @@ Spotify token singleton, and a pgvector cosine-ordering smoke test that
 exercises the extension + HNSW index created by the migrations.
 """
 
-from datetime import UTC, datetime
-
 import numpy as np
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.models.message import Message
-from cortexdj.models.spotify_token import SpotifyToken
 from cortexdj.models.thread import Thread
 from cortexdj.models.track_audio_embedding import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.schemas.agent_type import AgentType
@@ -73,23 +70,6 @@ class TestMessage:
         await Thread.get_or_create(db_session, "t-empty", _CHAT)
         await Message.append_messages(db_session, "t-empty", _CHAT, [])
         assert await Message.get_history(db_session, "t-empty", _CHAT) == []
-
-
-class TestSpotifyToken:
-    async def test_upsert_then_update_keeps_singleton(self, db_session: AsyncSession) -> None:
-        expires = datetime(2030, 1, 1, tzinfo=UTC)
-        assert not await SpotifyToken.is_connected(db_session)
-
-        await SpotifyToken.upsert(db_session, "access-1", "refresh-1", expires)
-        token = await SpotifyToken.upsert(db_session, "access-2", "refresh-2", expires)
-
-        assert token.access_token == "access-2"
-        assert await SpotifyToken.is_connected(db_session)
-
-    async def test_clear(self, db_session: AsyncSession) -> None:
-        await SpotifyToken.upsert(db_session, "a", "r", datetime(2030, 1, 1, tzinfo=UTC))
-        await SpotifyToken.clear(db_session)
-        assert not await SpotifyToken.is_connected(db_session)
 
 
 class TestTrackAudioEmbeddingPgvector:

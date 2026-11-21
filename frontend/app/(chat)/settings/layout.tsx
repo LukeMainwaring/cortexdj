@@ -12,7 +12,7 @@ export default function SettingsLayout({
 }) {
   return (
     <div className="flex h-dvh flex-col">
-      <header className="sticky top-0 flex items-center gap-2 border-b bg-background px-4 py-3">
+      <header className="bg-background sticky top-0 flex items-center gap-2 border-b px-4 py-3">
         <Button asChild size="icon" variant="ghost">
           <Link href="/">
             <ArrowLeft className="size-4" />

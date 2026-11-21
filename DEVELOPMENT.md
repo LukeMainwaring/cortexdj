@@ -33,6 +33,15 @@ checkpoint), and writes one session per participant. It runs on the host against
 container, takes several minutes for all 32, and appends: run it once on a fresh database.
 `--participants 1 2 3` seeds a subset.
 
+Spotify is optional. With `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` blank the app boots,
+`/api/spotify/connect` answers 503, and the assistant cannot search Spotify. To use it, create an app at
+developer.spotify.com/dashboard, register `http://127.0.0.1:8003/api/spotify/callback` as its
+redirect URI (the value of `SPOTIFY_REDIRECT_URI`, which must match exactly), put the ID and
+secret in `.env`, and recreate the backend (`docker compose up -d backend`). Then open
+Settings → Spotify Settings in the sidebar (`/settings/spotify`) and connect: the login is
+stored as the one row of `spotify_tokens`, and from the next chat turn the assistant offers the
+library tools and creates mood playlists on the account instead of only saving them locally.
+
 The frontend needs Node 26 or newer (`engines.node` in `frontend/package.json`, enforced by
 `engineStrict` in `frontend/pnpm-workspace.yaml`); CI runs 26. `packageManager` pins pnpm, and
 pnpm switches to that version on its own.
