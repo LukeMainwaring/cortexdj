@@ -1,9 +1,9 @@
 """The assistant's eval cases: a prompt each, with the checks a good reply passes.
 
-Each case names its evaluators: a rubric's ``judge()`` for what needs a reader, and a
-deterministic evaluator for what does not. The greeting case is the copy-me pattern: add a
-case per behavior the assistant must keep, and give every new rubric a good and a bad reply
-in ``golden_set.py``.
+Each case names its evaluators. The greeting case is the copy-me pattern: a rubric's
+``judge()`` for a behavior that needs a reader. Add a case per behavior the assistant must
+keep, and give every new rubric a good and a bad reply in ``golden_set.py``. A behavior that
+needs no reader takes a deterministic evaluator from ``evaluators.py``; no case uses one yet.
 """
 
 from pydantic_evals import Case, Dataset

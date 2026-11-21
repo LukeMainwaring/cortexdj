@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "cortexdj"
 version = "0.1.0"
-description = "Full-stack AI app scaffold: FastAPI + Pydantic AI agent backend"
+description = "AI-powered EEG brain-wave classifier and Spotify playlist curator"
 requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic>=1.20.1",
@@ -73,8 +73,8 @@ omit = ["*/migrations/*", "*/scripts/*", "*/__init__.py"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-# No `fail_under` here: the prune gate (.template/verify_matrix.sh) runs only the
-# DB-free `unit` tier, so a repo-wide threshold would fail it. The gate lives as a
+# No `fail_under` here: the floor is for the unit and integration tiers together, so
+# a coverage run of the DB-free `unit` tier alone would fail it. The gate lives as a
 # CLI flag in the CI `test` job instead (see .github/workflows/ci.yml).
 
 [tool.mypy]

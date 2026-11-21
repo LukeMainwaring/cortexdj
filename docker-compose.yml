@@ -1,8 +1,8 @@
 services:
   postgres:
-    # pgvector image (Postgres + the vector extension) for the embeddings feature.
-    # Left unconditional: it's a strict superset of stock Postgres, so it works
-    # unchanged if embeddings is pruned (the extension simply goes unused).
+    # pgvector image (Postgres + the vector extension) for the retrieval slice:
+    # its track index is a vector column with an HNSW index, and the initial
+    # migration creates the extension.
     image: pgvector/pgvector:pg18
     environment:
       POSTGRES_DB: cortexdj

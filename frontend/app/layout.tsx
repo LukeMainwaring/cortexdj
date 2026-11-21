@@ -7,7 +7,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  description: "An AI chatbot scaffold",
+  description:
+    "AI-powered EEG brain-wave classifier and Spotify playlist curator",
   title: "CortexDJ",
 };
 
