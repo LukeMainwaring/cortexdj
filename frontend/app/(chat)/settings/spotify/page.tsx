@@ -2,7 +2,7 @@
 
 import { ExternalLink, Loader2, Music } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect } from "react";
 import { toast } from "sonner";
 
 import {
@@ -19,40 +19,40 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+const centeredSpinner = (
+  <div className="flex h-full items-center justify-center">
+    <Loader2 className="text-muted-foreground size-6 animate-spin" />
+  </div>
+);
+
 function SpotifyPageContent() {
   const searchParams = useSearchParams();
   const { data: status, isLoading: isStatusLoading } = useSpotifyStatus();
-  const { getConnectUrl, isPending: isConnectPending } = useSpotifyConnectUrl();
-  const { disconnect, isPending: isDisconnectPending } = useDisconnectSpotify();
+  const { mutateAsync: getConnectUrl, isPending: isConnectPending } =
+    useSpotifyConnectUrl();
+  const { mutateAsync: disconnect, isPending: isDisconnectPending } =
+    useDisconnectSpotify();
 
-  // Track if we've already shown the toast to prevent duplicates
-  const toastShown = useRef(false);
-
-  // Handle success/error query params from OAuth callback
+  // Handle success/error query params from OAuth callback. Clearing them from the URL
+  // re-runs this effect with neither set, so the toast shows once.
   useEffect(() => {
-    if (toastShown.current) {
-      return;
-    }
-
     const success = searchParams.get("success");
     const error = searchParams.get("error");
 
     if (success === "true") {
       toast.success("Successfully connected to Spotify!");
-      toastShown.current = true;
-      window.history.replaceState({}, "", "/settings/spotify");
     } else if (error) {
       const errorMessages: Record<string, string> = {
         access_denied: "Spotify authorization was denied",
         missing_code: "No authorization code received from Spotify",
-        token_exchange_failed: "Failed to exchange authorization code",
         callback_failed: "OAuth callback failed",
         invalid_state: "Invalid OAuth state — please try again",
       };
       toast.error(errorMessages[error] || "Failed to connect to Spotify");
-      toastShown.current = true;
-      window.history.replaceState({}, "", "/settings/spotify");
+    } else {
+      return;
     }
+    window.history.replaceState({}, "", "/settings/spotify");
   }, [searchParams]);
 
   async function handleConnect() {
@@ -67,7 +67,7 @@ function SpotifyPageContent() {
 
   async function handleDisconnect() {
     try {
-      await disconnect();
+      await disconnect({});
       toast.success("Disconnected from Spotify");
     } catch (error) {
       console.error("Failed to disconnect:", error);
@@ -76,11 +76,7 @@ function SpotifyPageContent() {
   }
 
   if (isStatusLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="text-muted-foreground size-6 animate-spin" />
-      </div>
-    );
+    return centeredSpinner;
   }
 
   const isConnected = status?.connected ?? false;
@@ -171,13 +167,7 @@ function SpotifyPageContent() {
 
 export default function SpotifyPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-full items-center justify-center">
-          <Loader2 className="text-muted-foreground size-6 animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={centeredSpinner}>
       <SpotifyPageContent />
     </Suspense>
   );

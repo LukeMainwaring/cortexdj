@@ -19,15 +19,6 @@ _RESOLVE_CONCURRENCY = 5
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Failures the model sees (raised as ToolFailed; see agents/hooks.py)
-# ---------------------------------------------------------------------------
-
-
-def _requires_connection() -> ToolFailed:
-    return ToolFailed("Spotify is not connected. Go to Settings > Spotify to connect.")
-
-
 def _token_expired() -> ToolFailed:
     return ToolFailed("Your Spotify connection has expired. Please reconnect in Settings > Spotify.")
 
@@ -44,13 +35,8 @@ async def _require_client(ctx: RunContext[AgentDeps]) -> spotipy.Spotify:
     """
     client = await get_spotify_client(ctx.deps.db)
     if client is None:
-        raise _requires_connection()
+        raise ToolFailed("Spotify is not connected. Go to Settings > Spotify to connect.")
     return client
-
-
-# ---------------------------------------------------------------------------
-# Mood playlists
-# ---------------------------------------------------------------------------
 
 
 async def build_mood_playlist(
@@ -154,11 +140,6 @@ async def build_mood_playlist(
     }
 
 
-# ---------------------------------------------------------------------------
-# The user's Spotify library
-# ---------------------------------------------------------------------------
-
-
 async def get_listening_history(ctx: RunContext[AgentDeps], limit: int = 20) -> dict[str, Any]:
     """Get recent Spotify listening history.
 
@@ -204,11 +185,7 @@ async def get_my_playlists(
     client = await _require_client(ctx)
 
     try:
-        items, total = await spotify_service.fetch_all_pages(
-            client.current_user_playlists,
-            limit=50,
-            max_items=max_results,
-        )
+        items, total = await spotify_service.fetch_all_pages(client.current_user_playlists, max_items=max_results)
     except spotipy.SpotifyException as e:
         if e.http_status == 401:
             raise _token_expired() from e
@@ -286,11 +263,6 @@ async def add_tracks_to_playlist(
     }
 
 
-# ---------------------------------------------------------------------------
-# Catalog search
-# ---------------------------------------------------------------------------
-
-
 async def search_tracks(
     ctx: RunContext[AgentDeps],
     query: str,
@@ -304,26 +276,15 @@ async def search_tracks(
     """
     client = await _require_client(ctx)
 
-    max_results = max(1, min(200, max_results))
-
     try:
-        all_tracks, total_available = await spotify_service.search_paginated(client, query, "track", max_results)
+        tracks, total_available = await spotify_service.search_tracks(client, query, max_results=max_results)
     except spotipy.SpotifyException as e:
         if e.http_status == 401:
             raise _token_expired() from e
         raise _spotify_api_error("search tracks", e) from e
 
     return {
-        "tracks": [
-            {
-                "name": track["name"],
-                "artists": [a["name"] for a in track["artists"]],
-                "album": track["album"]["name"],
-                "spotify_url": track["external_urls"].get("spotify"),
-                "track_id": track["id"],
-            }
-            for track in all_tracks
-        ],
+        "tracks": tracks,
         "total_results": total_available,
-        "fetched_count": len(all_tracks),
+        "fetched_count": len(tracks),
     }

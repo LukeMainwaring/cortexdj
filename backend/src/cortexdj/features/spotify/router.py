@@ -28,7 +28,6 @@ spotify_auth_router = APIRouter(prefix="/spotify", tags=["spotify"])
 # local app; move to DB or Redis if this ever runs multi-worker.
 _pending_oauth_states: dict[str, float] = {}
 
-_MAX_PENDING_STATES = 10
 _STATE_TTL_SECONDS = 600  # 10 minutes
 
 
@@ -55,8 +54,6 @@ async def connect_spotify() -> dict[str, str]:
     expired = [s for s, t in _pending_oauth_states.items() if now - t > _STATE_TTL_SECONDS]
     for s in expired:
         _pending_oauth_states.pop(s, None)
-    if len(_pending_oauth_states) >= _MAX_PENDING_STATES:
-        _pending_oauth_states.clear()
 
     state = str(uuid.uuid4())
     _pending_oauth_states[state] = now
@@ -90,10 +87,6 @@ async def spotify_callback(
 
     try:
         token_info = await spotify_service.run_spotify(oauth.get_access_token, code, as_dict=True, check_cache=False)
-
-        if not token_info:
-            logger.error("Failed to get access token from Spotify")
-            return RedirectResponse(f"{redirect_base}?error=token_exchange_failed")
 
         expires_at = datetime.fromtimestamp(token_info["expires_at"], tz=UTC)
 
