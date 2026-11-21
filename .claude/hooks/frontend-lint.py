@@ -60,8 +60,7 @@ def main() -> int:
     failures: list[str] = []
     for file_path in touched_paths(data.get("tool_input") or {}):
         norm = os.path.abspath(os.path.join(project_dir, file_path)).replace(os.sep, "/")
-        # legacy/ is the parked pre-port source: excluded from every check until it is ported.
-        if "/frontend/" not in norm or "/legacy/" in norm or not norm.endswith(EXTS) or not os.path.exists(norm):
+        if "/frontend/" not in norm or not norm.endswith(EXTS) or not os.path.exists(norm):
             continue
         rel_in_frontend = norm.split("/frontend/", 1)[1]
         if any(("frontend/" + rel_in_frontend).startswith(s) for s in SKIP):

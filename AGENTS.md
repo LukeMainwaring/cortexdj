@@ -1,8 +1,6 @@
 # AGENTS.md
 
-CortexDJ is a full-stack AI app: a FastAPI + Pydantic AI backend and a Next.js chat frontend. It is being ported onto a fresh instance of its upstream template. Every domain slice is ported and running: **`sessions`** (EEG sessions, trajectories, brain context), the in-repo pattern the other slices copy, **`spotify`** (the Spotify login, track search, the user's library, mood playlists), and **`retrieval`** (tracks matched to a session's EEG through a pgvector index of CLAP audio vectors).
-
-**`legacy/`** holds the pre-port source (`legacy/backend/`, `legacy/frontend/`, `legacy/docs/`, `legacy/DEVELOPMENT.md`). Nothing in it runs and every check excludes it. Code leaves it with `git mv` as it is ported, so file history follows; do not edit, lint, or test it in place. The pre-port tree is also readable at the `pre-port` tag.
+CortexDJ is a full-stack AI app: a FastAPI + Pydantic AI backend and a Next.js chat frontend. Beside `chat`, its domain slices are **`sessions`** (EEG sessions, trajectories, brain context), the in-repo pattern the other slices copy, **`spotify`** (the Spotify login, track search, the user's library, mood playlists), and **`retrieval`** (tracks matched to a session's EEG through a pgvector index of CLAP audio vectors).
 
 For project overview and quickstart, read `README.md`. For setup, commands, database migrations, and tests, read `DEVELOPMENT.md`.
 

@@ -23,7 +23,7 @@ browser never finished receiving (the connection dropped in the finish window) l
 history ending on the reply, so the retried turn is stored and answered again; and a
 retry re-runs the whole turn, so a tool with a side effect that ran before the run died
 runs again (the dead run's tool calls are never stored). A true regenerate would delete
-the stored messages after the user turn; add that when an instance has a Regenerate
+the stored messages after the user turn; add that when the frontend has a Regenerate
 button on answered replies. Pydantic AI's ``manage_message_history='server'`` is worth
 weighing then: it cuts the run's history at a resubmitted turn by UI message id, which
 storage drops today (``_without_client_ids``), and leaves the stored rows to us.
@@ -243,7 +243,7 @@ async def stream_chat(
         adapter = await _ChatAdapter.from_request(request, agent=get_agent(ASSISTANT), sdk_version=7)
     except ValidationError as e:
         # FastAPI's own 422, in the `detail` shape every other route's has: `loc` from the body
-        # down, and no `input`, which would echo the raw turn (unscrubbed, and not always UTF-8,
+        # down, and no `input`, which would echo the raw turn (the user's own text, and not always UTF-8,
         # which the JSON encoder cannot take) into the response and onto the request span.
         errors = [
             {**error, "loc": ("body", *error["loc"])} for error in e.errors(include_input=False, include_url=False)
@@ -256,7 +256,7 @@ async def stream_chat(
     # references, compaction parts, and unresolved trailing tool calls (the run resolves them
     # against the same approvals, so pass them). It keeps the client's UI message id; the stored
     # copy must not, see `_without_client_ids`.
-    # An instance that adds a `requires_approval` tool has one more case to settle: the approval
+    # No tool here is `requires_approval`. Adding one leaves one more case to settle: the approval
     # turn echoes the assistant message the previous run already stored, and the adapter appends
     # it to the history as-is, so the run and the stored copy would both carry the tool call twice.
     incoming = adapter.sanitize_messages(adapter.messages, deferred_tool_results=adapter.deferred_tool_results)

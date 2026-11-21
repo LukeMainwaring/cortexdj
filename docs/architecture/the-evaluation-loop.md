@@ -62,7 +62,7 @@ Each box in the loop maps to one place in this repo.
 
 ## Sources
 
-Written at commit `87d6eba`.
+Written at commit `977591d`.
 
 - `docs/adr/0001-test-tiers-and-fakes.md`
 - `docs/adr/0003-run-metadata-not-a-custom-chat-turn-span.md`

@@ -1,6 +1,6 @@
 # DEAP Dataset Setup
 
-CortexDJ supports training on the [DEAP dataset](https://www.eecs.qmul.ac.uk/mmv/datasets/deap/) — a widely cited benchmark for EEG-based emotion recognition (32 participants, 40 music video trials each).
+CortexDJ's EEG sessions come from the [DEAP dataset](https://www.eecs.qmul.ac.uk/mmv/datasets/deap/) — a widely cited benchmark for EEG-based emotion recognition (32 participants, 40 music video trials each). `seed-sessions` reads the 32 files, classifies each segment with the downloaded checkpoint (`./backend/scripts/download-checkpoints.sh`), and writes one session per participant; retrieval re-reads a participant's file when it embeds a session.
 
 ## Download Instructions
 
@@ -37,7 +37,7 @@ CortexDJ's loader automatically strips the baseline and extracts the 32 EEG chan
 
 ## Label Binarization
 
-The 1–9 Likert self-reports get binarized to low/high for the dual-head classifier. Three strategies are available via `--label-split`:
+The 1–9 Likert self-reports get binarized to low/high for the dual-head classifier. The dataset code (`ml/dataset.py`, `label_split_strategy`) has three strategies:
 
 - **`median_per_subject`** (default, recommended): each subject is split at their own Likert median per axis, giving balanced classes per subject and removing per-subject rating-scale bias.
 - **`median_global`**: pooled median across all 32 subjects. Slightly less balanced per-fold but deterministic across subjects.
@@ -45,27 +45,10 @@ The 1–9 Likert self-reports get binarized to low/high for the dual-head classi
 
 The label split strategy is encoded in the `.npz` cache key, so switching is free after the first build.
 
-## Usage
+## Seed the sessions
 
 ```bash
-# Train CBraMod on DEAP with LOSO CV (default — 50 epochs, all 32 folds,
-# median_per_subject labels, class-weighted CE with label smoothing)
-uv run --directory backend train-model
-
-# Quick dev run (10 epochs, 3 folds) — works on Apple Silicon MPS
-uv run --directory backend train-model --quick
-
-# Train EEGNet instead
-uv run --directory backend train-model --model eegnet
-
-# Compare both models (always renders a MajorityBaseline reference row
-# from dataset labels; a trained model must beat it on macro-F1 or
-# something is wrong)
-uv run --directory backend compare-models
-
-# Reproduce a DEAP paper that used the >= 5 threshold
-uv run --directory backend train-model --label-split fixed_5
-
-# Seed database with DEAP sessions
 uv run --directory backend seed-sessions
 ```
+
+`DEVELOPMENT.md` says what the command needs and how long it takes.

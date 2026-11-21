@@ -15,8 +15,9 @@ _SINGLETON_ID = 1
 class SpotifyToken(Base):
     """The user's Spotify OAuth tokens, always the single row id=1: CortexDJ has no user accounts.
 
-    ``updated_at`` is nullable with no server default, unlike the template's other
-    timestamps; it matches the table as it exists, so do not tidy it without a migration.
+    ``updated_at`` is nullable with no server default, unlike the ``updated_at`` on
+    ``threads`` and ``thread_brain_contexts``; it matches the table as it exists, so do not
+    tidy it without a migration.
     """
 
     __tablename__ = "spotify_tokens"

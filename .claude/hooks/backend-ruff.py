@@ -72,8 +72,7 @@ def main() -> int:
     for file_path in touched_paths(data.get("tool_input") or {}):
         norm = os.path.abspath(os.path.join(base_dir, file_path)).replace(os.sep, "/")
         match = PATTERN.search(norm)
-        # legacy/ is the parked pre-port source: excluded from every check until it is ported.
-        if not match or "/legacy/" in norm or not os.path.exists(norm):
+        if not match or not os.path.exists(norm):
             continue
         repo_root = norm[: match.start()]
         rel_in_backend = norm[match.start() + len("/backend/") :]  # e.g. src/cortexdj/foo.py

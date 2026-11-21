@@ -1,9 +1,10 @@
 """Run one eval case through the registered assistant, the way the chat stream runs a turn.
 
-The task asks the registry for the assistant and runs the case's prompt through it, scrubbed
-as the chat stream scrubs a turn, so an eval measures the agent that ships: its instructions,
-capabilities, and model, on the text the model would see in production. The shipped
-case reaches no database-backed tool, so the deps carry the mock session from
+The task asks the registry for the assistant and runs the case's prompt through it as
+written, which is how the chat stream passes a turn, so an eval measures the agent that runs
+in the app: its instructions, capabilities, and model, on the text the model would see in
+production. The one case in ``assistant_dataset.py`` reaches no database-backed tool, so the
+deps carry the mock session from
 ``tests.factories.make_deps``. ``run_assistant`` takes only a case's inputs, so a test whose
 cases need stored data runs its own task instead: a closure over the ``eval_sessions``
 fixture (``conftest.py``) that opens a session per case and passes it as

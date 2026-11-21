@@ -3,8 +3,10 @@
 Lets feature modules register async work to run during application startup
 (loading models, warming caches, opening connections, starting background loops)
 and to undo it at shutdown, without the lifespan handler in ``app.py`` needing to
-import any feature-specific code. The one shipped hook is the observability boot
-report (``core/observability.py``).
+import any feature-specific code. The hooks are the observability boot report
+(``core/observability.py``) and the model loads ``api.py`` registers: the EEG model
+(``features/sessions/eeg_model.py``) and the contrastive encoder
+(``features/retrieval/encoder.py``).
 
 To add a hook, call ``register_startup_hook`` (and ``register_shutdown_hook`` for
 anything that needs stopping) at import time from a module that ``app.py``
