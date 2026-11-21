@@ -30,6 +30,7 @@ dependencies = [
   "transformers>=5.23.0",
   "spotipy>=2.26.0",
   "pgvector>=0.5.1",
+  "httpx>=0.28.1",
 ]
 
 [project.scripts]
@@ -39,7 +40,6 @@ fetch-deap-audio = "cortexdj.scripts.fetch_deap_audio:main"
 
 [dependency-groups]
 dev = [
-  "httpx>=0.28.1",
   "import-linter>=2.17",
   "mypy>=2.4.1",
   "pre-commit>=4.7.0",
