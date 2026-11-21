@@ -1,29 +1,12 @@
 """Tests for the trajectory analytics service."""
 
-from datetime import UTC, datetime
 from math import isclose, sqrt
 
-from cortexdj.features.sessions.model import EegSegment
 from cortexdj.features.sessions.trajectory import (
     compute_trajectory_summary,
     smooth_trajectory,
 )
-
-
-def _segment(index: int, arousal: float, valence: float, state: str, start: float) -> EegSegment:
-    return EegSegment(
-        id=f"seg-{index}",
-        session_id="s",
-        segment_index=index,
-        start_time=start,
-        end_time=start + 4.0,
-        arousal_score=arousal,
-        valence_score=valence,
-        dominant_state=state,
-        band_powers={"delta": 0.0, "theta": 0.0, "alpha": 0.0, "beta": 0.0, "gamma": 0.0},
-        features=None,
-        created_at=datetime.now(tz=UTC),
-    )
+from tests.factories import make_eeg_segment
 
 
 class TestSmoothTrajectory:
@@ -32,11 +15,24 @@ class TestSmoothTrajectory:
 
     def test_window_3_rolling_mean(self) -> None:
         segs = [
-            _segment(0, 0.10, 0.10, "calm", 0.0),
-            _segment(1, 0.30, 0.30, "calm", 4.0),
-            _segment(2, 0.50, 0.50, "excited", 8.0),
-            _segment(3, 0.70, 0.70, "excited", 12.0),
-            _segment(4, 0.90, 0.90, "excited", 16.0),
+            make_eeg_segment(
+                "s",
+                segment_index=i,
+                start_time=4.0 * i,
+                end_time=4.0 * i + 4.0,
+                arousal_score=arousal,
+                valence_score=valence,
+                dominant_state=state,
+            )
+            for i, (arousal, valence, state) in enumerate(
+                [
+                    (0.10, 0.10, "calm"),
+                    (0.30, 0.30, "calm"),
+                    (0.50, 0.50, "excited"),
+                    (0.70, 0.70, "excited"),
+                    (0.90, 0.90, "excited"),
+                ]
+            )
         ]
         points = smooth_trajectory(segs)
 
@@ -54,10 +50,23 @@ class TestComputeTrajectorySummary:
 
     def test_dwell_transitions_and_metrics(self) -> None:
         segs = [
-            _segment(0, 0.2, 0.2, "calm", 0.0),
-            _segment(1, 0.2, 0.2, "calm", 4.0),
-            _segment(2, 0.8, 0.8, "excited", 8.0),
-            _segment(3, 0.2, 0.8, "relaxed", 12.0),
+            make_eeg_segment(
+                "s",
+                segment_index=i,
+                start_time=4.0 * i,
+                end_time=4.0 * i + 4.0,
+                arousal_score=arousal,
+                valence_score=valence,
+                dominant_state=state,
+            )
+            for i, (arousal, valence, state) in enumerate(
+                [
+                    (0.2, 0.2, "calm"),
+                    (0.2, 0.2, "calm"),
+                    (0.8, 0.8, "excited"),
+                    (0.2, 0.8, "relaxed"),
+                ]
+            )
         ]
 
         summary = compute_trajectory_summary(segs)
@@ -95,7 +104,7 @@ class TestComputeTrajectorySummary:
         assert len(summary.smoothed) == len(segs)
 
     def test_single_segment_has_zero_path_and_no_transitions(self) -> None:
-        segs = [_segment(0, 0.5, 0.5, "excited", 0.0)]
+        segs = [make_eeg_segment("s", start_time=0.0, arousal_score=0.5, valence_score=0.5, dominant_state="excited")]
         summary = compute_trajectory_summary(segs)
         assert summary is not None
         assert summary.path_length == 0.0

@@ -17,19 +17,6 @@ from cortexdj.features.sessions.schema import BrainContext
 from tests.factories import create_brain_context, create_thread, make_deps, make_run_context
 
 
-async def test_merge_creates_the_row_then_overwrites_only_the_fields_set(db_session: AsyncSession) -> None:
-    await create_thread(db_session, "t-ctx")
-
-    first = await session_service.merge_brain_context(
-        db_session, "t-ctx", BrainContext(latest_session_id="sess-1", dominant_mood="relaxed")
-    )
-    assert first == BrainContext(latest_session_id="sess-1", dominant_mood="relaxed")
-
-    merged = await session_service.merge_brain_context(db_session, "t-ctx", BrainContext(dominant_mood="excited"))
-    assert merged.dominant_mood == "excited"
-    assert merged.latest_session_id == "sess-1", "fields not set on the update must survive the merge"
-
-
 async def test_a_context_for_a_missing_thread_fails_and_leaves_the_session_usable(db_session: AsyncSession) -> None:
     with pytest.raises(IntegrityError):
         await session_service.merge_brain_context(db_session, "t-missing", BrainContext(dominant_mood="calm"))

@@ -70,7 +70,7 @@ Train on DEAP + DREAMER + MAHNOB-HCI + FACED via EEGain; evaluate leave-one-data
 
 ### Path B — Music-listening retrieval rescue
 
-Re-target the EEG↔CLAP contrastive pipeline from DEAP+iTunes-previews to MUSIN-G+NMED-T+NMED-H+OpenMIIR with full-song CLAP embeddings. The existing `EegCLAPEncoder` and InfoNCE loss in `ml/contrastive.py` drop in unchanged; loader and audio-pipeline rewrite is the work. Highest leverage if the hypothesis ("music-listening EEG encodes track identity better than video-watching EEG") holds. Best as a 1–2 week timeboxed experiment.
+Re-target the EEG↔CLAP contrastive pipeline from DEAP+iTunes-previews to MUSIN-G+NMED-T+NMED-H+OpenMIIR with full-song CLAP embeddings. The existing `EegCLAPEncoder` in `ml/contrastive.py` drops in unchanged; loader and audio-pipeline rewrite is the work. Highest leverage if the hypothesis ("music-listening EEG encodes track identity better than video-watching EEG") holds. Best as a 1–2 week timeboxed experiment.
 
 ### Path C — HBN-EEG intermediate pretraining
 

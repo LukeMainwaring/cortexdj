@@ -13,7 +13,7 @@ check in `REVIEW.md`. Test paths are relative to `backend/`, source paths to
 
 - A route test: `tests/integration/features/sessions/test_sessions_api.py`.
 - An agent tool against the real database: `tests/integration/features/sessions/test_sessions_tools.py`.
-- A `shared/` seam: `shared/session_lookup.py`, its test `tests/unit/shared/test_session_lookup.py`, and the registration in `api.py`.
+- A `shared/` seam: `shared/session_lookup.py`, its test `tests/integration/features/sessions/test_sessions_seams.py`, and the registration in `api.py`.
 - An agent under `FunctionModel`: `tests/unit/agents/test_hooks.py`.
 - A pure-function unit test: `tests/unit/features/chat/test_title_generator.py`.
 - An eval case: `tests/evals/assistant_dataset.py`; a judge rubric: `tests/evals/judges.py`.

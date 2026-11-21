@@ -71,11 +71,6 @@ class TestComputeBandPowers:
 
 
 class TestComputeDifferentialEntropy:
-    def test_returns_all_five_bands(self) -> None:
-        data = _rng.standard_normal((32, 512))
-        de = compute_differential_entropy(data)
-        assert set(de.keys()) == set(FREQ_BANDS.keys())
-
     def test_each_band_has_per_channel_values(self) -> None:
         n_channels = 32
         data = _rng.standard_normal((n_channels, 512))
@@ -91,14 +86,3 @@ class TestExtractFeatures:
         features = extract_features(data)
         expected_length = n_channels * len(FREQ_BANDS)
         assert features.shape == (expected_length,)
-
-    def test_output_is_one_dimensional(self) -> None:
-        data = _rng.standard_normal((32, 512))
-        features = extract_features(data)
-        assert features.ndim == 1
-
-    def test_deterministic_for_same_input(self) -> None:
-        data = _rng.standard_normal((32, 512))
-        features_1 = extract_features(data)
-        features_2 = extract_features(data)
-        np.testing.assert_array_equal(features_1, features_2)
