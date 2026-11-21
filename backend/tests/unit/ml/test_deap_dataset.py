@@ -16,10 +16,10 @@ _DEAP_SAMPLES = 8064  # 384 baseline + 7680 stimulus at 128Hz
 _N_TRIALS = 4  # Small for tests
 
 
-def _make_mock_deap_file(path: Path, participant_id: int, n_trials: int = _N_TRIALS) -> None:
+def _make_mock_deap_file(path: Path) -> None:
     """Create a mock DEAP .dat pickle file."""
-    data = _rng.standard_normal((n_trials, _DEAP_CHANNELS, _DEAP_SAMPLES)).astype(np.float32)
-    labels = _rng.uniform(1, 9, (n_trials, 4)).astype(np.float32)
+    data = _rng.standard_normal((_N_TRIALS, _DEAP_CHANNELS, _DEAP_SAMPLES)).astype(np.float32)
+    labels = _rng.uniform(1, 9, (_N_TRIALS, 4)).astype(np.float32)
     with open(path, "wb") as f:
         pickle.dump({"data": data, "labels": labels}, f)
 
@@ -28,8 +28,7 @@ def _make_mock_deap_file(path: Path, participant_id: int, n_trials: int = _N_TRI
 def deap_dir(tmp_path: Path) -> Path:
     d = tmp_path / "deap"
     d.mkdir()
-    for pid in range(1, 4):
-        _make_mock_deap_file(d / f"s{pid:02d}.dat", pid)
+    _make_mock_deap_file(d / "s01.dat")
     return d
 
 
@@ -38,12 +37,3 @@ class TestLoadDeapParticipant:
         data, labels = load_deap_participant(deap_dir / "s01.dat")
         assert data.shape == (_N_TRIALS, NUM_EEG_CHANNELS, _DEAP_SAMPLES - DEAP_BASELINE_SAMPLES)
         assert labels.shape == (_N_TRIALS, 4)
-
-    def test_baseline_stripped(self, deap_dir: Path) -> None:
-        data, _ = load_deap_participant(deap_dir / "s01.dat")
-        # After stripping 384 baseline samples from 8064 total
-        assert data.shape[2] == 7680
-
-    def test_only_eeg_channels(self, deap_dir: Path) -> None:
-        data, _ = load_deap_participant(deap_dir / "s01.dat")
-        assert data.shape[1] == NUM_EEG_CHANNELS  # 32, not 40

@@ -9,17 +9,26 @@ rather than a private helper in a test file once two test files need the same sh
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
+from pydantic_ai import RunContext
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.usage import RunUsage
+from pydantic_evals.evaluators import EvaluatorContext
+from pydantic_evals.otel import SpanTree, SpanTreeRecordingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from cortexdj.agents.deps import AgentDeps
+from cortexdj.features.chat.model import Thread
 from cortexdj.features.retrieval.model import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.spotify.model import SpotifyToken
 
 
-def make_session(**overrides: object) -> Session:
-    """Unpersisted EEG Session: one minute of participant P01 from DEAP."""
+async def create_session(db: AsyncSession, **overrides: object) -> Session:
+    """Persist an EEG Session via ``db``: one minute of participant P01 from DEAP, with no segments or tracks."""
     data: dict[str, object] = {
         "id": str(uuid4()),
         "participant_id": "P01",
@@ -28,12 +37,7 @@ def make_session(**overrides: object) -> Session:
         "duration_seconds": 60.0,
     }
     data.update(overrides)
-    return Session(**data)
-
-
-async def create_session(db: AsyncSession, **overrides: object) -> Session:
-    """Persist a Session via ``db``; it has no segments or tracks until a test adds them."""
-    session = make_session(**overrides)
+    session = Session(**data)
     db.add(session)
     await db.flush()
     await db.refresh(session)
@@ -66,16 +70,11 @@ async def create_eeg_segment(db: AsyncSession, session_id: str, **overrides: obj
     return segment
 
 
-def make_track(**overrides: object) -> Track:
-    """Unpersisted stimulus Track with no Spotify id yet."""
+async def create_track(db: AsyncSession, **overrides: object) -> Track:
+    """Persist a stimulus Track via ``db``, with no Spotify id yet."""
     data: dict[str, object] = {"id": str(uuid4()), "title": "Clair de Lune", "artist": "Debussy"}
     data.update(overrides)
-    return Track(**data)
-
-
-async def create_track(db: AsyncSession, **overrides: object) -> Track:
-    """Persist a Track via ``db``."""
-    track = make_track(**overrides)
+    track = Track(**data)
     db.add(track)
     await db.flush()
     await db.refresh(track)
@@ -125,8 +124,8 @@ async def create_spotify_token(db: AsyncSession, **overrides: object) -> Spotify
     return token
 
 
-def make_track_audio_embedding(**overrides: object) -> TrackAudioEmbedding:
-    """Unpersisted retrieval-index row with no iTunes preview, its embedding the first unit vector.
+async def create_track_audio_embedding(db: AsyncSession, **overrides: object) -> TrackAudioEmbedding:
+    """Persist a retrieval-index row via ``db``, with no iTunes preview, its embedding the first unit vector.
 
     A unit vector, not zeros: cosine distance to a zero vector is undefined, which would
     poison any ordering a test asserts.
@@ -141,29 +140,11 @@ def make_track_audio_embedding(**overrides: object) -> TrackAudioEmbedding:
         "embedding": embedding,
     }
     data.update(overrides)
-    return TrackAudioEmbedding(**data)
-
-
-async def create_track_audio_embedding(db: AsyncSession, **overrides: object) -> TrackAudioEmbedding:
-    """Persist a retrieval-index row via ``db``."""
-    row = make_track_audio_embedding(**overrides)
+    row = TrackAudioEmbedding(**data)
     db.add(row)
     await db.flush()
     await db.refresh(row)
     return row
-
-
-from typing import Any
-from unittest.mock import AsyncMock
-
-from pydantic_ai import RunContext
-from pydantic_ai.models.test import TestModel
-from pydantic_ai.usage import RunUsage
-from pydantic_evals.evaluators import EvaluatorContext
-from pydantic_evals.otel import SpanTree, SpanTreeRecordingError
-
-from cortexdj.agents.deps import AgentDeps
-from cortexdj.features.chat.model import Thread
 
 
 async def create_thread(db: AsyncSession, thread_id: str = "t-1", **overrides: object) -> Thread:
@@ -184,13 +165,6 @@ def make_chat_request(thread_id: str, text: str) -> dict[str, Any]:
     }
 
 
-def _mock_session() -> AsyncSession:
-    """A spec'd mock session whose lookups find no row."""
-    db = AsyncMock(spec=AsyncSession)
-    db.get.return_value = None
-    return db
-
-
 def make_deps(db: AsyncSession | None = None) -> AgentDeps:
     """Agent deps for a run; ``db`` defaults to a mock for a run that must not reach a database.
 
@@ -198,7 +172,10 @@ def make_deps(db: AsyncSession | None = None) -> AgentDeps:
     before every model request, so an assistant run in the unit tier sees none. The
     integration tier passes its real ``db_session``.
     """
-    return AgentDeps(db=db if db is not None else _mock_session())
+    if db is None:
+        db = AsyncMock(spec=AsyncSession)
+        db.get.return_value = None
+    return AgentDeps(db=db)
 
 
 def make_run_context(deps: AgentDeps, *, conversation_id: str | None = None) -> RunContext[AgentDeps]:

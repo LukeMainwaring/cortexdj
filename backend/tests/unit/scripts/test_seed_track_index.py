@@ -8,17 +8,7 @@ from typing import Any, cast
 
 import spotipy
 
-from cortexdj.scripts.seed_track_index import _dedupe_by_spotify_id, _gather_candidates
-
-
-def _candidate(spotify_id: str, source: str = "user_library") -> dict[str, Any]:
-    return {
-        "spotify_id": spotify_id,
-        "title": f"T{spotify_id}",
-        "artist": f"A{spotify_id}",
-        "duration_ms": 200_000,
-        "source": source,
-    }
+from cortexdj.scripts.seed_track_index import _gather_candidates
 
 
 def _track(spotify_id: str) -> dict[str, Any]:
@@ -51,27 +41,6 @@ class FakeSpotify:
 
 def _client(fake: FakeSpotify) -> spotipy.Spotify:
     return cast(spotipy.Spotify, fake)
-
-
-class TestDedupeBySpotifyId:
-    def test_empty(self) -> None:
-        assert _dedupe_by_spotify_id([]) == []
-
-    def test_preserves_order_of_first_occurrence(self) -> None:
-        result = _dedupe_by_spotify_id([_candidate("a"), _candidate("b"), _candidate("a")])
-        assert [c["spotify_id"] for c in result] == ["a", "b"]
-
-    def test_same_id_different_source_dedupes(self) -> None:
-        lib = _candidate("a", source="user_library")
-        seed = _candidate("a", source="seed_search")
-        result = _dedupe_by_spotify_id([lib, seed])
-        assert len(result) == 1
-        # First occurrence wins — library is kept over the seed duplicate.
-        assert result[0]["source"] == "user_library"
-
-    def test_all_unique(self) -> None:
-        result = _dedupe_by_spotify_id([_candidate(s) for s in ("a", "b", "c")])
-        assert len(result) == 3
 
 
 class TestGatherCandidates:

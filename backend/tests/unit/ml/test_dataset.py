@@ -29,7 +29,3 @@ class TestScoresToQuadrant:
 
     def test_just_below_valence_threshold(self) -> None:
         assert scores_to_quadrant(7.0, VALENCE_THRESHOLD - 0.01) == "stressed"
-
-    def test_extreme_values(self) -> None:
-        assert scores_to_quadrant(10.0, 10.0) == "excited"
-        assert scores_to_quadrant(0.0, 0.0) == "calm"

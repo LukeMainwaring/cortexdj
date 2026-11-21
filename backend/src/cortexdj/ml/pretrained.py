@@ -63,12 +63,6 @@ class PretrainedDualHead(nn.Module):
             param.requires_grad = False
         logger.info("Encoder frozen — training heads only")
 
-    def unfreeze_backbone(self) -> None:
-        """Unfreeze encoder for end-to-end fine-tuning."""
-        for param in self.encoder.parameters():
-            param.requires_grad = True
-        logger.info("Encoder unfrozen — full fine-tuning enabled")
-
 
 def load_pretrained_dual_head(
     model_name: str = "cbramod",
