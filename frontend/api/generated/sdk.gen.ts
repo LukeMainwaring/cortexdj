@@ -149,7 +149,7 @@ export const spotifyCallback = <ThrowOnError extends boolean = false>(options?: 
 /**
  * Get Spotify Status
  *
- * Get the current Spotify connection status.
+ * Whether the assistant can use Spotify right now.
  */
 export const getSpotifyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetSpotifyStatusData, ThrowOnError>): RequestResult<GetSpotifyStatusResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetSpotifyStatusResponses, unknown, ThrowOnError>({
     responseType: 'json',

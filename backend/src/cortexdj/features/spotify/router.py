@@ -114,11 +114,9 @@ async def spotify_callback(
 
 @spotify_auth_router.get("/status")
 async def get_spotify_status(db: AsyncPostgresSessionDep) -> SpotifyConnectionStatus:
-    """Whether the assistant can use Spotify right now.
-
-    Asks the client getter, not just whether a login is stored: a stored login whose
-    refresh fails hides the assistant's Spotify tools, and this page must agree with that.
-    """
+    """Whether the assistant can use Spotify right now."""
+    # Asks the client getter, not just whether a login is stored: a stored login whose
+    # refresh fails hides the assistant's Spotify tools, and the settings page must agree.
     return SpotifyConnectionStatus(connected=await get_spotify_client(db) is not None)
 
 

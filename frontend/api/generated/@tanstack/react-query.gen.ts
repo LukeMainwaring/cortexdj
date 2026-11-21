@@ -362,7 +362,7 @@ export const getSpotifyStatusQueryKey = (options?: Options<GetSpotifyStatusData>
 /**
  * Get Spotify Status
  *
- * Get the current Spotify connection status.
+ * Whether the assistant can use Spotify right now.
  */
 export const getSpotifyStatusOptions = (options?: Options<GetSpotifyStatusData>) => queryOptions<GetSpotifyStatusResponse, AxiosError<DefaultError>, GetSpotifyStatusResponse, ReturnType<typeof getSpotifyStatusQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
