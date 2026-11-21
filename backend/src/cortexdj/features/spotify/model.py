@@ -66,10 +66,6 @@ class SpotifyToken(Base):
             await db.delete(token)
             await db.flush()
 
-    @classmethod
-    async def is_connected(cls, db: AsyncSession) -> bool:
-        return await cls.get(db) is not None
-
 
 class Playlist(Base):
     """A mood playlist the assistant built; ``spotify_playlist_id`` is None when creating it on Spotify failed."""
