@@ -20,7 +20,10 @@ export const useEnrichedSessions = () =>
   });
 
 export const useSessionSegments = (sessionId: string) =>
-  useQuery(getSessionSegmentsOptions({ path: { session_id: sessionId } }));
+  useQuery({
+    ...getSessionSegmentsOptions({ path: { session_id: sessionId } }),
+    retry: 2,
+  });
 
 // The brain context the agent pinned to this thread with `set_brain_context`,
 // or null. A thread that doesn't exist yet also answers null, so the query
