@@ -70,8 +70,8 @@ dmypy.json
 *.bak
 *.tmp
 
-# Data & models (backend/data/ is ignored line by line: DEAP_SETUP.md and
-# deap_stimuli.json in it are tracked)
+# Data & models (backend/data/ is ignored line by line: DEAP_SETUP.md in it
+# is tracked)
 backend/data/checkpoints/
 backend/data/deap/
 backend/data/audio_cache/
