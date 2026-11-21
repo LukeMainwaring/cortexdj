@@ -66,11 +66,6 @@ class PostgresSettings(BaseSettings):
     POSTGRES_PORT: int
 
 
-class RetrievalSettings(BaseSettings):
-    # How many candidate tracks `seed-track-index` pulls from Spotify by default (its --limit).
-    TRACK_INDEX_POOL_SIZE: int = 2000
-
-
 class SpotifySettings(BaseSettings):
     # Empty ID or secret means Spotify is not configured: the app boots, connecting answers
     # 503, and with no login possible the assistant has no Spotify tools (features/spotify/).
@@ -89,7 +84,6 @@ class Settings(
     EegSettings,
     ObservabilitySettings,
     PostgresSettings,
-    RetrievalSettings,
     SpotifySettings,
 ):
     model_config = SettingsConfigDict(

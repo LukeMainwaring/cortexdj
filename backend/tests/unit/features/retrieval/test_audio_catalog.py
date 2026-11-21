@@ -12,7 +12,6 @@ from cortexdj.features.retrieval.audio_catalog import (
     DURATION_DELTA_MS_HARD_LIMIT,
     _normalize,
     _pick_best,
-    title_similarity,
 )
 
 
@@ -37,23 +36,6 @@ class TestNormalize:
 
     def test_ascii_only_after_stripping_punctuation(self) -> None:
         assert _normalize("Don't Stop Me Now!") == "dont stop me now"
-
-
-class TestTitleSimilarity:
-    def test_identical_titles(self) -> None:
-        assert title_similarity("The Beautiful People", "The Beautiful People") == 1.0
-
-    def test_medley_substring_trap_below_085(self) -> None:
-        # The Jackson 5 bug: "Dancing Machine / Blame It on the Boogie"
-        # contains the requested title as a substring but should be rejected.
-        sim = title_similarity("Dancing Machine / Blame It on the Boogie", "Blame It On The Boogie")
-        assert sim < 0.85
-
-    def test_remaster_variants_identical_after_normalization(self) -> None:
-        assert title_similarity("Song 2 - 2012 Remaster", "Song 2") == 1.0
-
-    def test_unrelated_titles_low(self) -> None:
-        assert title_similarity("Bohemian Rhapsody", "Imagine") == 0.0
 
 
 def _mk(title: str, artist: str, dur: int) -> dict[str, Any]:

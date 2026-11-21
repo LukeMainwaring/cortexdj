@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSimilarTracksOptions } from "@/api/generated/@tanstack/react-query.gen";
 
-export const useSimilarTracks = (sessionId: string, k = 10) =>
+export const useSimilarTracks = (sessionId: string) =>
   useQuery({
     ...getSimilarTracksOptions({
       path: { session_id: sessionId },
-      query: { k },
+      query: { k: 10 },
     }),
     retry: (failureCount, error) => {
       // A missing session stays missing, and a missing encoder checkpoint

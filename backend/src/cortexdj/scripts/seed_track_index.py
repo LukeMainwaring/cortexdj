@@ -1,8 +1,7 @@
 """Seed the `track_audio_embeddings` pgvector index with CLAP embeddings.
 
 Pool = (user's Spotify saved tracks) ∪ (genre-seed search results), capped at
-`TRACK_INDEX_POOL_SIZE`. Each candidate is validated for title fidelity against
-Spotify's search response, resolved to an iTunes 30s m4a preview via
+`--limit`. Each candidate is resolved to an iTunes 30s m4a preview via
 `features/retrieval/audio_catalog.resolve_preview`, embedded with `ClapAudioEncoder`,
 and upserted as a single row with both its Spotify identity (spotify_id, title,
 artist) and its iTunes preview URL for downstream playback.
@@ -26,10 +25,8 @@ import sys
 from typing import Any
 
 import httpx
-import numpy as np
 import spotipy
 
-from cortexdj.core.config import get_settings
 from cortexdj.core.db import get_async_sqlalchemy_session
 from cortexdj.core.paths import DATA_DIR
 from cortexdj.features.retrieval.audio_catalog import append_miss, resolve_preview
@@ -42,7 +39,6 @@ from cortexdj.ml.device import get_device
 logger = logging.getLogger(__name__)
 
 MISS_LOG_PATH = DATA_DIR / "track_index_miss_log.jsonl"
-MIN_TITLE_SIMILARITY = 0.85  # matches fetch_deap_audio; rejects fuzzy-match traps
 
 # Generic genre seeds used when the user's saved-tracks pool is small. These
 # mix across the arousal/valence quadrants so the retrieval index has coverage
@@ -137,7 +133,7 @@ def _dedupe_by_spotify_id(candidates: list[dict[str, Any]]) -> list[dict[str, An
     return unique
 
 
-async def _gather_candidates(client: spotipy.Spotify, *, limit: int, skip_library: bool) -> list[dict[str, Any]]:
+async def _gather_candidates(client: spotipy.Spotify, *, limit: int) -> list[dict[str, Any]]:
     """Fill `pool` toward `limit` with deduped candidates from library ∪ seeds.
 
     Topup is incremental: we dedupe after each fetch and only stop once we
@@ -145,13 +141,8 @@ async def _gather_candidates(client: spotipy.Spotify, *, limit: int, skip_librar
     library-saturates-then-dedupe-shrinks case where the final pool falls
     short of `limit` even though seed candidates were available.
     """
-    pool: list[dict[str, Any]] = []
-
-    if not skip_library:
-        saved = await _fetch_saved_track_candidates(client, max_tracks=limit)
-        pool.extend(saved)
-        pool = _dedupe_by_spotify_id(pool)
-        logger.info(f"Fetched {len(pool)} candidates from user library (after dedupe)")
+    pool = _dedupe_by_spotify_id(await _fetch_saved_track_candidates(client, max_tracks=limit))
+    logger.info(f"Fetched {len(pool)} candidates from user library (after dedupe)")
 
     if len(pool) < limit:
         # Overshoot the shortfall so that dedupe losses on the seed side
@@ -167,45 +158,17 @@ async def _gather_candidates(client: spotipy.Spotify, *, limit: int, skip_librar
     return pool[:limit]
 
 
-async def _resolve_and_embed(
-    candidate: dict[str, Any],
-    *,
-    http_client: httpx.AsyncClient,
-    clap_encoder: ClapAudioEncoder,
-) -> tuple[np.ndarray, str, str] | None:
-    """Return `(embedding, itunes_track_id, itunes_preview_url)` or `None` on miss."""
-    hit = await resolve_preview(
-        candidate["artist"],
-        candidate["title"],
-        duration_ms=candidate["duration_ms"],
-        http_client=http_client,
-    )
-    if hit is None:
-        return None
-    waveform = load_audio_waveform(hit.m4a_path)
-    embeddings = clap_encoder.embed_waveforms([waveform])
-    return embeddings[0], hit.itunes_track_id, hit.preview_url
-
-
 async def _main_async() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--limit",
         type=int,
-        default=None,
-        help="Max candidates to pull before iTunes resolution. Defaults to TRACK_INDEX_POOL_SIZE.",
-    )
-    parser.add_argument(
-        "--skip-library",
-        action="store_true",
-        help="Skip user saved-tracks pool; only use genre seeds.",
+        default=2000,
+        help="Max candidates to pull before iTunes resolution.",
     )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-
-    settings = get_settings()
-    limit = args.limit if args.limit is not None else settings.TRACK_INDEX_POOL_SIZE
 
     async with get_async_sqlalchemy_session() as db:
         client = await get_spotify_client(db)
@@ -216,7 +179,7 @@ async def _main_async() -> int:
         # Only now, with a client in hand: a run that cannot start keeps the last run's log.
         MISS_LOG_PATH.unlink(missing_ok=True)
 
-        candidates = await _gather_candidates(client, limit=limit, skip_library=args.skip_library)
+        candidates = await _gather_candidates(client, limit=args.limit)
         logger.info(f"Gathered {len(candidates)} unique candidates after dedupe")
 
         if not candidates:
@@ -232,32 +195,29 @@ async def _main_async() -> int:
             for i, cand in enumerate(candidates, start=1):
                 label = f"[{i:4d}/{len(candidates)}] {cand['artist'][:22]:<22} | {cand['title'][:35]:<35}"
                 try:
-                    result = await _resolve_and_embed(cand, http_client=http_client, clap_encoder=clap_encoder)
+                    hit = await resolve_preview(
+                        cand["artist"], cand["title"], duration_ms=cand["duration_ms"], http_client=http_client
+                    )
+                    if hit is None:
+                        outcome, miss_reason = "MISS", "itunes_no_match"
+                    else:
+                        embedding = clap_encoder.embed_waveforms([load_audio_waveform(hit.m4a_path)])[0]
                 except Exception as exc:  # noqa: BLE001
-                    print(f"  {label} | ERR {type(exc).__name__}: {exc}")
+                    hit = None
+                    outcome, miss_reason = f"ERR {type(exc).__name__}: {exc}", f"exception:{type(exc).__name__}"
+
+                if hit is None:
+                    print(f"  {label} | {outcome}")
                     append_miss(
                         MISS_LOG_PATH,
                         spotify_id=cand["spotify_id"],
                         artist=cand["artist"],
                         title=cand["title"],
-                        reason=f"exception:{type(exc).__name__}",
+                        reason=miss_reason,
                     )
                     misses += 1
                     continue
 
-                if result is None:
-                    print(f"  {label} | MISS")
-                    append_miss(
-                        MISS_LOG_PATH,
-                        spotify_id=cand["spotify_id"],
-                        artist=cand["artist"],
-                        title=cand["title"],
-                        reason="itunes_no_match",
-                    )
-                    misses += 1
-                    continue
-
-                embedding, itunes_track_id, itunes_preview_url = result
                 await TrackAudioEmbedding.upsert(
                     db,
                     spotify_id=cand["spotify_id"],
@@ -265,8 +225,8 @@ async def _main_async() -> int:
                     artist=cand["artist"],
                     source=cand["source"],
                     embedding=embedding,
-                    itunes_track_id=itunes_track_id,
-                    itunes_preview_url=itunes_preview_url,
+                    itunes_track_id=hit.itunes_track_id,
+                    itunes_preview_url=hit.preview_url,
                 )
                 print(f"  {label} | OK")
                 hits += 1

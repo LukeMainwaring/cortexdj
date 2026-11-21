@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry, ToolFailed
@@ -37,7 +38,9 @@ async def retrieve_tracks_from_brain_state(
     fails with a message that the agent should relay verbatim to the user.
     """
     try:
-        hits = await retrieval_service.retrieve_similar_tracks(ctx.deps.db, session_id, get_contrastive_encoder(), k=k)
+        tracks = await retrieval_service.retrieve_similar_tracks(
+            ctx.deps.db, session_id, get_contrastive_encoder(), k=k
+        )
     except retrieval_service.SessionNotFoundError as exc:
         raise ModelRetry(
             f"Session {session_id} not found. Pass a session UUID from the `id=...` value in `list_sessions` output."
@@ -45,27 +48,17 @@ async def retrieve_tracks_from_brain_state(
     except (retrieval_service.DeapFileMissingError, retrieval_service.ContrastiveEncoderMissingError) as exc:
         raise ToolFailed(str(exc)) from exc
 
-    if not hits:
-        return json.dumps(
-            {
-                "session_id": session_id,
-                "k": k,
-                "tracks": [],
-                "note": (
-                    "The retrieval index is empty. To populate it, run "
-                    "`uv run --directory backend seed-track-index` on the server. "
-                    "Once populated, this tool returns tracks whose CLAP audio "
-                    "embeddings are closest to the session's EEG embedding in "
-                    "the learned contrastive space."
-                ),
-            },
-            indent=2,
+    payload: dict[str, Any] = {
+        "session_id": session_id,
+        "k": k,
+        "tracks": [{**track.model_dump(), "similarity": round(track.similarity, 4)} for track in tracks],
+    }
+    if not tracks:
+        payload["note"] = (
+            "The retrieval index is empty. To populate it, run "
+            "`uv run --directory backend seed-track-index` on the server. "
+            "Once populated, this tool returns tracks whose CLAP audio "
+            "embeddings are closest to the session's EEG embedding in "
+            "the learned contrastive space."
         )
-    return json.dumps(
-        {
-            "session_id": session_id,
-            "k": k,
-            "tracks": retrieval_service.serialize_hits(hits),
-        },
-        indent=2,
-    )
+    return json.dumps(payload, indent=2)

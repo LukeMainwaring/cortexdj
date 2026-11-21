@@ -22,20 +22,14 @@ function getThemeColors() {
 
 interface WaveformVizProps {
   audioUrl: string;
-  autoplay?: boolean;
-  height?: number;
-  onFinish?: () => void;
-  onPause?: () => void;
-  onPlay?: () => void;
-  playing?: boolean;
+  onPause: () => void;
+  onPlay: () => void;
+  playing: boolean;
 }
 
 export function WaveformViz({
   audioUrl,
-  height = 36,
-  autoplay = false,
   playing,
-  onFinish,
   onPlay,
   onPause,
 }: WaveformVizProps) {
@@ -48,36 +42,18 @@ export function WaveformViz({
       : getThemeColors()
   );
 
-  const handleReady = useCallback(
-    (ws: WaveSurfer) => {
-      wsRef.current = ws;
-      setDuration(ws.getDuration());
-      if (autoplay) {
-        ws.play();
-      }
-    },
-    [autoplay]
-  );
+  const handleReady = useCallback((ws: WaveSurfer) => {
+    wsRef.current = ws;
+    setDuration(ws.getDuration());
+  }, []);
 
   const handleTimeupdate = useCallback((ws: WaveSurfer) => {
     setCurrentTime(ws.getCurrentTime());
   }, []);
 
-  const handlePlay = useCallback(() => {
-    onPlay?.();
-  }, [onPlay]);
-
-  const handlePause = useCallback(() => {
-    onPause?.();
-  }, [onPause]);
-
-  const handleFinish = useCallback(() => {
-    onFinish?.();
-  }, [onFinish]);
-
   useEffect(() => {
     const ws = wsRef.current;
-    if (!ws || playing === undefined) {
+    if (!ws) {
       return;
     }
     if (playing) {
@@ -97,11 +73,10 @@ export function WaveformViz({
         barRadius={2}
         barWidth={2}
         cursorWidth={0}
-        height={height}
+        height={36}
         interact={true}
-        onFinish={handleFinish}
-        onPause={handlePause}
-        onPlay={handlePlay}
+        onPause={onPause}
+        onPlay={onPlay}
         onReady={handleReady}
         onTimeupdate={handleTimeupdate}
         progressColor={colors.progressColor}

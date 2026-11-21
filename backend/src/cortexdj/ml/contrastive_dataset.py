@@ -8,9 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.signal import resample
 
-from cortexdj.ml.dataset import CBRAMOD_SAMPLING_RATE, CBRAMOD_SCALE_FACTOR, SEGMENT_SAMPLES
-
-CBRAMOD_SEGMENT_SAMPLES = CBRAMOD_SAMPLING_RATE * 4  # 800 samples at 200Hz
+from cortexdj.ml.dataset import CBRAMOD_SCALE_FACTOR, CBRAMOD_SEGMENT_SAMPLES, SEGMENT_SAMPLES
 
 
 def trial_to_eeg_windows(

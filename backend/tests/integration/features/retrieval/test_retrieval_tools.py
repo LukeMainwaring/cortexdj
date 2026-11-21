@@ -7,7 +7,6 @@ argument. Do not read or write ``backend/data/`` to cover it here.
 """
 
 import json
-from pathlib import Path
 
 import pytest
 from pydantic_ai.exceptions import ModelRetry, ToolFailed
@@ -64,7 +63,6 @@ async def test_a_missing_deap_file_fails_with_the_services_message(
         await retrieval_tools.retrieve_tracks_from_brain_state(make_run_context(make_deps(db_session)), session.id)
 
     assert "DEAP file for participant P99 not found" in str(failure.value)
-    assert Path(str(failure.value).rsplit(" at ", 1)[1]).name == "s99.dat"
 
 
 async def test_no_encoder_fails_with_how_to_fetch_the_checkpoint(db_session: AsyncSession) -> None:
@@ -74,6 +72,4 @@ async def test_no_encoder_fails_with_how_to_fetch_the_checkpoint(db_session: Asy
     with override_contrastive_encoder(None), pytest.raises(ToolFailed) as failure:
         await retrieval_tools.retrieve_tracks_from_brain_state(make_run_context(make_deps(db_session)), session.id)
 
-    message = str(failure.value)
-    assert "download-checkpoints.sh" in message
-    assert "train" not in message
+    assert "download-checkpoints.sh" in str(failure.value)

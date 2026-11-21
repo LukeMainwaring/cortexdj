@@ -78,7 +78,7 @@ class TestGatherCandidates:
     async def test_a_library_that_fills_the_limit_never_searches(self) -> None:
         fake = FakeSpotify(library_ids=[f"lib{i}" for i in range(10)], search_ids=["seed0"])
 
-        pool = await _gather_candidates(_client(fake), limit=10, skip_library=False)
+        pool = await _gather_candidates(_client(fake), limit=10)
 
         assert [c["spotify_id"] for c in pool] == [f"lib{i}" for i in range(10)]
         assert {c["source"] for c in pool} == {"user_library"}
@@ -87,7 +87,7 @@ class TestGatherCandidates:
     async def test_a_library_shortfall_is_topped_up_from_the_seeds(self) -> None:
         fake = FakeSpotify(library_ids=["lib0", "lib1", "lib2"])
 
-        pool = await _gather_candidates(_client(fake), limit=10, skip_library=False)
+        pool = await _gather_candidates(_client(fake), limit=10)
 
         assert [c["spotify_id"] for c in pool] == [
             "lib0",
@@ -110,27 +110,16 @@ class TestGatherCandidates:
         lib_ids = ["a", "b", "c", "d", "e"]
         fake = FakeSpotify(library_ids=lib_ids, search_ids=["a", "b", "x", "y", "z"])
 
-        pool = await _gather_candidates(_client(fake), limit=10, skip_library=False)
+        pool = await _gather_candidates(_client(fake), limit=10)
 
         assert [c["spotify_id"] for c in pool] == ["a", "b", "c", "d", "e", "x", "y", "z"]
         # The library copy is kept, not the seed duplicate.
         assert [c["source"] for c in pool[:5]] == ["user_library"] * 5
 
-    async def test_skip_library_never_reads_the_library(self) -> None:
-        fake = FakeSpotify(library_ids=["lib0"])
-
-        pool = await _gather_candidates(_client(fake), limit=10, skip_library=True)
-
-        assert fake.library_calls == []
-        assert [c["spotify_id"] for c in pool] == [f"ambient:{i}" for i in range(5)] + [
-            f"chillhop:{i}" for i in range(5)
-        ]
-        assert {c["source"] for c in pool} == {"seed_search"}
-
     async def test_the_pool_is_cut_to_the_limit(self) -> None:
         fake = FakeSpotify(library_ids=["lib0", "lib1"])
 
-        pool = await _gather_candidates(_client(fake), limit=4, skip_library=False)
+        pool = await _gather_candidates(_client(fake), limit=4)
 
         # Seeds were asked for 2 × the shortfall of 2; the overshoot is cut off.
         assert [c["spotify_id"] for c in pool] == ["lib0", "lib1", "ambient:0", "ambient:1"]
