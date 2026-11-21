@@ -94,7 +94,12 @@ async def build_mood_playlist(
         async with semaphore:
             return t, await spotify_service.resolve_track_spotify_id(client, t)
 
-    resolution = await asyncio.gather(*(_resolve(t) for t in db_tracks))
+    try:
+        resolution = await asyncio.gather(*(_resolve(t) for t in db_tracks))
+    except spotipy.SpotifyException as e:
+        if e.http_status == 401:
+            raise _token_expired() from e
+        raise
     resolved_pairs: list[tuple[TrackInfo, str]] = [(t, sid) for t, sid in resolution if sid]
     dropped_count = len(db_tracks) - len(resolved_pairs)
 
@@ -304,6 +309,8 @@ async def search_tracks(
     try:
         all_tracks, total_available = await spotify_service.search_paginated(client, query, "track", max_results)
     except spotipy.SpotifyException as e:
+        if e.http_status == 401:
+            raise _token_expired() from e
         raise _spotify_api_error("search tracks", e) from e
 
     return {

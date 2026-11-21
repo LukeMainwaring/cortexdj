@@ -30,6 +30,8 @@ class FakeSpotify:
         self.added: list[tuple[str, list[str]]] = []
 
     def search(self, q: str, type: str, limit: int, offset: int) -> dict[str, Any]:
+        if self.failure is not None:
+            raise self.failure
         items = [
             {
                 "name": title,
@@ -151,6 +153,25 @@ async def test_a_rejected_login_asks_the_user_to_reconnect(db_session: AsyncSess
         pytest.raises(ToolFailed, match="connection has expired"),
     ):
         await spotify_tools.get_listening_history(make_run_context(make_deps(db_session)))
+
+
+async def test_search_tracks_with_a_rejected_login_asks_the_user_to_reconnect(db_session: AsyncSession) -> None:
+    fake = FakeSpotify(failure=spotipy.SpotifyException(401, -1, "The access token expired"))
+
+    with override_spotify_client(fake), pytest.raises(ToolFailed, match="connection has expired"):
+        await spotify_tools.search_tracks(make_run_context(make_deps(db_session)), query="Queen")
+
+
+async def test_build_mood_playlist_with_a_rejected_login_asks_the_user_to_reconnect(db_session: AsyncSession) -> None:
+    await _excited_track(db_session)
+    fake = FakeSpotify(failure=spotipy.SpotifyException(401, -1, "The access token expired"))
+
+    with override_spotify_client(fake), pytest.raises(ToolFailed, match="connection has expired"):
+        await spotify_tools.build_mood_playlist(
+            make_run_context(make_deps(db_session)), mood="excited", user_confirmed=True
+        )
+
+    assert list(await Playlist.list_all(db_session)) == []
 
 
 async def test_search_tracks_without_a_login_says_how_to_connect(db_session: AsyncSession) -> None:

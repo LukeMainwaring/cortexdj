@@ -8,7 +8,7 @@ Prompts and workflows that showcase what CortexDJ can do that general-purpose ch
 
 > "Analyze my most recent EEG session and build me a playlist that matches my brain state."
 
-This one prompt triggers the full system. The agent calls `list_sessions` to find the latest recording, `analyze_session` for per-segment arousal/valence classification and band power breakdowns, then `find_relaxing_tracks` (or the appropriate mood) to query historical EEG data for tracks that triggered similar brain states — and proposes a `build_mood_playlist` with user confirmation before creating it on Spotify.
+This one prompt triggers the full system. The agent calls `list_sessions` to find the latest recording, `analyze_session` for per-segment arousal/valence classification and band power breakdowns, then `find_relaxing_tracks` (or the appropriate mood) to query historical EEG data for tracks that triggered similar brain states — and proposes a `build_mood_playlist` with user confirmation before creating it on Spotify. The playlist step needs Spotify connected (Settings > Spotify); without it the assistant stops after the analysis and says so.
 
 **What to watch for:**
 

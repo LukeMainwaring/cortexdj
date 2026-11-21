@@ -119,7 +119,7 @@ function SpotifyPageContent() {
               <CardDescription>
                 {isConnected
                   ? "Your Spotify account is linked"
-                  : "Connect to unlock playlist creation and listening history"}
+                  : "Connect to unlock the assistant's Spotify tools"}
               </CardDescription>
             </div>
           </div>
@@ -131,7 +131,7 @@ function SpotifyPageContent() {
                 <p className="text-sm font-medium">What CortexDJ can do:</p>
                 <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-sm">
                   <li>Create and add to playlists on your Spotify account</li>
-                  <li>Browse your playlists and saved tracks</li>
+                  <li>Search Spotify and browse your playlists</li>
                   <li>View your recently played tracks for EEG correlation</li>
                 </ul>
               </div>

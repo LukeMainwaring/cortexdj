@@ -112,7 +112,9 @@ async def resolve_track_spotify_id(client: spotipy.Spotify, track: TrackInfo) ->
     ``track_access.save_track_spotify_id``, because this function is typically run
     concurrently via `asyncio.gather` and `AsyncSession` is not safe for concurrent use.
 
-    Returns None if no match is found or the search fails.
+    Returns None if no match is found or the search fails. A login Spotify rejects (401)
+    is raised instead: it fails every lookup the same way, and the caller tells the user
+    to reconnect.
     """
     if track.spotify_track_id:
         return track.spotify_track_id
@@ -125,6 +127,8 @@ async def resolve_track_spotify_id(client: spotipy.Spotify, track: TrackInfo) ->
     try:
         results = await search_tracks(client, query, max_results=1)
     except Exception as e:  # noqa: BLE001 — one bad lookup shouldn't fail the whole playlist
+        if isinstance(e, spotipy.SpotifyException) and e.http_status == 401:
+            raise
         logger.warning(f"Spotify search failed for '{track.title}' by '{track.artist}': {e}")
         return None
 
