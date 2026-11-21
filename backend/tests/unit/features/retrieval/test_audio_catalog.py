@@ -8,7 +8,7 @@ we'd rather catch them at pytest time.
 
 from typing import Any
 
-from cortexdj.services.audio_catalog import (
+from cortexdj.features.retrieval.audio_catalog import (
     DURATION_DELTA_MS_HARD_LIMIT,
     _normalize,
     _pick_best,

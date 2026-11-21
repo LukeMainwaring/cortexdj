@@ -8,6 +8,7 @@ Create Date: 2026-06-26 00:00:00.000000
 
 import sqlalchemy as sa
 from alembic import op
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -18,6 +19,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.create_table(
         "threads",
         sa.Column("thread_id", sa.String(), nullable=False),
@@ -126,9 +128,35 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_playlists_id"), "playlists", ["id"], unique=False)
+    op.create_table(
+        "track_audio_embeddings",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("spotify_id", sa.String(length=64), nullable=False),
+        sa.Column("itunes_track_id", sa.String(length=64), nullable=True),
+        sa.Column("itunes_preview_url", sa.String(length=1024), nullable=True),
+        sa.Column("title", sa.String(length=512), nullable=False),
+        sa.Column("artist", sa.String(length=512), nullable=False),
+        sa.Column("source", sa.String(length=32), nullable=False),
+        sa.Column("embedding", Vector(512), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_track_audio_embeddings_spotify_id"), "track_audio_embeddings", ["spotify_id"], unique=True)
+    op.create_index(
+        "ix_track_audio_embeddings_embedding_hnsw",
+        "track_audio_embeddings",
+        ["embedding"],
+        unique=False,
+        postgresql_using="hnsw",
+        postgresql_with={"m": 16, "ef_construction": 64},
+        postgresql_ops={"embedding": "vector_cosine_ops"},
+    )
 
 
 def downgrade() -> None:
+    op.drop_index("ix_track_audio_embeddings_embedding_hnsw", table_name="track_audio_embeddings")
+    op.drop_index(op.f("ix_track_audio_embeddings_spotify_id"), table_name="track_audio_embeddings")
+    op.drop_table("track_audio_embeddings")
     op.drop_index(op.f("ix_playlists_id"), table_name="playlists")
     op.drop_table("playlists")
     op.drop_table("spotify_tokens")
