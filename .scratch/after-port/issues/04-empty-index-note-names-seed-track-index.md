@@ -1,7 +1,6 @@
 # 04: The empty-index note tells the reader to run `seed-track-index`
 
 **Status:** ready-for-agent
-**Blocked by:** audio-decoding 01, unless the note is reworded to the dump
 
 **What is wrong:** when the track index is empty, `retrieve_tracks_from_brain_state`
 (`features/retrieval/tools.py`) returns a `note` that says to run

@@ -12,8 +12,8 @@ a configured tracer there is no span tree and they fail every case. No token is 
 that; when ``LOGFIRE_TOKEN`` is set the runs are also exported, under environment ``eval``.
 The app's ``setup_observability`` is not reused: it takes an app object and attaches the
 SQLAlchemy and FastAPI instrumentors, and the evals import no app. Only its service name is
-shared. Nothing here or in the app rewrites span contents, so with a token set a case's prompt
-and a tool's answer are exported as they are.
+shared. Neither adds scrubbing of its own: with a token set, a case's prompt and a tool's
+answer are exported behind Logfire's default scrubber and nothing else.
 """
 
 import os

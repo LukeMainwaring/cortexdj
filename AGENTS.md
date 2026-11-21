@@ -1,6 +1,6 @@
 # AGENTS.md
 
-CortexDJ is a full-stack AI app: a FastAPI + Pydantic AI backend and a Next.js chat frontend. Its domain slices are **`sessions`** (EEG sessions, trajectories, brain context), the in-repo pattern the other slices copy, **`spotify`** (the Spotify login, track search, the user's library, mood playlists), and **`retrieval`** (tracks matched to a session's EEG through a pgvector index of CLAP audio vectors).
+CortexDJ is a full-stack AI app: a FastAPI + Pydantic AI backend and a Next.js chat frontend. Beside `chat`, its domain slices are **`sessions`** (EEG sessions, trajectories, brain context), the in-repo pattern the other slices copy, **`spotify`** (the Spotify login, track search, the user's library, mood playlists), and **`retrieval`** (tracks matched to a session's EEG through a pgvector index of CLAP audio vectors).
 
 For project overview and quickstart, read `README.md`. For setup, commands, database migrations, and tests, read `DEVELOPMENT.md`.
 
