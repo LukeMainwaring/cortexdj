@@ -73,7 +73,7 @@ The seams exist for the same reason. The docstrings of `shared/track_access.py` 
 
 ## Sources
 
-Written at commit `2378eff`.
+Written at commit `977591d`.
 
 - `docs/adr/0001-test-tiers-and-fakes.md`
 - `backend/src/cortexdj/api.py`
