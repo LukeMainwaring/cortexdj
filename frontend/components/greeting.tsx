@@ -25,7 +25,8 @@ export const Greeting = () => (
         CortexDJ
       </h2>
       <p className={cn(FADE_UP, "max-w-md text-sm delay-600")}>
-        An AI chatbot scaffold. Ask me anything to get started.
+        Ask me to analyze EEG sessions, explain brain states, or build Spotify
+        playlists based on your brain-wave data.
       </p>
     </div>
   </div>

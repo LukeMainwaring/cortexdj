@@ -1,6 +1,6 @@
 # CortexDJ
 
-A full-stack AI-app template: a FastAPI + Pydantic AI backend and a Next.js chat frontend. An instance replaces this paragraph and these sections with its own domain; the `domain-modeling` skill adds and sharpens entries as terms get settled.
+A chat app over EEG recordings of people listening to music: one assistant classifies what a listener's brain did, explains it, and curates Spotify playlists and track matches from it. This file holds the words the code and the docs use for that domain and for the app's own structure; the `domain-modeling` skill adds and sharpens entries as terms get settled.
 
 ## Language
 
@@ -11,20 +11,16 @@ One domain's folder under `features/`, holding its model, schemas, service, rout
 _Avoid_: Module, feature folder, app (Django sense)
 
 **Kernel**:
-The code every slice shares: `core/` (settings, database, startup hooks, logging, observability), `shared/` (base classes, scrubbing), and `agents/` (the agent runtime). It never imports a slice.
+The code every slice shares: `core/` (settings, database, startup hooks, logging, observability), `shared/` (base classes and the seams one slice offers the others), `agents/` (the agent runtime), and `ml/` (EEG model inference). It never imports a slice.
 _Avoid_: Framework, platform, common
 
 **Composition root**:
-One of the few files allowed to import across slices because its job is to wire them together: `api.py` (routers), `agents/capabilities.py` (the assistant's capabilities), `agents/registry.py` (named agents), and the frontend's `features/tool-panel-registry.ts`.
+One of the few files allowed to import across slices because its job is to wire them together: `api.py` (routers), `agents/capabilities.py` (the assistant's capabilities), `agents/registry.py` (named agents), and the frontend's `features/tool-panel-registry.ts` and `features/header-slot-registry.ts`.
 _Avoid_: Registry (the named-agent registry is one composition root, not the pattern), index, barrel
 
 **Seam**:
 A boundary the source declares so one thing can be swapped for another: a FastAPI dependency, an `override` context manager, a constructor argument, or a registration slot the composition root fills. Tests fake only at seams.
 _Avoid_: Mock point, hook (reserved for startup hooks and agent hooks), patch target
-
-**Feature marker**:
-An `# sf:begin(<id>)` / `# sf:end(<id>)` block or `# sf:keep-if(<id>)` line that tells the onboarding helper which code belongs to a cuttable feature.
-_Avoid_: Flag, feature toggle (nothing is toggled at runtime)
 
 **Rule**:
 A convention an implementer needs before writing code: one the existing code doesn't show and no tool or test would catch. Rules are scoped to the paths they govern, so an agent reads only the ones for the files it touches.
@@ -33,6 +29,36 @@ _Avoid_: Guideline, check, convention (a rule is the subset of conventions that 
 **Review check**:
 A convention a reviewer applies to a diff: one the code already shows or that is cheap to fix after the fact. Implementers don't load review checks.
 _Avoid_: Check (alone; it also means a toolchain run or a deterministic check), review rule
+
+### Domain
+
+**Session**:
+One EEG recording: one participant listening to a run of stimulus tracks. The assistant and the UI call it by a stable label ("Session 07"), never by its id.
+_Avoid_: Recording, sitting; never for a conversation (that is a thread) or a database session
+
+**Segment**:
+A 4-second window of a session's EEG, stored with an arousal score, a valence score, band powers, and the quadrant they fall in.
+_Avoid_: Window (the model's input, before it is stored), epoch, sample
+
+**Quadrant**:
+One of the four emotion states a pair of arousal and valence scores maps to: excited (high arousal, high valence), stressed (high, low), relaxed (low, high), calm (low, low).
+_Avoid_: Mood (the word the user and the playlist tools use for a quadrant), emotion class, label
+
+**Brain context**:
+The brain state a thread is focused on: a session id, a dominant mood, and average arousal and valence, each optional. It is stored per thread, written into the assistant's instructions on every run, and shown in the chat header.
+_Avoid_: Brain state (what a segment or session shows; the context is what the conversation holds on to), session context
+
+**Trajectory**:
+A session's path through arousal and valence over time, with what is computed from it: time spent in each quadrant, transitions, centroid, dispersion, and path length.
+_Avoid_: Timeline (the per-segment chart), emotional arc, history
+
+**Track index**:
+The table of CLAP audio vectors, one per track, that retrieval ranks against a session's EEG embedding by cosine distance.
+_Avoid_: Embedding store, catalog, vector database
+
+**Header slot**:
+A frontend component a slice registers in the header-slot registry to show a thread's status in the chat header. It takes the thread id and fetches its own data; the brain-context badge is the one slot.
+_Avoid_: Header widget, badge (the badge is one slot), status bar
 
 ### Chat
 
@@ -45,7 +71,7 @@ One user message and the run that answers it. The browser sends only the newest 
 _Avoid_: Request (the HTTP request is one part of it), exchange, round
 
 **Thread history**:
-The stored messages of one thread: what the model is handed as `message_history` on the next turn. The stored copy is what the model saw, scrubbed and sanitized.
+The stored messages of one thread: what the model is handed as `message_history` on the next turn. The stored copy is what the model saw, sanitized.
 _Avoid_: Conversation, context window, transcript
 
 **Regenerate**:
@@ -69,24 +95,6 @@ _Avoid_: Base agent, agent factory, template agent
 **Named agent**:
 An agent the registry builds lazily by name (`get_agent(ASSISTANT)`). Callers ask for a name and never import a builder.
 _Avoid_: Agent instance, singleton
-
-### Sensitive data
-
-**Sensitive identifier**:
-A card number, Social Security number, or email address in user text, which the assistant never needs to do its job.
-_Avoid_: PII, personal data, secret
-
-**Scrubbing**:
-Replacing every sensitive identifier in a piece of text with a placeholder before anything stores it, sends it to a model, or traces it. Masking and redaction are its two treatments.
-_Avoid_: Sanitizing (the adapter's cleanup of untrusted client messages), filtering, PII detection
-
-**Masking**:
-Scrubbing that keeps the last four digits so the identifier can still be referred to. Used for cards and Social Security numbers.
-_Avoid_: Partial redaction, truncation
-
-**Redaction**:
-Scrubbing that keeps nothing of the identifier, only a placeholder naming its kind. Used for emails. Also what the request log and request span do to credential query parameters.
-_Avoid_: Removal, tokenization
 
 ### Testing and evaluation
 

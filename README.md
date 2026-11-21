@@ -67,12 +67,12 @@ Retrieving tracks from brain state embeds the session's EEG into the joint EEGâ†
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) (for PostgreSQL)
+- [Docker](https://docs.docker.com/get-docker/) (for PostgreSQL and the backend)
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [pnpm](https://pnpm.io/) (Node package manager)
-- [Node.js](https://nodejs.org/) 20+
+- [Node.js](https://nodejs.org/) 26+
 - [GitHub CLI](https://cli.github.com/) (for checkpoint download)
-- OpenAI API key
+- Anthropic API key
 
 ### Setup
 
@@ -81,10 +81,7 @@ Retrieving tracks from brain state embeds the session's EEG into the joint EEGâ†
 git clone https://github.com/LukeMainwaring/cortexdj.git
 cd cortexdj
 cp .env.sample .env
-# Edit .env with your OPENAI_API_KEY
-
-# Start PostgreSQL + backend
-docker compose up -d
+# Edit .env with your ANTHROPIC_API_KEY
 
 # Backend setup
 uv sync --directory backend
@@ -93,8 +90,12 @@ uv run --directory backend pre-commit install
 # Download DEAP dataset (see backend/data/DEAP_SETUP.md)
 # Place .dat files in backend/data/deap/
 
-# Download pre-trained checkpoints (skips the 12 h training step; see DEVELOPMENT.md to retrain)
+# Download the model checkpoints: the app loads two at startup, the EEG classifier and the contrastive encoder
 ./backend/scripts/download-checkpoints.sh
+
+# Start PostgreSQL (port 5433) + backend (port 8003), then create the tables
+docker compose up -d
+./backend/scripts/migrate-docker.sh
 
 # Seed the database (about 3.5 minutes for the 32 DEAP files: 3 min 33 s on an Apple-silicon laptop)
 uv run --directory backend seed-sessions
@@ -107,22 +108,27 @@ pnpm -C frontend dev
 # Visit http://localhost:3003
 ```
 
+Spotify is optional: without it the app runs and the assistant's Spotify tools are unavailable. To use it, create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), register `http://127.0.0.1:8003/api/spotify/callback` as its redirect URI, put `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in `.env`, and recreate the backend with `docker compose up -d backend`. Then connect your account under Settings â†’ Spotify Settings in the sidebar.
+
+The track index that retrieval searches is built by `seed-track-index`, which cannot finish until the open ticket [audio-decoding 01](.scratch/audio-decoding/issues/01-decode-m4a-previews.md) is done, so a fresh setup has every feature except retrieval.
+
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 16, Tailwind CSS, shadcn/ui, TanStack Query |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, TanStack Query |
 | Chat UI | Vercel AI SDK (`useChat`), Streamdown |
-| Visualization | Recharts (timeline + band-power charts), motion/react (animated trajectory), Radix Tabs |
-| Backend | FastAPI, Pydantic v2, async SQLAlchemy |
-| Agent | Pydantic AI with OpenAI |
-| ML | PyTorch (EEGNet), braindecode (CBraMod pretrained), MNE-Python, scipy |
+| Visualization | Recharts (timeline + band-power charts), motion/react (animated trajectory), Radix Tabs, wavesurfer.js (preview waveforms) |
+| Backend | FastAPI, Pydantic v2, async SQLAlchemy 2.0, Alembic |
+| Agent | Pydantic AI with Anthropic (Claude) |
+| ML | PyTorch (EEGNet), braindecode (CBraMod pretrained), CLAP audio embeddings via transformers, librosa, scipy |
 | EEG Processing | Bandpass filtering, differential entropy, Welch PSD |
-| Database | PostgreSQL + pgvector |
+| Database | PostgreSQL 18 + pgvector (HNSW cosine index) |
 | Spotify | spotipy (OAuth 2.0) |
+| Observability | Pydantic Logfire (FastAPI, SQLAlchemy, and agent traces) |
 | DevOps | Docker Compose, GitHub Actions CI |
-| Testing | pytest |
-| Code Quality | Ruff, mypy (strict), pre-commit, Biome/Ultracite |
+| Testing | pytest (unit and integration tiers), pydantic-evals (real-model evals) |
+| Code Quality | Ruff, mypy (strict), import-linter, pre-commit, Biome/Ultracite |
 
 ## Limitations
 
@@ -130,7 +136,7 @@ The EEGâ†”CLAP contrastive retrieval path described above is a deferred research
 
 ## Development
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for testing, linting, migrations, ML training workflows, and Modal GPU runs.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for setup details, checks and tests, evals, observability, and migrations.
 
 ## Roadmap
 

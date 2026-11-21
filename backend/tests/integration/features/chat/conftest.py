@@ -5,7 +5,7 @@ is out of the per-test rollback: a real run would write to the test database for
 The chat route takes it as a dependency, so it is replaced here through
 ``app.dependency_overrides`` (docs/adr/0001-test-tiers-and-fakes.md). It lives in this
 slice's conftest rather than the shared ``client`` fixture so that
-``tests/integration/conftest.py`` never imports feature code and survives every prune.
+``tests/integration/conftest.py`` never imports feature code.
 
 The stream doubles stand in for the assistant's model through
 ``get_agent(ASSISTANT).override(model=FunctionModel(stream_function=...))``. They are

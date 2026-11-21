@@ -15,14 +15,16 @@ pollute the database; ``join_transaction_mode="create_savepoint"`` makes such a
 commit release a SAVEPOINT inside that transaction instead, so the rollback still
 covers it.
 
-Imports here stay limited to core/shared/app (never feature code) so this file
-type-checks under ``mypy --strict`` in every onboarding-prune variant. A feature
+Imports here stay limited to core/shared/app (never feature code): a feature's
+fakes live in its own conftest (docs/adr/0001-test-tiers-and-fakes.md). A feature
 whose route hands work to a session of its own (a detached task) is outside this
 rollback, so it fakes that work in its own conftest.
 
 Caveat: ASGITransport does not run the app lifespan, so core/startup.py hooks don't
-fire (the one shipped hook only logs where traces go). If a load-bearing startup
-hook is added, wrap the client in ``asgi-lifespan.LifespanManager``.
+fire. The two model-loading hooks never run in a test: a test that needs a model sets
+the holder through its override (``override_eeg_model``,
+``override_contrastive_encoder``). If a test needs a hook to run for real, wrap the
+client in ``asgi-lifespan.LifespanManager``.
 """
 
 import os
