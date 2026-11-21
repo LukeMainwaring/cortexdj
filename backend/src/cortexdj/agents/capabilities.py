@@ -11,9 +11,14 @@ runtime from doing.
 from pydantic_ai.capabilities import AgentCapability
 
 from cortexdj.agents.deps import AgentDeps
+from cortexdj.features.retrieval.capability import RetrievalCapability
 from cortexdj.features.sessions.capability import SessionsCapability
 from cortexdj.features.spotify.capability import SpotifyCapability
 
-ENABLED_CAPABILITIES: list[AgentCapability[AgentDeps]] = [SessionsCapability(), SpotifyCapability()]
+ENABLED_CAPABILITIES: list[AgentCapability[AgentDeps]] = [
+    SessionsCapability(),
+    SpotifyCapability(),
+    RetrievalCapability(),
+]
 
 __all__ = ["ENABLED_CAPABILITIES"]

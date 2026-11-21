@@ -1,4 +1,4 @@
-"""Verification probe for services/audio_catalog.py.
+"""Verification probe for features/retrieval/audio_catalog.py.
 
 Pulls N saved Spotify tracks via user OAuth, runs each through the real
 resolve_preview pipeline, and reports:
@@ -7,8 +7,8 @@ resolve_preview pipeline, and reports:
   - miss log contents
   - sha of one cached m4a to prove the file is real
 
-This is a step-2 checkpoint artifact. Run with:
-  uv run --directory backend python backend/scripts/probe_audio_catalog.py --limit 50
+Run with:
+  uv run --directory backend python scripts/probe_audio_catalog.py --limit 50
 """
 
 import argparse
@@ -17,9 +17,10 @@ import hashlib
 import sys
 from pathlib import Path
 
-from cortexdj.dependencies.db import AsyncSessionMaker
-from cortexdj.services.audio_catalog import append_miss, resolve_preview
-from cortexdj.services.spotify import get_user_spotify_client, run_spotify
+from cortexdj.core.db import get_async_sqlalchemy_session
+from cortexdj.features.retrieval.audio_catalog import append_miss, resolve_preview
+from cortexdj.features.spotify.client import get_spotify_client
+from cortexdj.features.spotify.service import run_spotify
 
 
 async def main() -> int:
@@ -34,9 +35,10 @@ async def main() -> int:
 
     args.miss_log.unlink(missing_ok=True)
 
-    async with AsyncSessionMaker() as db:
-        client = await get_user_spotify_client(db)
-        if client is None:
+    async with get_async_sqlalchemy_session() as db:
+        spotify = await get_spotify_client(db)
+        client = spotify.client
+        if client is None or not spotify.is_user:
             print("NO USER TOKEN — connect Spotify in the UI first", file=sys.stderr)
             return 2
 

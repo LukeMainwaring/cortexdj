@@ -1,4 +1,4 @@
-from .base import BaseSchema
+from cortexdj.shared.schema_base import BaseSchema
 
 
 class SimilarTrackSchema(BaseSchema):

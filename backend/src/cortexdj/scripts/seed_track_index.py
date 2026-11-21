@@ -3,15 +3,20 @@
 Pool = (user's Spotify saved tracks) ∪ (genre-seed search results), capped at
 `TRACK_INDEX_POOL_SIZE`. Each candidate is validated for title fidelity against
 Spotify's search response, resolved to an iTunes 30s m4a preview via
-`services.audio_catalog.resolve_preview`, embedded with `ClapAudioEncoder`,
+`features/retrieval/audio_catalog.resolve_preview`, embedded with `ClapAudioEncoder`,
 and upserted as a single row with both its Spotify identity (spotify_id, title,
 artist) and its iTunes preview URL for downstream playback.
 
 Misses go to `track_index_miss_log.jsonl`; no retries, no album-qualifier
 fallback — smaller clean index beats larger noisy one.
 
+The command cannot finish today: decoding the cached `.m4a` previews fails
+(`ml/contrastive.load_audio_waveform`), so every candidate that resolves to a
+preview is logged as an exception miss and nothing is embedded. The fix is tracked in
+`.scratch/audio-decoding/issues/01-decode-m4a-previews.md`.
+
 Run:
-  uv run --directory backend python -m cortexdj.scripts.build_track_index --limit 500
+  uv run --directory backend seed-track-index --limit 500
 """
 
 import argparse
@@ -25,12 +30,14 @@ import numpy as np
 import spotipy
 
 from cortexdj.core.config import get_settings
+from cortexdj.core.db import get_async_sqlalchemy_session
 from cortexdj.core.paths import DATA_DIR
-from cortexdj.dependencies.db import AsyncSessionMaker
+from cortexdj.features.retrieval.audio_catalog import append_miss, resolve_preview
+from cortexdj.features.retrieval.model import TrackAudioEmbedding
+from cortexdj.features.spotify.client import get_spotify_client
+from cortexdj.features.spotify.service import run_spotify
 from cortexdj.ml.contrastive import ClapAudioEncoder, load_audio_waveform
-from cortexdj.ml.train import _get_device
-from cortexdj.models.track_audio_embedding import TrackAudioEmbedding
-from cortexdj.services.audio_catalog import append_miss, resolve_preview
+from cortexdj.ml.device import get_device
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +69,6 @@ async def _fetch_saved_track_candidates(client: spotipy.Spotify, max_tracks: int
 
     Uses spotipy's pagination via `current_user_saved_tracks` with offsets.
     """
-    from cortexdj.services.spotify import run_spotify
-
     candidates: list[dict[str, Any]] = []
     offset = 0
     while len(candidates) < max_tracks:
@@ -71,7 +76,7 @@ async def _fetch_saved_track_candidates(client: spotipy.Spotify, max_tracks: int
         try:
             page = await run_spotify(client.current_user_saved_tracks, limit=batch_limit, offset=offset)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Spotify saved_tracks page failed at offset=%d: %s", offset, exc)
+            logger.warning(f"Spotify saved_tracks page failed at offset={offset}: {exc}")
             break
         items = page.get("items", [])
         if not items:
@@ -94,8 +99,6 @@ async def _fetch_saved_track_candidates(client: spotipy.Spotify, max_tracks: int
 
 
 async def _fetch_genre_seed_candidates(client: spotipy.Spotify, max_tracks: int) -> list[dict[str, Any]]:
-    from cortexdj.services.spotify import run_spotify
-
     candidates: list[dict[str, Any]] = []
     # Floor of 5 per seed so a small-limit dev index still has enough variety
     # to verify retrieval quality (obscure single-track pulls are near-useless).
@@ -106,7 +109,7 @@ async def _fetch_genre_seed_candidates(client: spotipy.Spotify, max_tracks: int)
         try:
             result = await run_spotify(client.search, q=seed, type="track", limit=min(50, per_seed))
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Spotify search failed for seed %r: %s", seed, exc)
+            logger.warning(f"Spotify search failed for seed {seed!r}: {exc}")
             continue
         for t in result.get("tracks", {}).get("items", []):
             if len(candidates) >= max_tracks:
@@ -148,7 +151,7 @@ async def _gather_candidates(client: spotipy.Spotify, *, limit: int, skip_librar
         saved = await _fetch_saved_track_candidates(client, max_tracks=limit)
         pool.extend(saved)
         pool = _dedupe_by_spotify_id(pool)
-        logger.info("Fetched %d candidates from user library (after dedupe)", len(pool))
+        logger.info(f"Fetched {len(pool)} candidates from user library (after dedupe)")
 
     if len(pool) < limit:
         # Overshoot the shortfall so that dedupe losses on the seed side
@@ -158,10 +161,7 @@ async def _gather_candidates(client: spotipy.Spotify, *, limit: int, skip_librar
         pool.extend(seeds)
         pool = _dedupe_by_spotify_id(pool)
         logger.info(
-            "Fetched %d raw seed candidates (pool now %d unique after dedupe, target %d)",
-            len(seeds),
-            len(pool),
-            limit,
+            f"Fetched {len(seeds)} raw seed candidates (pool now {len(pool)} unique after dedupe, target {limit})"
         )
 
     return pool[:limit]
@@ -209,37 +209,27 @@ async def _main_async() -> int:
 
     MISS_LOG_PATH.unlink(missing_ok=True)
 
-    # Raw script-owned session (not the commit-owning dependency), so the
-    # explicit commits below are intentional.
-    async with AsyncSessionMaker() as db:
-        from cortexdj.services.spotify import get_user_spotify_client
-
-        # Prefer user OAuth (reaches saved tracks) but fall back to client
+    async with get_async_sqlalchemy_session() as db:
+        # Prefer the user's login (reaches saved tracks) but fall back to client
         # credentials if Spotify isn't connected in the UI yet — that still
         # supports the genre-seed path.
-        client = await get_user_spotify_client(db)
-        if client is None and not args.skip_library:
-            from cortexdj.services.spotify import get_spotify_client
-
-            client = get_spotify_client()
-            if client is None:
-                print("error: Spotify not configured", file=sys.stderr)
-                return 2
-            logger.info("No user OAuth token — falling back to client-credentials (no saved tracks)")
-            args.skip_library = True
-
+        spotify = await get_spotify_client(db)
+        client = spotify.client
         if client is None:
             print("error: Spotify not configured", file=sys.stderr)
             return 2
+        if not spotify.is_user and not args.skip_library:
+            logger.info("No user OAuth token — falling back to client-credentials (no saved tracks)")
+            args.skip_library = True
 
         candidates = await _gather_candidates(client, limit=limit, skip_library=args.skip_library)
-        logger.info("Gathered %d unique candidates after dedupe", len(candidates))
+        logger.info(f"Gathered {len(candidates)} unique candidates after dedupe")
 
         if not candidates:
             print("No candidates to index", file=sys.stderr)
             return 1
 
-        device = _get_device()
+        device = get_device()
         clap_encoder = ClapAudioEncoder(device)
 
         hits = 0

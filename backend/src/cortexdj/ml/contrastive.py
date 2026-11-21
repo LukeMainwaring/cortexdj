@@ -157,10 +157,13 @@ class ClapAudioEncoder:
 def load_audio_waveform(m4a_path: Path) -> np.ndarray:
     """Decode an iTunes m4a preview to a mono 48kHz float32 waveform.
 
-    CLAP's processor expects 48kHz mono. librosa handles m4a via audioread
-    on systems where ffmpeg is installed — which includes macOS with Xcode
-    or homebrew. If this fails on a bare system, install ffmpeg:
-    `brew install ffmpeg`.
+    CLAP's processor expects 48kHz mono. This does not work on the cached
+    previews: under librosa 1.0.1 with soundfile 0.14.0, `librosa.load` raises
+    `LibsndfileError: Format not recognised` on the AAC `.m4a` files, because
+    libsndfile does not read AAC and librosa 1.0 removed the audioread
+    fallback, so installing ffmpeg does not help. `seed-track-index` and
+    contrastive training therefore cannot decode previews; the fix is tracked
+    in `.scratch/audio-decoding/issues/01-decode-m4a-previews.md`.
     """
     import librosa
 

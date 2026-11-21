@@ -3,7 +3,7 @@
 Flow per stimulus:
   1. Read (artist, title) from backend/data/deap_stimuli.json
   2. Query Spotify to resolve (artist, title) → {spotify_id, duration_ms, album}
-  3. Call services/audio_catalog.resolve_preview(...) with the Spotify duration
+  3. Call features/retrieval/audio_catalog.resolve_preview(...) with the Spotify duration
      as the anchor for the strict ≤3s duration filter.
   4. On success: annotate the stimulus entry with spotify_id / duration_ms /
      itunes_track_id / audio_cache_path and write results to
@@ -15,6 +15,7 @@ Run:
   uv run --directory backend python -m cortexdj.scripts.fetch_deap_audio
 """
 
+import argparse
 import asyncio
 import json
 import logging
@@ -23,9 +24,11 @@ from typing import Any
 
 import spotipy
 
+from cortexdj.core.db import get_async_sqlalchemy_session
 from cortexdj.core.paths import DATA_DIR
-from cortexdj.services.audio_catalog import append_miss, resolve_preview, title_similarity
-from cortexdj.services.spotify import get_spotify_client, run_spotify
+from cortexdj.features.retrieval.audio_catalog import append_miss, resolve_preview, title_similarity
+from cortexdj.features.spotify.client import get_spotify_client
+from cortexdj.features.spotify.service import run_spotify
 
 MIN_TITLE_SIMILARITY = 0.85  # reject substring-match traps like medleys
 
@@ -70,7 +73,8 @@ async def _main_async() -> int:
     stimuli = json.loads(STIMULI_PATH.read_text())
     print(f"Loaded {len(stimuli)} DEAP stimuli from {STIMULI_PATH.name}")
 
-    client = get_spotify_client()
+    async with get_async_sqlalchemy_session() as db:
+        client = (await get_spotify_client(db)).client
     if client is None:
         print("error: Spotify client-credentials not configured (check .env)", file=sys.stderr)
         return 2
@@ -143,6 +147,8 @@ async def _main_async() -> int:
 
 def main() -> None:
     """Sync entry point for the `fetch-deap-audio` console script."""
+    # No options; parsed so `--help` prints usage instead of running the fetch.
+    argparse.ArgumentParser(description="Fetch 30s audio previews for the 40 DEAP stimuli.").parse_args()
     sys.exit(asyncio.run(_main_async()))
 
 
