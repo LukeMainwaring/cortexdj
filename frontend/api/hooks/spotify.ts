@@ -8,35 +8,20 @@ import { connectSpotify } from "@/api/generated/sdk.gen";
 
 export const useSpotifyStatus = () => useQuery(getSpotifyStatusOptions());
 
-export const useSpotifyConnectUrl = () => {
-  const mutationResult = useMutation({
+export const useSpotifyConnectUrl = () =>
+  useMutation({
     mutationFn: async () => {
       const { data } = await connectSpotify({ throwOnError: true });
       return data as { auth_url: string };
     },
   });
 
-  const getConnectUrl = () => mutationResult.mutateAsync();
-
-  return {
-    getConnectUrl,
-    ...mutationResult,
-  };
-};
-
 export const useDisconnectSpotify = () => {
   const queryClient = useQueryClient();
-  const mutationResult = useMutation({
+  return useMutation({
     ...disconnectSpotifyMutation(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: getSpotifyStatusQueryKey() });
     },
   });
-
-  const disconnect = () => mutationResult.mutateAsync({});
-
-  return {
-    disconnect,
-    ...mutationResult,
-  };
 };

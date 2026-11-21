@@ -29,9 +29,7 @@ async def run_spotify[T](func: Callable[..., T], *args: object, **kwargs: object
 
 async def fetch_all_pages(
     fetch_func: Callable[..., dict[str, Any]],
-    limit: int = 50,
     max_items: int | None = 500,
-    **kwargs: Any,
 ) -> tuple[list[dict[str, Any]], int]:
     all_items: list[dict[str, Any]] = []
     offset = 0
@@ -40,7 +38,7 @@ async def fetch_all_pages(
     while True:
         if max_items is not None and len(all_items) >= max_items:
             break
-        results = await run_spotify(fetch_func, limit=limit, offset=offset, **kwargs)
+        results = await run_spotify(fetch_func, limit=50, offset=offset)
         items = results.get("items", [])
         total = results.get("total", 0)
 
@@ -61,19 +59,16 @@ async def fetch_all_pages(
 async def search_paginated(
     client: spotipy.Spotify,
     query: str,
-    search_type: str,
     max_results: int,
-    batch_size: int = 50,
 ) -> tuple[list[dict[str, Any]], int]:
-    result_key = f"{search_type}s"
     all_items: list[dict[str, Any]] = []
     current_offset = 0
     total_available = 0
 
     while len(all_items) < max_results:
-        fetch_limit = min(batch_size, max_results - len(all_items))
-        results = await run_spotify(client.search, q=query, type=search_type, limit=fetch_limit, offset=current_offset)
-        data = results.get(result_key, {})
+        fetch_limit = min(50, max_results - len(all_items))
+        results = await run_spotify(client.search, q=query, type="track", limit=fetch_limit, offset=current_offset)
+        data = results.get("tracks", {})
         items = data.get("items", [])
         total_available = data.get("total", 0)
 
@@ -89,11 +84,14 @@ async def search_paginated(
     return all_items, total_available
 
 
-async def search_tracks(client: spotipy.Spotify, query: str, *, max_results: int = 10) -> list[dict[str, Any]]:
+async def search_tracks(
+    client: spotipy.Spotify, query: str, *, max_results: int = 10
+) -> tuple[list[dict[str, Any]], int]:
+    """Up to ``max_results`` tracks (clamped to 1-200) and how many Spotify has for the query."""
     max_results = max(1, min(200, max_results))
-    all_tracks, _ = await search_paginated(client, query, "track", max_results)
+    all_tracks, total_available = await search_paginated(client, query, max_results)
 
-    return [
+    tracks = [
         {
             "name": t["name"],
             "artists": [a["name"] for a in t["artists"]],
@@ -103,6 +101,7 @@ async def search_tracks(client: spotipy.Spotify, query: str, *, max_results: int
         }
         for t in all_tracks
     ]
+    return tracks, total_available
 
 
 async def resolve_track_spotify_id(client: spotipy.Spotify, track: TrackInfo) -> str | None:
@@ -125,7 +124,7 @@ async def resolve_track_spotify_id(client: spotipy.Spotify, track: TrackInfo) ->
     query = f'track:"{title}" artist:"{artist}"'
 
     try:
-        results = await search_tracks(client, query, max_results=1)
+        results, _ = await search_tracks(client, query, max_results=1)
     except Exception as e:  # noqa: BLE001 — one bad lookup shouldn't fail the whole playlist
         if isinstance(e, spotipy.SpotifyException) and e.http_status == 401:
             raise
@@ -153,9 +152,6 @@ async def create_playlist(
     ``spotify_playlist_id`` and a ``note``, not an exception: the caller has already
     saved the playlist locally and still reports it.
     """
-    if not track_ids:
-        raise ValueError("create_playlist called with no track IDs")
-
     try:
         user_info = await run_spotify(client.current_user)
         user_id = user_info["id"]
@@ -169,25 +165,19 @@ async def create_playlist(
         )
 
         # Spotify API limits playlist_add_items to 100 tracks per call
-        track_uris = [f"spotify:track:{tid}" for tid in track_ids if tid]
+        track_uris = [f"spotify:track:{tid}" for tid in track_ids]
         for i in range(0, len(track_uris), 100):
             batch = track_uris[i : i + 100]
             await run_spotify(client.playlist_add_items, playlist["id"], batch)
 
         logger.info(f"Created Spotify playlist '{name}' with {len(track_ids)} tracks")
         return {
-            "name": name,
-            "track_count": len(track_ids),
-            "description": description,
             "spotify_url": playlist["external_urls"].get("spotify"),
             "spotify_playlist_id": playlist["id"],
         }
     except Exception:
         logger.exception(f"Failed to create Spotify playlist '{name}'")
         return {
-            "name": name,
-            "track_count": len(track_ids),
-            "description": description,
             "spotify_url": None,
             "spotify_playlist_id": None,
             "note": "Failed to create playlist on Spotify. Try reconnecting in Settings.",

@@ -1,8 +1,6 @@
-"""The Spotify service paths that never reach Spotify: a track that already has its id, and an empty playlist."""
+"""Resolving a track's Spotify id without reaching Spotify: a track that already has its id, and a failed search."""
 
 from typing import Any
-
-import pytest
 
 from cortexdj.features.spotify import service as spotify_service
 from cortexdj.shared.track_access import TrackInfo
@@ -21,8 +19,3 @@ async def test_a_track_whose_search_fails_resolves_to_none() -> None:
     track = TrackInfo(id="t-1", title="Weightless", artist="Marconi Union", spotify_track_id=None)
 
     assert await spotify_service.resolve_track_spotify_id(UNUSED_CLIENT, track) is None
-
-
-async def test_a_playlist_needs_tracks() -> None:
-    with pytest.raises(ValueError, match="no track IDs"):
-        await spotify_service.create_playlist("Calm", [], client=UNUSED_CLIENT)

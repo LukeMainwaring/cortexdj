@@ -36,22 +36,21 @@ _REFRESH_BUFFER = timedelta(minutes=5)
 _overrides: list[spotipy.Spotify | None] = []
 
 
-async def _get_user_client(db: AsyncSession) -> spotipy.Spotify | None:
-    """Get a user-authenticated Spotify client from stored OAuth tokens.
+async def get_spotify_client(db: AsyncSession) -> spotipy.Spotify | None:
+    """The user's Spotify client, or None when no login is stored or its refresh fails.
 
-    Auto-refreshes if token is expired or expires within 5 minutes.
-    Returns None if no tokens are stored (user hasn't connected Spotify), or if a
-    refresh fails.
+    Under ``override_spotify_client`` the override is returned without touching the database.
     """
+    if _overrides:
+        return _overrides[-1]
+
     token = await SpotifyToken.get(db)
     if token is None:
         return None
 
-    needs_refresh = token.expires_at <= datetime.now(UTC) + _REFRESH_BUFFER
-
     access_token = token.access_token
 
-    if needs_refresh and token.refresh_token:
+    if token.expires_at <= datetime.now(UTC) + _REFRESH_BUFFER:
         logger.info("Refreshing Spotify access token")
         settings = get_settings()
         try:
@@ -62,32 +61,19 @@ async def _get_user_client(db: AsyncSession) -> spotipy.Spotify | None:
                 scope=SPOTIFY_SCOPES,
             )
             token_info = await run_spotify(oauth.refresh_access_token, token.refresh_token)
-
-            if token_info:
-                expires_at = datetime.fromtimestamp(token_info["expires_at"], tz=UTC)
-                await SpotifyToken.upsert(
-                    db,
-                    access_token=token_info["access_token"],
-                    refresh_token=token_info.get("refresh_token", token.refresh_token),
-                    expires_at=expires_at,
-                )
-                access_token = token_info["access_token"]
-                logger.info("Successfully refreshed Spotify access token")
+            await SpotifyToken.upsert(
+                db,
+                access_token=token_info["access_token"],
+                refresh_token=token_info["refresh_token"],
+                expires_at=datetime.fromtimestamp(token_info["expires_at"], tz=UTC),
+            )
+            access_token = token_info["access_token"]
+            logger.info("Successfully refreshed Spotify access token")
         except Exception:  # a failed refresh means "not connected", not a failed run
             logger.warning("Failed to refresh Spotify token; treating Spotify as not connected")
             return None
 
     return spotipy.Spotify(auth=access_token)
-
-
-async def get_spotify_client(db: AsyncSession) -> spotipy.Spotify | None:
-    """The user's Spotify client, or None when Spotify is not connected.
-
-    Under ``override_spotify_client`` the override is returned without touching the database.
-    """
-    if _overrides:
-        return _overrides[-1]
-    return await _get_user_client(db)
 
 
 @contextmanager

@@ -80,11 +80,6 @@ class Playlist(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     @classmethod
-    async def get(cls, db: AsyncSession, playlist_id: str) -> Playlist | None:
-        result = await db.execute(select(cls).where(cls.id == playlist_id))
-        return result.scalar_one_or_none()
-
-    @classmethod
     async def list_all(cls, db: AsyncSession, *, limit: int = 50) -> Sequence[Playlist]:
         result = await db.execute(select(cls).order_by(cls.created_at.desc()).limit(limit))
         return result.scalars().all()
