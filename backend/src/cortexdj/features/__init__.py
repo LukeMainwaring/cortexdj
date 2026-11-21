@@ -7,6 +7,7 @@ to keep this side-effect-free beyond table registration.
 """
 
 from cortexdj.features.chat.model import Message, Thread
+from cortexdj.features.retrieval.model import TrackAudioEmbedding
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.spotify.model import Playlist, SpotifyToken
 
@@ -20,4 +21,5 @@ __all__ = [
     "Thread",
     "ThreadBrainContext",
     "Track",
+    "TrackAudioEmbedding",
 ]

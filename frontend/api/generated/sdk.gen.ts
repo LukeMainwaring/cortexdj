@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses } from './types.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponses, DeleteThreadData, DeleteThreadErrors, DeleteThreadResponses, DisconnectSpotifyData, DisconnectSpotifyResponses, GetAudioPreviewData, GetAudioPreviewErrors, GetAudioPreviewResponses, GetBrainContextData, GetBrainContextErrors, GetBrainContextResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSessionSegmentsData, GetSessionSegmentsErrors, GetSessionSegmentsResponses, GetSimilarTracksData, GetSimilarTracksErrors, GetSimilarTracksResponses, GetSpotifyStatusData, GetSpotifyStatusResponses, GetThreadMessagesData, GetThreadMessagesErrors, GetThreadMessagesResponses, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedErrors, ListSessionsEnrichedResponses, ListSessionsErrors, ListSessionsResponses, ListThreadsData, ListThreadsResponses, RenameThreadData, RenameThreadErrors, RenameThreadResponses, SpotifyCallbackData, SpotifyCallbackErrors, SpotifyCallbackResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -165,5 +165,32 @@ export const getSpotifyStatus = <ThrowOnError extends boolean = false>(options?:
 export const disconnectSpotify = <ThrowOnError extends boolean = false>(options?: Options<DisconnectSpotifyData, ThrowOnError>): RequestResult<DisconnectSpotifyResponses, unknown, ThrowOnError> => (options?.client ?? client).post<DisconnectSpotifyResponses, unknown, ThrowOnError>({
     responseType: 'json',
     url: '/api/spotify/disconnect',
+    ...options
+});
+
+/**
+ * Get Similar Tracks
+ *
+ * Return the top-k tracks whose CLAP audio embedding is closest to the
+ * session's EEG embedding in the joint contrastive space.
+ */
+export const getSimilarTracks = <ThrowOnError extends boolean = false>(options: Options<GetSimilarTracksData, ThrowOnError>): RequestResult<GetSimilarTracksResponses, GetSimilarTracksErrors, ThrowOnError> => (options.client ?? client).get<GetSimilarTracksResponses, GetSimilarTracksErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/sessions/{session_id}/similar-tracks',
+    ...options
+});
+
+/**
+ * Get Audio Preview
+ *
+ * Serve a cached iTunes m4a preview by its content-addressed cache key.
+ *
+ * Same-origin delivery exists so the frontend waveform component can
+ * `fetch` + `decodeAudioData` the bytes — Apple's preview CDN does not
+ * reliably set CORS headers for cross-origin Web Audio decoding.
+ */
+export const getAudioPreview = <ThrowOnError extends boolean = false>(options: Options<GetAudioPreviewData, ThrowOnError>): RequestResult<GetAudioPreviewResponses, GetAudioPreviewErrors, ThrowOnError> => (options.client ?? client).get<GetAudioPreviewResponses, GetAudioPreviewErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/audio/preview/{cache_key}',
     ...options
 });

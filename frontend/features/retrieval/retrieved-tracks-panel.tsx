@@ -2,7 +2,6 @@
 
 import { memo, useCallback, useMemo, useState } from "react";
 import type { SimilarTrackSchema } from "@/api/generated/types.gen";
-import { useSimilarTracks } from "@/api/hooks/sessions";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { BACKEND_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useSimilarTracks } from "./use-similar-tracks";
 import { WaveformViz } from "./waveform-viz";
 
 // Backend serves the cached m4a under its own CORS policy so wavesurfer can
@@ -22,10 +22,10 @@ function previewUrl(cacheKey: string): string {
   return `${BACKEND_URL}/api/audio/preview/${cacheKey}`;
 }
 
-type Props = {
-  sessionId: string;
+interface Props {
   k?: number;
-};
+  sessionId: string;
+}
 
 // Similarity is cosine in [-1, 1]. Clamp negatives to 0 so the bar fill
 // honestly reflects the raw match strength: a 0.30 score reads as a 30%
@@ -92,6 +92,17 @@ const ExternalLinkIcon = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
+function playButtonLabel(
+  title: string,
+  hasPreview: boolean,
+  isPlaying: boolean
+): string {
+  if (!hasPreview) {
+    return `No preview available for ${title}`;
+  }
+  return isPlaying ? `Pause preview of ${title}` : `Play preview of ${title}`;
+}
+
 function SimilarityBar({ similarity }: { similarity: number }) {
   const normalized = normalizeSimilarity(similarity);
   const pct = Math.round(normalized * 100);
@@ -102,18 +113,18 @@ function SimilarityBar({ similarity }: { similarity: number }) {
         aria-valuemax={1}
         aria-valuemin={-1}
         aria-valuenow={Number(similarity.toFixed(2))}
-        className="relative h-1.5 w-14 overflow-hidden rounded-full bg-muted"
+        className="bg-muted relative h-1.5 w-14 overflow-hidden rounded-full"
         role="progressbar"
       >
         <div
           className={cn(
             "absolute top-0 left-0 h-full transition-[width]",
-            similarityTone(similarity),
+            similarityTone(similarity)
           )}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="whitespace-nowrap text-right font-mono text-muted-foreground text-xs tabular-nums">
+      <span className="text-muted-foreground text-right font-mono text-xs whitespace-nowrap tabular-nums">
         {`${pct}% match`}
       </span>
     </div>
@@ -156,21 +167,15 @@ function TrackRow({
         "flex min-w-0 flex-col gap-2 rounded-lg border p-3 transition-colors",
         isPlaying
           ? "border-primary/50 bg-primary/5"
-          : "border-border bg-background/60",
+          : "border-border bg-background/60"
       )}
     >
       <div className="flex items-center gap-2">
-        <span className="flex size-5 shrink-0 items-center justify-center font-medium text-muted-foreground text-xs">
+        <span className="text-muted-foreground flex size-5 shrink-0 items-center justify-center text-xs font-medium">
           {rank}
         </span>
         <Button
-          aria-label={
-            hasPreview
-              ? isPlaying
-                ? `Pause preview of ${track.title}`
-                : `Play preview of ${track.title}`
-              : `No preview available for ${track.title}`
-          }
+          aria-label={playButtonLabel(track.title, hasPreview, isPlaying)}
           className="size-7 shrink-0 rounded-full"
           disabled={!hasPreview}
           onClick={handleToggle}
@@ -180,8 +185,8 @@ function TrackRow({
           {isPlaying ? <PauseIcon /> : <PlayIcon />}
         </Button>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-medium text-sm">{track.title}</div>
-          <div className="truncate text-muted-foreground text-xs">
+          <div className="truncate text-sm font-medium">{track.title}</div>
+          <div className="text-muted-foreground truncate text-xs">
             {track.artist}
           </div>
         </div>
@@ -191,7 +196,7 @@ function TrackRow({
             <TooltipTrigger asChild>
               <a
                 aria-label={`Open ${track.title} on Spotify`}
-                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="text-muted-foreground hover:bg-accent hover:text-foreground inline-flex size-7 shrink-0 items-center justify-center rounded-full"
                 href={spotifyUrl}
                 rel="noopener noreferrer"
                 target="_blank"
@@ -223,7 +228,7 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
   // only coordinates which one is "playing" so a new selection pauses the
   // others. State is keyed by spotify_id so reordering upstream is stable.
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(
-    null,
+    null
   );
 
   const handlePlay = useCallback((spotifyId: string) => {
@@ -239,7 +244,7 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
 
   if (isLoading) {
     return (
-      <div className="my-2 rounded-lg border bg-card p-4 text-muted-foreground text-sm">
+      <div className="bg-card text-muted-foreground my-2 rounded-lg border p-4 text-sm">
         Matching tracks to brain state…
       </div>
     );
@@ -252,7 +257,7 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
       message = `Session ${sessionId.slice(0, 8)}… not found.`;
     } else if (status === 503) {
       message =
-        "Contrastive encoder checkpoint is missing on the server. Ask the operator to run train-contrastive.";
+        "The contrastive encoder checkpoint is missing on the server. Run ./backend/scripts/download-checkpoints.sh to fetch it, then restart the backend.";
     } else if (status === 500) {
       message =
         "The session's underlying EEG data is not available on the server.";
@@ -260,7 +265,7 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
       message = "Failed to load retrieval results.";
     }
     return (
-      <div className="my-2 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive text-sm">
+      <div className="border-destructive/40 bg-destructive/5 text-destructive my-2 rounded-lg border p-4 text-sm">
         {message}
       </div>
     );
@@ -268,9 +273,9 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
 
   if (!hasRendered) {
     return (
-      <div className="my-2 rounded-lg border border-dashed bg-card p-4 text-muted-foreground text-sm">
+      <div className="bg-card text-muted-foreground my-2 rounded-lg border border-dashed p-4 text-sm">
         The retrieval index is empty. Run{" "}
-        <code className="rounded bg-muted px-1 py-0.5 text-xs">
+        <code className="bg-muted rounded px-1 py-0.5 text-xs">
           uv run --directory backend seed-track-index
         </code>{" "}
         on the server to populate it.
@@ -279,9 +284,9 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
   }
 
   return (
-    <div className="my-2 flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <div className="bg-card my-2 flex flex-col gap-3 rounded-lg border p-4">
       <div className="flex flex-col gap-1">
-        <div className="font-medium text-sm">
+        <div className="text-sm font-medium">
           {`I found ${tracks.length} song${tracks.length === 1 ? "" : "s"} that best match the neural signature of that EEG session.`}
         </div>
         <div className="text-muted-foreground text-xs">

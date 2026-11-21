@@ -205,6 +205,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.108.0
         version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+      '@wavesurfer/react':
+        specifier: ^1.0.14
+        version: 1.0.14(react@19.3.1)(wavesurfer.js@8.1.0)
       ai:
         specifier: ^7.0.176
         version: 7.0.176(zod@4.6.7)
@@ -259,6 +262,9 @@ importers:
       usehooks-ts:
         specifier: ^3.1.1
         version: 3.1.1(react@19.3.1)
+      wavesurfer.js:
+        specifier: ^8.1.0
+        version: 8.1.0
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.6.8
@@ -1282,6 +1288,12 @@ packages:
   '@vercel/oidc@3.2.0':
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
     engines: {node: '>= 20'}
+
+  '@wavesurfer/react@1.0.14':
+    resolution: {integrity: sha512-BeCy0LW5yR5vJTm0bwe3j8W5YuIlzZI8RSTOGu75ddzBHVs/zCEmSAxaRmNJNuda097gaWYgZrpYgRjXfwOVHA==}
+    peerDependencies:
+      react: ^18.2.0 || ^19.0.0
+      wavesurfer.js: '>=7.7.14'
 
   '@workflow/serde@4.1.0':
     resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
@@ -2625,6 +2637,9 @@ packages:
   victory-vendor@37.4.1:
     resolution: {integrity: sha512-geV4p2GVfVM9lgm9ZRS3pvsbAPS+BUGhM9W9nPzPHTKi+/+KjNrFXdgP6KkG+XspNZuvcXmchcrtklfuQ4gniw==}
 
+  wavesurfer.js@8.1.0:
+    resolution: {integrity: sha512-7/FFjqZxrtZ5pYyjTbb5HPmMAwq5vx4qZRKFsMz1E1wLDVVkueKatR9RW3FjpKQTHFgCpc7VUYUpwTjyIZKLwQ==}
+
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
 
@@ -3538,6 +3553,11 @@ snapshots:
   '@ungap/structured-clone@1.4.0': {}
 
   '@vercel/oidc@3.2.0': {}
+
+  '@wavesurfer/react@1.0.14(react@19.3.1)(wavesurfer.js@8.1.0)':
+    dependencies:
+      react: 19.3.1
+      wavesurfer.js: 8.1.0
 
   '@workflow/serde@4.1.0': {}
 
@@ -5103,6 +5123,8 @@ snapshots:
       d3-shape: 3.2.1
       d3-time: 3.1.1
       d3-timer: 3.0.2
+
+  wavesurfer.js@8.1.0: {}
 
   web-namespaces@2.0.1: {}
 

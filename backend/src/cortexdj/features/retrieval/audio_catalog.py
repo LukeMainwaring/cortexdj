@@ -1,11 +1,18 @@
 """iTunes Search API wrapper for (artist, title) → 30s m4a preview resolution.
 
-Spotify's `preview_url` field was deprecated for standard-mode apps on
-2024-11-27 — empirically verified 0/10 hits against this project's 2018
-Spotify app. iTunes Search API is the audio-bytes source; Spotify stays
-as the source of truth for track identity.
+Spotify's `preview_url` is dead for this app: Spotify deprecated it for
+standard-mode apps on 2024-11-27, and against this project's Spotify app it
+returns 0/10 hits, so it cannot supply the 30s audio the CLAP encoder needs.
+The iTunes Search API supplies the preview bytes instead, and Spotify stays
+the source of truth for track identity: an iTunes hit is only accepted for a
+track Spotify already named.
 
-See docs/adr/0002-itunes-previews-over-spotify-preview-url.md.
+Because iTunes matches on a text query, a hit can be the wrong edit of the
+right song. Spotify's `duration_ms` anchors the match: candidates more than
+3s from it are rejected outright, and survivors are ranked by artist
+similarity, then title similarity, then smallest delta. Do not drop the
+duration filter in favor of text similarity alone: remasters and live
+versions score identically on title.
 """
 
 import asyncio

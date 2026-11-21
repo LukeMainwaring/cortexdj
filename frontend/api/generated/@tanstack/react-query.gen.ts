@@ -4,8 +4,8 @@ import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOption
 import type { AxiosError } from 'axios';
 
 import { client } from '../client.gen';
-import { connectSpotify, deleteThread, disconnectSpotify, getBrainContext, getSession, getSessionSegments, getSpotifyStatus, getThreadMessages, listSessions, listSessionsEnriched, listThreads, type Options, renameThread, spotifyCallback } from '../sdk.gen';
-import type { ConnectSpotifyData, ConnectSpotifyResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetBrainContextData, GetBrainContextError, GetBrainContextResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedError, ListSessionsEnrichedResponse, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError } from '../types.gen';
+import { connectSpotify, deleteThread, disconnectSpotify, getAudioPreview, getBrainContext, getSession, getSessionSegments, getSimilarTracks, getSpotifyStatus, getThreadMessages, listSessions, listSessionsEnriched, listThreads, type Options, renameThread, spotifyCallback } from '../sdk.gen';
+import type { ConnectSpotifyData, ConnectSpotifyResponse, DeleteThreadData, DeleteThreadError, DeleteThreadResponse, DisconnectSpotifyData, DisconnectSpotifyResponse, GetAudioPreviewData, GetAudioPreviewError, GetBrainContextData, GetBrainContextError, GetBrainContextResponse, GetSessionData, GetSessionError, GetSessionResponse, GetSessionSegmentsData, GetSessionSegmentsError, GetSessionSegmentsResponse, GetSimilarTracksData, GetSimilarTracksError, GetSimilarTracksResponse, GetSpotifyStatusData, GetSpotifyStatusResponse, GetThreadMessagesData, GetThreadMessagesError, GetThreadMessagesResponse, ListSessionsData, ListSessionsEnrichedData, ListSessionsEnrichedError, ListSessionsEnrichedResponse, ListSessionsError, ListSessionsResponse, ListThreadsData, ListThreadsResponse, RenameThreadData, RenameThreadError, RenameThreadResponse, SpotifyCallbackData, SpotifyCallbackError } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseURL' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -395,3 +395,48 @@ export const disconnectSpotifyMutation = (options?: Partial<Options<DisconnectSp
     };
     return mutationOptions;
 };
+
+export const getSimilarTracksQueryKey = (options: Options<GetSimilarTracksData>) => createQueryKey('getSimilarTracks', options);
+
+/**
+ * Get Similar Tracks
+ *
+ * Return the top-k tracks whose CLAP audio embedding is closest to the
+ * session's EEG embedding in the joint contrastive space.
+ */
+export const getSimilarTracksOptions = (options: Options<GetSimilarTracksData>) => queryOptions<GetSimilarTracksResponse, AxiosError<GetSimilarTracksError>, GetSimilarTracksResponse, ReturnType<typeof getSimilarTracksQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSimilarTracks({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSimilarTracksQueryKey(options)
+});
+
+export const getAudioPreviewQueryKey = (options: Options<GetAudioPreviewData>) => createQueryKey('getAudioPreview', options);
+
+/**
+ * Get Audio Preview
+ *
+ * Serve a cached iTunes m4a preview by its content-addressed cache key.
+ *
+ * Same-origin delivery exists so the frontend waveform component can
+ * `fetch` + `decodeAudioData` the bytes — Apple's preview CDN does not
+ * reliably set CORS headers for cross-origin Web Audio decoding.
+ */
+export const getAudioPreviewOptions = (options: Options<GetAudioPreviewData>) => queryOptions<unknown, AxiosError<GetAudioPreviewError>, unknown, ReturnType<typeof getAudioPreviewQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getAudioPreview({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getAudioPreviewQueryKey(options)
+});

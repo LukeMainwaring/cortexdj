@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { RETRIEVAL_TOOL_PANELS } from "./retrieval/tool-panels";
 import { SESSIONS_TOOL_PANELS } from "./sessions/tool-panels";
 
 // A panel gets both sides of the tool call because the two kinds of tool carry
@@ -20,4 +21,5 @@ export type ToolPanelMap = Record<string, ComponentType<ToolPanelProps>>;
 // back to the generic <ToolCall> output view.
 export const TOOL_PANELS: ToolPanelMap = {
   ...SESSIONS_TOOL_PANELS,
+  ...RETRIEVAL_TOOL_PANELS,
 };

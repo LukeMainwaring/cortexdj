@@ -15,6 +15,8 @@ from cortexdj.core.health import health_router
 from cortexdj.core.startup import register_startup_hook
 from cortexdj.features.chat.router import thread_router
 from cortexdj.features.chat.stream import agent_router
+from cortexdj.features.retrieval.encoder import load_contrastive_encoder_at_startup
+from cortexdj.features.retrieval.router import audio_router, retrieval_router
 from cortexdj.features.sessions import service as session_service
 from cortexdj.features.sessions.eeg_model import load_eeg_model_at_startup
 from cortexdj.features.sessions.router import brain_context_router, sessions_router
@@ -32,6 +34,7 @@ register_track_access(
 register_session_lookup(session_service.get_session_participant_id)
 
 register_startup_hook(load_eeg_model_at_startup)
+register_startup_hook(load_contrastive_encoder_at_startup)
 
 api_router = APIRouter()
 
@@ -44,3 +47,5 @@ api_router.include_router(thread_router)
 api_router.include_router(sessions_router)
 api_router.include_router(brain_context_router)
 api_router.include_router(spotify_auth_router)
+api_router.include_router(retrieval_router)
+api_router.include_router(audio_router)

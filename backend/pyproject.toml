@@ -29,10 +29,13 @@ dependencies = [
   "librosa>=1.0.1",
   "transformers>=5.23.0",
   "spotipy>=2.26.0",
+  "pgvector>=0.5.1",
 ]
 
 [project.scripts]
 seed-sessions = "cortexdj.scripts.seed_sessions:main"
+seed-track-index = "cortexdj.scripts.seed_track_index:main"
+fetch-deap-audio = "cortexdj.scripts.fetch_deap_audio:main"
 
 [dependency-groups]
 dev = [
@@ -78,7 +81,7 @@ skip_covered = false
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["braindecode.*", "scipy.*", "spotipy.*"]
+module = ["braindecode.*", "pgvector.*", "scipy.*", "spotipy.*"]
 ignore_missing_imports = true
 
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type {
-  ToolPanelEntry,
+  ToolPanelMap,
   ToolPanelProps,
 } from "@/features/tool-panel-registry";
 import { extractSessionId } from "@/lib/extract-session-id";
@@ -15,6 +15,8 @@ function RetrieveTracksPanel({ input }: ToolPanelProps) {
   return <RetrievedTracksPanel sessionId={sessionId} />;
 }
 
-export const RETRIEVAL_TOOL_PANELS: Record<string, ToolPanelEntry> = {
-  retrieve_tracks_from_brain_state: { Panel: RetrieveTracksPanel },
+// The Retrieval slice's tool panels; features/tool-panel-registry.ts aggregates
+// this with every other slice's map.
+export const RETRIEVAL_TOOL_PANELS: ToolPanelMap = {
+  retrieve_tracks_from_brain_state: RetrieveTracksPanel,
 };

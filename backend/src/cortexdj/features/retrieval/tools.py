@@ -1,10 +1,11 @@
 import json
 
 from pydantic_ai import RunContext
+from pydantic_ai.exceptions import ModelRetry, ToolFailed
 
 from cortexdj.agents.deps import AgentDeps
-from cortexdj.services import retrieval as retrieval_service
-from cortexdj.services.retrieval import DeapFileMissingError
+from cortexdj.features.retrieval import service as retrieval_service
+from cortexdj.features.retrieval.encoder import get_contrastive_encoder
 
 
 async def retrieve_tracks_from_brain_state(
@@ -32,33 +33,17 @@ async def retrieve_tracks_from_brain_state(
     sorted by cosine similarity (higher is closer, max 1.0). When the
     retrieval index is empty the payload's `tracks` list is empty and a
     `note` field explains how to populate it. When the session's underlying
-    DEAP data is missing on disk, the payload contains an `error` field
-    that the agent should relay verbatim to the user.
-
-    The `DeapFileMissingError` catch below is the one sanctioned deviation from
-    the propagate-to-hooks convention; see
-    docs/adr/0003-two-layer-tool-error-convention.md. Do not add a second one.
+    DEAP data or the encoder checkpoint is missing on the server, the call
+    fails with a message that the agent should relay verbatim to the user.
     """
     try:
-        hits = await retrieval_service.retrieve_similar_tracks(ctx.deps.db, session_id, k=k)
-    except DeapFileMissingError as exc:
-        # Server misconfig — the session row exists but its underlying DEAP
-        # .dat file isn't on disk. Letting this propagate would reach
-        # hooks.on_tool_execute_error, which raises ToolFailed carrying only the
-        # exception class name — useless to the user. Return a structured error
-        # so the agent can relay an actionable message.
-        return json.dumps(
-            {
-                "session_id": session_id,
-                "error": "deap_data_missing",
-                "message": (
-                    f"Cannot embed session {session_id}: the underlying DEAP EEG file is not "
-                    f"available on the server ({exc}). Ask the operator to place the DEAP .dat "
-                    "files in backend/data/deap/ (see backend/data/DEAP_SETUP.md)."
-                ),
-            },
-            indent=2,
-        )
+        hits = await retrieval_service.retrieve_similar_tracks(ctx.deps.db, session_id, get_contrastive_encoder(), k=k)
+    except retrieval_service.SessionNotFoundError as exc:
+        raise ModelRetry(
+            f"Session {session_id} not found. Pass a session UUID from the `id=...` value in `list_sessions` output."
+        ) from exc
+    except (retrieval_service.DeapFileMissingError, retrieval_service.ContrastiveEncoderMissingError) as exc:
+        raise ToolFailed(str(exc)) from exc
 
     if not hits:
         return json.dumps(

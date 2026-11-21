@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from cortexdj.features.retrieval.model import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.spotify.model import SpotifyToken
 
@@ -122,6 +123,34 @@ async def create_spotify_token(db: AsyncSession, **overrides: object) -> Spotify
     await db.flush()
     await db.refresh(token)
     return token
+
+
+def make_track_audio_embedding(**overrides: object) -> TrackAudioEmbedding:
+    """Unpersisted retrieval-index row with no iTunes preview, its embedding the first unit vector.
+
+    A unit vector, not zeros: cosine distance to a zero vector is undefined, which would
+    poison any ordering a test asserts.
+    """
+    embedding = [0.0] * EMBEDDING_DIM
+    embedding[0] = 1.0
+    data: dict[str, object] = {
+        "spotify_id": f"sp-{uuid4().hex[:16]}",
+        "title": "Test Track",
+        "artist": "Test Artist",
+        "source": "user_library",
+        "embedding": embedding,
+    }
+    data.update(overrides)
+    return TrackAudioEmbedding(**data)
+
+
+async def create_track_audio_embedding(db: AsyncSession, **overrides: object) -> TrackAudioEmbedding:
+    """Persist a retrieval-index row via ``db``."""
+    row = make_track_audio_embedding(**overrides)
+    db.add(row)
+    await db.flush()
+    await db.refresh(row)
+    return row
 
 
 from typing import Any

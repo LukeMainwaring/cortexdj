@@ -1,12 +1,22 @@
+"""Brain-to-track retrieval for the assistant: new music matched to a session's EEG.
+
+The instructions are all static, so they sit in the cached prefix
+(``docs/adr/0002-prompt-caching-in-the-shared-recipe.md``).
+"""
+
 from dataclasses import dataclass
 
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.toolsets import FunctionToolset
 
 from cortexdj.agents.deps import AgentDeps
-from cortexdj.agents.tools.retrieval_tools import retrieve_tracks_from_brain_state
+from cortexdj.features.retrieval.tools import retrieve_tracks_from_brain_state
 
 _RETRIEVAL_INSTRUCTIONS = """
+## Brain-to-Track Retrieval (contrastive)
+
+- **retrieve_tracks_from_brain_state** — Embed a session's EEG in the joint EEG↔audio space and return top-k new Spotify tracks whose audio matches. Use for "find songs that match how I was feeling", not for quadrant-filter curation.
+
 ## Brain-to-Track Retrieval
 
 `retrieve_tracks_from_brain_state` finds NEW music whose audio signature (via
@@ -51,7 +61,10 @@ command.
 @dataclass
 class RetrievalCapability(AbstractCapability[AgentDeps]):
     def get_toolset(self) -> FunctionToolset[AgentDeps]:
-        ts: FunctionToolset[AgentDeps] = FunctionToolset()
+        # The tool uses the run's one AgentDeps.db session, and an AsyncSession cannot run
+        # overlapping operations; pydantic-ai would otherwise run a response's several
+        # tool calls concurrently.
+        ts: FunctionToolset[AgentDeps] = FunctionToolset(sequential=True)
         ts.tool(retrieve_tracks_from_brain_state)
         return ts
 

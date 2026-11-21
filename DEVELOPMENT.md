@@ -13,6 +13,8 @@ cp .env.sample .env            # set OPENAI_API_KEY and/or ANTHROPIC_API_KEY
 docker compose up -d           # PostgreSQL (pgvector) and the backend on :8003
 ./backend/scripts/migrate-docker.sh
 uv run --directory backend seed-sessions   # EEG sessions from backend/data/deap (see below)
+# the track index, if you have backend/data/track-index.dump (see below)
+docker compose exec -T postgres pg_restore -U postgres -d cortexdj --data-only < backend/data/track-index.dump
 
 pnpm -C frontend install
 pnpm -C frontend generate-client
@@ -24,14 +26,34 @@ The model checkpoints live in `backend/data/checkpoints/`, which is not in git;
 `gh` CLI). The backend container sees `backend/data` at `/app/data` through a bind mount.
 The first model load in the container downloads the CBraMod backbone from the Hugging Face hub
 into the `huggingface_cache` volume. Without a checkpoint the backend still boots: it logs a
-warning and the assistant does not offer `get_model_info`.
+warning and the assistant does not offer `get_model_info`. The backend loads two models at
+startup, the EEG classifier and the contrastive encoder (`contrastive_best.pt`), so a boot and
+each dev reload take a few seconds longer; without the contrastive checkpoint the boot logs a
+warning and retrieval answers with a message that points at the download script.
 
 `seed-sessions` reads the 32 DEAP participant files (`backend/data/deap/s01.dat` to `s32.dat`;
 `backend/data/DEAP_SETUP.md` says how to get them), classifies every 4-second segment with the
 checkpoint it loads itself (`--model cbramod` by default, ground-truth labels when there is no
 checkpoint), and writes one session per participant. It runs on the host against the Postgres
-container, takes several minutes for all 32, and appends: run it once on a fresh database.
+container, takes about three and a half minutes for all 32 (3 min 33 s on an Apple-silicon
+laptop), and appends: run it once on a fresh database.
 `--participants 1 2 3` seeds a subset.
+
+The track index is the table `track_audio_embeddings`: one 512-dimension CLAP audio vector per
+track, searched by cosine distance through a pgvector HNSW index. `seed-track-index` is the
+command that builds it (Spotify candidates, an iTunes preview for each, a CLAP embedding of
+the preview), and it cannot finish today: decoding the cached `.m4a` previews fails, so no
+track can be added and the index cannot be built from nothing. The fix is the ticket
+`.scratch/audio-decoding/issues/01-decode-m4a-previews.md`. Until then the index comes from
+`backend/data/track-index.dump`, a data-only `pg_dump` of that one table (447 tracks, custom
+format, no Spotify login in it), restored into a migrated, empty table with the `pg_restore`
+command above. The dump carries the table's id sequence value, so a later insert does not
+collide.
+
+The dump is not in git and a fresh clone has none: there, the table stays empty and
+`retrieve_tracks_from_brain_state` says the index is empty. A lost database with no dump
+loses the index. Do not run `seed-track-index` or `fetch-deap-audio` to check them (`--help`
+is safe): each deletes its miss log under `backend/data/` as soon as it has a Spotify client.
 
 Spotify is optional. With `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` blank the app boots,
 `/api/spotify/connect` answers 503, and the assistant cannot search Spotify. To use it, create an app at

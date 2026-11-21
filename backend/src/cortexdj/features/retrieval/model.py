@@ -3,12 +3,12 @@ from datetime import datetime
 
 import numpy as np
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, String, func, select
+from sqlalchemy import DateTime, Index, String, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
-from cortexdj.models.base import Base
+from cortexdj.shared.model_base import Base
 
 EMBEDDING_DIM = 512
 
@@ -16,9 +16,9 @@ EMBEDDING_DIM = 512
 class TrackAudioEmbedding(Base):
     """CLAP audio embeddings for tracks, searched by cosine distance.
 
-    `get_top_k_similar`'s ordering is served by an HNSW index (built in
-    migration 77c744e4b096) — keep the order-by on `cosine_distance` so the
-    index applies; see docs/adr/0001-hnsw-over-ivfflat.md.
+    `search_similar`'s ordering is served by the HNSW index on `embedding`
+    (`vector_cosine_ops`): keep the order-by on `cosine_distance` so the index
+    applies, or the query silently falls back to a sequential scan.
     """
 
     __tablename__ = "track_audio_embeddings"
@@ -32,6 +32,16 @@ class TrackAudioEmbedding(Base):
     source: Mapped[str] = mapped_column(String(32))
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index(
+            "ix_track_audio_embeddings_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
 
     @classmethod
     async def upsert(
@@ -71,7 +81,7 @@ class TrackAudioEmbedding(Base):
         await db.execute(stmt)
 
     @classmethod
-    async def get_top_k_similar(
+    async def search_similar(
         cls, db: AsyncSession, query: np.ndarray, k: int = 10
     ) -> Sequence[tuple[TrackAudioEmbedding, float]]:
         query_vec = query.astype(np.float32).tolist()
