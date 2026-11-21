@@ -1,9 +1,9 @@
 """Eval-tier fixtures: the one tier that calls real provider models.
 
 Run the tier with ``./backend/scripts/run-evals.sh``: it loads the provider keys from ``.env``
-and migrates the test database for the cases that reach a database-backed tool. The shipped
-cases reach none, and the golden set needs no database at all, so ``eval_sessions`` is
-requested by name rather than autouse. A case that needs it fails, not skips, when the
+and migrates the test database for the cases that reach a database-backed tool. The one case
+in ``assistant_dataset.py`` reaches none, and the golden set needs no database at all, so
+``eval_sessions`` is requested by name rather than autouse. A case that needs it fails, not skips, when the
 database is missing, for the same reason the integration tier does.
 
 Logfire is configured here because the span-based evaluators (``MaxCallsOf``, through the
@@ -11,8 +11,9 @@ library's ``MaxToolCalls``) read the tool calls of a run from its OpenTelemetry 
 a configured tracer there is no span tree and they fail every case. No token is needed for
 that; when ``LOGFIRE_TOKEN`` is set the runs are also exported, under environment ``eval``.
 The app's ``setup_observability`` is not reused: it takes an app object and attaches the
-SQLAlchemy and FastAPI instrumentors, and the evals import no app. Its scrubbing backstop is,
-so an identifier in a case's prompt or a tool's answer leaves the process as a placeholder.
+SQLAlchemy and FastAPI instrumentors, and the evals import no app. Only its service name is
+shared. Nothing here or in the app rewrites span contents, so with a token set a case's prompt
+and a tool's answer are exported as they are.
 """
 
 import os
