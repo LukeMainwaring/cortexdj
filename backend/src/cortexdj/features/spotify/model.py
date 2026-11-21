@@ -72,7 +72,7 @@ class SpotifyToken(Base):
 
 
 class Playlist(Base):
-    """A mood playlist the assistant built; ``spotify_playlist_id`` is None when it was saved only locally."""
+    """A mood playlist the assistant built; ``spotify_playlist_id`` is None when creating it on Spotify failed."""
 
     __tablename__ = "playlists"
 

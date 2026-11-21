@@ -73,7 +73,7 @@ class RetrievalSettings(BaseSettings):
 
 class SpotifySettings(BaseSettings):
     # Empty ID or secret means Spotify is not configured: the app boots, connecting answers
-    # 503, and the assistant's Spotify tools fail with a message saying so (features/spotify/).
+    # 503, and with no login possible the assistant has no Spotify tools (features/spotify/).
     SPOTIFY_CLIENT_ID: str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
     # Must match a redirect URI registered on the Spotify app, and the callback route
@@ -81,10 +81,6 @@ class SpotifySettings(BaseSettings):
     SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8003/api/spotify/callback"
     # Where the OAuth callback sends the browser back to (its /settings/spotify page).
     FRONTEND_URL: str = "http://localhost:3003"
-
-    @property
-    def spotify_configured(self) -> bool:
-        return bool(self.SPOTIFY_CLIENT_ID and self.SPOTIFY_CLIENT_SECRET)
 
 
 class Settings(

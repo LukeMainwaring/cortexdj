@@ -56,13 +56,14 @@ loses the index. Do not run `seed-track-index` or `fetch-deap-audio` to check th
 is safe): each deletes its miss log under `backend/data/` as soon as it has a Spotify client.
 
 Spotify is optional. With `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` blank the app boots,
-`/api/spotify/connect` answers 503, and the assistant cannot search Spotify. To use it, create an app at
+`/api/spotify/connect` answers 503, and the assistant has no Spotify tools. To use it, create an app at
 developer.spotify.com/dashboard, register `http://127.0.0.1:8003/api/spotify/callback` as its
 redirect URI (the value of `SPOTIFY_REDIRECT_URI`, which must match exactly), put the ID and
 secret in `.env`, and recreate the backend (`docker compose up -d backend`). Then open
 Settings → Spotify Settings in the sidebar (`/settings/spotify`) and connect: the login is
-stored as the one row of `spotify_tokens`, and from the next chat turn the assistant offers the
-library tools and creates mood playlists on the account instead of only saving them locally.
+stored as the one row of `spotify_tokens`, and from the next chat turn the assistant offers its
+Spotify tools. Every Spotify call runs on that login: until it is stored the tools are hidden,
+and `seed-track-index` and `fetch-deap-audio` stop with an error.
 
 The frontend needs Node 26 or newer (`engines.node` in `frontend/package.json`, enforced by
 `engineStrict` in `frontend/pnpm-workspace.yaml`); CI runs 26. `packageManager` pins pnpm, and

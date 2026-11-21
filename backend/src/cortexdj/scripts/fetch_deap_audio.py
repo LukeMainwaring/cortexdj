@@ -73,9 +73,9 @@ async def _main_async() -> int:
     print(f"Loaded {len(stimuli)} DEAP stimuli from {STIMULI_PATH.name}")
 
     async with get_async_sqlalchemy_session() as db:
-        client = (await get_spotify_client(db)).client
+        client = await get_spotify_client(db)
     if client is None:
-        print("error: Spotify client-credentials not configured (check .env)", file=sys.stderr)
+        print("error: Spotify is not connected. Connect it in the app (Settings > Spotify) first", file=sys.stderr)
         return 2
 
     # Only now, with a client in hand: a run that cannot start keeps the last run's log.
