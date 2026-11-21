@@ -32,7 +32,7 @@
 ## Phase 4: Advanced ML
 
 - EEG data augmentation — Gaussian noise, temporal jittering, channel dropout
-- Extend the autoresearch harness (`legacy/backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out; warm the Modal image to cut the ~15-min cold-start on each run
+- Extend the autoresearch harness (readable at the `pre-port` tag under `backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out; warm the Modal image to cut the ~15-min cold-start on each run
 - Evaluate pretrained encoders beyond CBraMod — CodeBrain (smallest-diff swap; shares the `(B, n_chans, n_times)` input contract), EEGPT, BENDR, REVE, LUNA — as drop-in backbone replacements (note: REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement)
 - Plot TSception (Ding 2020, DEAP-benchmarked) and DGCNN (Song 2018, the SEED graph baseline) as from-scratch comparators in the encoder sweep above — separates foundation-model pretraining wins from architecture wins
 - Personalized fine-tuning — few-shot adaptation of the CBraMod encoder to individual users on top of DEAP fine-tuning
