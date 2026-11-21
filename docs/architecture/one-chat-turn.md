@@ -72,7 +72,7 @@ sequenceDiagram
 
 ## Sources
 
-Written at commit `87d6eba`.
+Written at commit `2378eff`.
 
 - `docs/adr/0003-run-metadata-not-a-custom-chat-turn-span.md`
 - `backend/src/cortexdj/features/chat/`
