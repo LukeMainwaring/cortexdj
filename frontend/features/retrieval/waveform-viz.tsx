@@ -22,12 +22,12 @@ function getThemeColors() {
 
 interface WaveformVizProps {
   audioUrl: string;
-  height?: number;
   autoplay?: boolean;
-  playing?: boolean;
+  height?: number;
   onFinish?: () => void;
-  onPlay?: () => void;
   onPause?: () => void;
+  onPlay?: () => void;
+  playing?: boolean;
 }
 
 export function WaveformViz({
@@ -45,7 +45,7 @@ export function WaveformViz({
   const [colors] = useState(() =>
     typeof document === "undefined"
       ? { progressColor: "#3b82f6", waveColor: "#a1a1aa" }
-      : getThemeColors(),
+      : getThemeColors()
   );
 
   const handleReady = useCallback(
@@ -56,7 +56,7 @@ export function WaveformViz({
         ws.play();
       }
     },
-    [autoplay],
+    [autoplay]
   );
 
   const handleTimeupdate = useCallback((ws: WaveSurfer) => {
@@ -108,7 +108,7 @@ export function WaveformViz({
         url={audioUrl}
         waveColor={colors.waveColor}
       />
-      <div className="mt-0.5 flex justify-between text-[10px] text-muted-foreground">
+      <div className="text-muted-foreground mt-0.5 flex justify-between text-[10px]">
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>

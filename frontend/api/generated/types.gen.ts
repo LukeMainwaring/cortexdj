@@ -220,6 +220,54 @@ export type SessionSummarySchema = {
 };
 
 /**
+ * SimilarTrackSchema
+ */
+export type SimilarTrackSchema = {
+    /**
+     * Spotify Id
+     */
+    spotify_id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Artist
+     */
+    artist: string;
+    /**
+     * Itunes Preview Url
+     */
+    itunes_preview_url?: string | null;
+    /**
+     * Audio Cache Key
+     */
+    audio_cache_key?: string | null;
+    /**
+     * Similarity
+     */
+    similarity: number;
+};
+
+/**
+ * SimilarTracksResponse
+ */
+export type SimilarTracksResponse = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Tracks
+     */
+    tracks: Array<SimilarTrackSchema>;
+    /**
+     * K
+     */
+    k: number;
+};
+
+/**
  * SmoothedPoint
  */
 export type SmoothedPoint = {
@@ -779,3 +827,66 @@ export type DisconnectSpotifyResponses = {
 };
 
 export type DisconnectSpotifyResponse = DisconnectSpotifyResponses[keyof DisconnectSpotifyResponses];
+
+export type GetSimilarTracksData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: {
+        /**
+         * K
+         */
+        k?: number;
+    };
+    url: '/api/sessions/{session_id}/similar-tracks';
+};
+
+export type GetSimilarTracksErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSimilarTracksError = GetSimilarTracksErrors[keyof GetSimilarTracksErrors];
+
+export type GetSimilarTracksResponses = {
+    /**
+     * Successful Response
+     */
+    200: SimilarTracksResponse;
+};
+
+export type GetSimilarTracksResponse = GetSimilarTracksResponses[keyof GetSimilarTracksResponses];
+
+export type GetAudioPreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Cache Key
+         */
+        cache_key: string;
+    };
+    query?: never;
+    url: '/api/audio/preview/{cache_key}';
+};
+
+export type GetAudioPreviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAudioPreviewError = GetAudioPreviewErrors[keyof GetAudioPreviewErrors];
+
+export type GetAudioPreviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
