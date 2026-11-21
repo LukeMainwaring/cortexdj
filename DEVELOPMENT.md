@@ -14,8 +14,7 @@ docker compose up -d           # PostgreSQL (pgvector) and the backend on :8003
 ./backend/scripts/migrate-docker.sh
 uv run --directory backend seed-sessions   # EEG sessions from backend/data/deap (see below)
 # the track index, if you have backend/data/track-index.dump (see below)
-docker compose exec -T postgres pg_restore -U postgres -d cortexdj --data-only \
-  --table=track_audio_embeddings < backend/data/track-index.dump
+docker compose exec -T postgres pg_restore -U postgres -d cortexdj --data-only < backend/data/track-index.dump
 
 pnpm -C frontend install
 pnpm -C frontend generate-client
@@ -36,7 +35,8 @@ warning and retrieval answers with a message that points at the download script.
 `backend/data/DEAP_SETUP.md` says how to get them), classifies every 4-second segment with the
 checkpoint it loads itself (`--model cbramod` by default, ground-truth labels when there is no
 checkpoint), and writes one session per participant. It runs on the host against the Postgres
-container, takes several minutes for all 32, and appends: run it once on a fresh database.
+container, takes about three and a half minutes for all 32 (3 min 33 s on an Apple-silicon
+laptop), and appends: run it once on a fresh database.
 `--participants 1 2 3` seeds a subset.
 
 The track index is the table `track_audio_embeddings`: one 512-dimension CLAP audio vector per
@@ -46,13 +46,9 @@ the preview), and it cannot finish today: decoding the cached `.m4a` previews fa
 track can be added and the index cannot be built from nothing. The fix is the ticket
 `.scratch/audio-decoding/issues/01-decode-m4a-previews.md`. Until then the index comes from
 `backend/data/track-index.dump`, a data-only `pg_dump` of that one table (447 tracks, custom
-format, no Spotify login in it), restored into a migrated database with the `pg_restore`
-command above and then given its id sequence back:
-
-```bash
-docker compose exec -T postgres psql -U postgres -d cortexdj -c \
-  "SELECT setval(pg_get_serial_sequence('track_audio_embeddings', 'id'), (SELECT max(id) FROM track_audio_embeddings))"
-```
+format, no Spotify login in it), restored into a migrated, empty table with the `pg_restore`
+command above. The dump carries the table's id sequence value, so a later insert does not
+collide.
 
 The dump is not in git and a fresh clone has none: there, the table stays empty and
 `retrieve_tracks_from_brain_state` says the index is empty. A lost database with no dump

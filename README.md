@@ -96,7 +96,7 @@ uv run --directory backend pre-commit install
 # Download pre-trained checkpoints (skips the 12 h training step; see DEVELOPMENT.md to retrain)
 ./backend/scripts/download-checkpoints.sh
 
-# Seed the database
+# Seed the database (about 3.5 minutes for the 32 DEAP files: 3 min 33 s on an Apple-silicon laptop)
 uv run --directory backend seed-sessions
 
 # Frontend setup

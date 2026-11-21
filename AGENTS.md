@@ -33,8 +33,7 @@ uv run --directory backend seed-sessions
 
 # Restore the track index (447 CLAP vectors) into a migrated database. seed-track-index
 # cannot build it today; DEVELOPMENT.md says why and what the dump is.
-docker compose exec -T postgres pg_restore -U postgres -d cortexdj --data-only \
-  --table=track_audio_embeddings < backend/data/track-index.dump
+docker compose exec -T postgres pg_restore -U postgres -d cortexdj --data-only < backend/data/track-index.dump
 ```
 
 Checks, lightest first. While working, run the first two; before finishing, run the last three once each.
