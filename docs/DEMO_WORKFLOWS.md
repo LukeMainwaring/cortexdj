@@ -210,7 +210,7 @@ The full end-to-end retrieval demo: analyze a session and discover new matching 
 - Agent proposes a playlist name and the top-5 track list, waits for your confirmation, then calls `build_mood_playlist` with `user_confirmed=True`
 - If Spotify is connected, the playlist is created live; otherwise saved locally
 
-**What to watch for across the session:** The two inline visualizations side by side are the feature's best screenshot. Notice that retrieved tracks are typically ones the user has never heard in this database — that's the fundamental difference from `find_relaxing_tracks`, which filters the EEG-labeled history. If similarity scores are weak across the board (near zero), the contrastive checkpoint is likely underfit — download the released one (`./backend/scripts/download-checkpoints.sh`).
+**What to watch for across the session:** The two inline visualizations side by side are the feature's best screenshot. Notice that retrieved tracks are typically ones the user has never heard in this database — that's the fundamental difference from `find_relaxing_tracks`, which filters the EEG-labeled history. If similarity scores are weak across the board (near zero), the contrastive checkpoint is likely underfit — if it is not the released one, download that (`./backend/scripts/download-checkpoints.sh`).
 
 ---
 
