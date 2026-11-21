@@ -43,9 +43,6 @@ class AudioHit:
     preview_url: str
     m4a_path: Path
     itunes_track_id: str
-    matched_title: str
-    matched_artist: str
-    duration_delta_ms: int
 
 
 _TOKEN_RE = re.compile(r"[^a-z0-9 ]")
@@ -73,10 +70,6 @@ def _jaccard(a: str, b: str) -> float:
     if not at or not bt:
         return 0.0
     return len(at & bt) / len(at | bt)
-
-
-def title_similarity(a: str, b: str) -> float:
-    return _jaccard(a, b)
 
 
 def cache_key(artist: str, title: str) -> str:
@@ -127,8 +120,7 @@ async def resolve_preview(
     title: str,
     *,
     duration_ms: int,
-    cache_dir: Path | None = None,
-    http_client: httpx.AsyncClient | None = None,
+    http_client: httpx.AsyncClient,
 ) -> AudioHit | None:
     """Resolve (artist, title) to a cached iTunes m4a preview.
 
@@ -140,11 +132,10 @@ async def resolve_preview(
     Transient network errors and non-200 HTTP responses (429, 5xx) propagate
     so the caller can retry or abort — silent None would poison the miss log.
     """
-    cache_dir = cache_dir or AUDIO_CACHE_DIR
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    AUDIO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     key = cache_key(artist, title)
-    cached_audio = cache_dir / f"{key}.m4a"
-    cached_meta = cache_dir / f"{key}.json"
+    cached_audio = AUDIO_CACHE_DIR / f"{key}.m4a"
+    cached_meta = AUDIO_CACHE_DIR / f"{key}.json"
 
     if cached_audio.exists() and cached_meta.exists():
         meta = json.loads(cached_meta.read_text())
@@ -152,61 +143,41 @@ async def resolve_preview(
             preview_url=meta["preview_url"],
             m4a_path=cached_audio,
             itunes_track_id=str(meta["itunes_track_id"]),
-            matched_title=meta["matched_title"],
-            matched_artist=meta["matched_artist"],
-            duration_delta_ms=int(meta["duration_delta_ms"]),
         )
 
-    owns_client = http_client is None
-    client = http_client or httpx.AsyncClient(timeout=20.0, follow_redirects=True)
-    try:
-        await _rate_limiter.acquire()
-        response = await client.get(
-            ITUNES_SEARCH_URL,
-            params={"term": f"{artist} {title}", "entity": "song", "limit": 5},
-        )
-        response.raise_for_status()
+    await _rate_limiter.acquire()
+    response = await http_client.get(
+        ITUNES_SEARCH_URL,
+        params={"term": f"{artist} {title}", "entity": "song", "limit": 5},
+    )
+    response.raise_for_status()
 
-        results = response.json().get("results", [])
-        best = _pick_best(results, artist=artist, title=title, duration_ms=duration_ms)
-        if best is None:
-            return None
+    results = response.json().get("results", [])
+    best = _pick_best(results, artist=artist, title=title, duration_ms=duration_ms)
+    if best is None:
+        return None
 
-        preview_url = best.get("previewUrl")
-        if not preview_url:
-            return None
+    preview_url = best.get("previewUrl")
+    if not preview_url:
+        return None
 
-        audio_resp = await client.get(preview_url)
-        audio_resp.raise_for_status()
-        if not audio_resp.content:
-            return None
+    audio_resp = await http_client.get(preview_url)
+    audio_resp.raise_for_status()
+    if not audio_resp.content:
+        return None
 
-        hit = AudioHit(
-            preview_url=preview_url,
-            m4a_path=cached_audio,
-            itunes_track_id=str(best.get("trackId")),
-            matched_title=best.get("trackName", ""),
-            matched_artist=best.get("artistName", ""),
-            duration_delta_ms=abs(_coerce_int(best.get("trackTimeMillis")) - duration_ms),
-        )
-        _write_cache_atomically(
-            cached_audio=cached_audio,
-            cached_meta=cached_meta,
-            audio_bytes=audio_resp.content,
-            meta={
-                "preview_url": hit.preview_url,
-                "itunes_track_id": hit.itunes_track_id,
-                "matched_title": hit.matched_title,
-                "matched_artist": hit.matched_artist,
-                "duration_delta_ms": hit.duration_delta_ms,
-                "requested_artist": artist,
-                "requested_title": title,
-            },
-        )
-        return hit
-    finally:
-        if owns_client:
-            await client.aclose()
+    hit = AudioHit(
+        preview_url=preview_url,
+        m4a_path=cached_audio,
+        itunes_track_id=str(best.get("trackId")),
+    )
+    _write_cache_atomically(
+        cached_audio=cached_audio,
+        cached_meta=cached_meta,
+        audio_bytes=audio_resp.content,
+        meta={"preview_url": hit.preview_url, "itunes_track_id": hit.itunes_track_id},
+    )
+    return hit
 
 
 def _write_cache_atomically(

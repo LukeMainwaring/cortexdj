@@ -61,12 +61,3 @@ def test_the_eval_judge_model_is_pinned_apart_from_agent_model(monkeypatch: pyte
     monkeypatch.delenv("EVAL_JUDGE_MODEL", raising=False)
     settings = core_config.AgentSettings(AGENT_MODEL="openai:gpt-6.1-sol")
     assert settings.EVAL_JUDGE_MODEL == "anthropic:claude-opus-5-5"
-
-
-def test_the_track_index_pool_defaults_to_2000_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("TRACK_INDEX_POOL_SIZE", raising=False)
-    get_settings.cache_clear()
-    try:
-        assert get_settings().TRACK_INDEX_POOL_SIZE == 2000
-    finally:
-        get_settings.cache_clear()

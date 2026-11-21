@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { ExternalLink, Pause, Play } from "lucide-react";
+import { memo, useState } from "react";
 import type { SimilarTrackSchema } from "@/api/generated/types.gen";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,18 +23,6 @@ function previewUrl(cacheKey: string): string {
   return `${BACKEND_URL}/api/audio/preview/${cacheKey}`;
 }
 
-interface Props {
-  k?: number;
-  sessionId: string;
-}
-
-// Similarity is cosine in [-1, 1]. Clamp negatives to 0 so the bar fill
-// honestly reflects the raw match strength: a 0.30 score reads as a 30%
-// bar, not a 65% bar.
-function normalizeSimilarity(similarity: number): number {
-  return Math.max(0, Math.min(1, similarity));
-}
-
 // Tailwind-driven color ramp matching the project's existing semantic hues
 // (emerald / amber / muted). Thresholds are chosen to reinforce the ~0.3
 // "meaningful match" heuristic the agent's prompt already cites.
@@ -47,65 +36,11 @@ function similarityTone(similarity: number): string {
   return "bg-muted-foreground/40";
 }
 
-const PlayIcon = ({ size = 11 }: { size?: number }) => (
-  <svg
-    aria-hidden="true"
-    fill="currentColor"
-    height={size}
-    viewBox="0 0 24 24"
-    width={size}
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M8 5v14l11-7z" />
-  </svg>
-);
-
-const PauseIcon = ({ size = 11 }: { size?: number }) => (
-  <svg
-    aria-hidden="true"
-    fill="currentColor"
-    height={size}
-    viewBox="0 0 24 24"
-    width={size}
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
-  </svg>
-);
-
-const ExternalLinkIcon = ({ size = 12 }: { size?: number }) => (
-  <svg
-    aria-hidden="true"
-    fill="none"
-    height={size}
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2"
-    viewBox="0 0 24 24"
-    width={size}
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-    <polyline points="15 3 21 3 21 9" />
-    <line x1="10" x2="21" y1="14" y2="3" />
-  </svg>
-);
-
-function playButtonLabel(
-  title: string,
-  hasPreview: boolean,
-  isPlaying: boolean
-): string {
-  if (!hasPreview) {
-    return `No preview available for ${title}`;
-  }
-  return isPlaying ? `Pause preview of ${title}` : `Play preview of ${title}`;
-}
-
 function SimilarityBar({ similarity }: { similarity: number }) {
-  const normalized = normalizeSimilarity(similarity);
-  const pct = Math.round(normalized * 100);
+  // Similarity is cosine in [-1, 1]. Clamp negatives to 0 so the bar fill
+  // honestly reflects the raw match strength: a 0.30 score reads as a 30%
+  // bar, not a 65% bar.
+  const pct = Math.round(Math.max(0, Math.min(1, similarity)) * 100);
   return (
     <div className="flex shrink-0 items-center gap-1.5">
       <div
@@ -150,16 +85,12 @@ function TrackRow({
     ? previewUrl(track.audio_cache_key)
     : null;
 
-  const handleToggle = useCallback(() => {
-    if (!hasPreview) {
-      return;
-    }
-    if (isPlaying) {
-      onPause();
-    } else {
-      onPlay();
-    }
-  }, [hasPreview, isPlaying, onPlay, onPause]);
+  let playLabel = `No preview available for ${track.title}`;
+  if (hasPreview) {
+    playLabel = isPlaying
+      ? `Pause preview of ${track.title}`
+      : `Play preview of ${track.title}`;
+  }
 
   return (
     <div
@@ -175,14 +106,18 @@ function TrackRow({
           {rank}
         </span>
         <Button
-          aria-label={playButtonLabel(track.title, hasPreview, isPlaying)}
+          aria-label={playLabel}
           className="size-7 shrink-0 rounded-full"
           disabled={!hasPreview}
-          onClick={handleToggle}
+          onClick={isPlaying ? onPause : onPlay}
           size="icon"
           type="button"
         >
-          {isPlaying ? <PauseIcon /> : <PlayIcon />}
+          {isPlaying ? (
+            <Pause aria-hidden="true" fill="currentColor" size={11} />
+          ) : (
+            <Play aria-hidden="true" fill="currentColor" size={11} />
+          )}
         </Button>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{track.title}</div>
@@ -201,7 +136,7 @@ function TrackRow({
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                <ExternalLinkIcon />
+                <ExternalLink aria-hidden="true" size={12} />
               </a>
             </TooltipTrigger>
             <TooltipContent>Open in Spotify</TooltipContent>
@@ -211,7 +146,6 @@ function TrackRow({
       {audioUrl ? (
         <WaveformViz
           audioUrl={audioUrl}
-          height={36}
           onPause={onPause}
           onPlay={onPlay}
           playing={isPlaying}
@@ -221,8 +155,8 @@ function TrackRow({
   );
 }
 
-function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
-  const { data, isLoading, isError, error } = useSimilarTracks(sessionId, k);
+function PureRetrievedTracksPanel({ sessionId }: { sessionId: string }) {
+  const { data, isLoading, isError, error } = useSimilarTracks(sessionId);
 
   // Track-level wavesurfer instances each own their own <audio>; the parent
   // only coordinates which one is "playing" so a new selection pauses the
@@ -231,16 +165,7 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
     null
   );
 
-  const handlePlay = useCallback((spotifyId: string) => {
-    setCurrentlyPlayingId(spotifyId);
-  }, []);
-
-  const handlePause = useCallback((spotifyId: string) => {
-    setCurrentlyPlayingId((prev) => (prev === spotifyId ? null : prev));
-  }, []);
-
-  const tracks = useMemo(() => data?.tracks ?? [], [data]);
-  const hasRendered = tracks.length > 0;
+  const tracks = data?.tracks ?? [];
 
   if (isLoading) {
     return (
@@ -271,7 +196,7 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
     );
   }
 
-  if (!hasRendered) {
+  if (tracks.length === 0) {
     return (
       <div className="bg-card text-muted-foreground my-2 rounded-lg border border-dashed p-4 text-sm">
         The retrieval index is empty. Run{" "}
@@ -298,8 +223,12 @@ function PureRetrievedTracksPanel({ sessionId, k = 10 }: Props) {
           <TrackRow
             isPlaying={currentlyPlayingId === track.spotify_id}
             key={track.spotify_id}
-            onPause={() => handlePause(track.spotify_id)}
-            onPlay={() => handlePlay(track.spotify_id)}
+            onPause={() =>
+              setCurrentlyPlayingId((prev) =>
+                prev === track.spotify_id ? null : prev
+              )
+            }
+            onPlay={() => setCurrentlyPlayingId(track.spotify_id)}
             rank={idx + 1}
             track={track}
           />

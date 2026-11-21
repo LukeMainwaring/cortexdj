@@ -8,7 +8,7 @@ from cortexdj.core.db import AsyncPostgresSessionDep
 from cortexdj.core.paths import AUDIO_CACHE_DIR
 from cortexdj.features.retrieval import service as retrieval_service
 from cortexdj.features.retrieval.encoder import ContrastiveEncoder, get_contrastive_encoder
-from cortexdj.features.retrieval.schema import SimilarTrackSchema, SimilarTracksResponse
+from cortexdj.features.retrieval.schema import SimilarTracksResponse
 
 retrieval_router = APIRouter(prefix="/sessions", tags=["retrieval"])
 audio_router = APIRouter(prefix="/audio", tags=["audio"])
@@ -30,7 +30,7 @@ async def get_similar_tracks(
     """Return the top-k tracks whose CLAP audio embedding is closest to the
     session's EEG embedding in the joint contrastive space."""
     try:
-        hits = await retrieval_service.retrieve_similar_tracks(db, session_id, encoder, k=k)
+        tracks = await retrieval_service.retrieve_similar_tracks(db, session_id, encoder, k=k)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except retrieval_service.DeapFileMissingError as exc:
@@ -39,21 +39,7 @@ async def get_similar_tracks(
     except retrieval_service.ContrastiveEncoderMissingError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    return SimilarTracksResponse(
-        session_id=session_id,
-        tracks=[
-            SimilarTrackSchema(
-                spotify_id=h.spotify_id,
-                title=h.title,
-                artist=h.artist,
-                itunes_preview_url=h.itunes_preview_url,
-                audio_cache_key=h.audio_cache_key,
-                similarity=h.similarity,
-            )
-            for h in hits
-        ],
-        k=k,
-    )
+    return SimilarTracksResponse(session_id=session_id, tracks=tracks, k=k)
 
 
 @audio_router.get("/preview/{cache_key}")

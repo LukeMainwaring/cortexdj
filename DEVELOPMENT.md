@@ -52,8 +52,8 @@ collide.
 
 The dump is not in git and a fresh clone has none: there, the table stays empty and
 `retrieve_tracks_from_brain_state` says the index is empty. A lost database with no dump
-loses the index. Do not run `seed-track-index` or `fetch-deap-audio` to check them (`--help`
-is safe): each deletes its miss log under `backend/data/` as soon as it has a Spotify client.
+loses the index. Do not run `seed-track-index` to check it (`--help`
+is safe): it deletes its miss log under `backend/data/` as soon as it has a Spotify client.
 
 Spotify is optional. With `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` blank the app boots,
 `/api/spotify/connect` answers 503, and the assistant has no Spotify tools. To use it, create an app at
@@ -63,7 +63,7 @@ secret in `.env`, and recreate the backend (`docker compose up -d backend`). The
 Settings → Spotify Settings in the sidebar (`/settings/spotify`) and connect: the login is
 stored as the one row of `spotify_tokens`, and from the next chat turn the assistant offers its
 Spotify tools. Every Spotify call runs on that login: until it is stored the tools are hidden,
-and `seed-track-index` and `fetch-deap-audio` stop with an error.
+and `seed-track-index` stops with an error.
 
 The frontend needs Node 26 or newer (`engines.node` in `frontend/package.json`, enforced by
 `engineStrict` in `frontend/pnpm-workspace.yaml`); CI runs 26. `packageManager` pins pnpm, and

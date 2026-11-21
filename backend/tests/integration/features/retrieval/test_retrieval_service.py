@@ -1,4 +1,4 @@
-"""Retrieval against the real database: session lookup, the empty index, k clamping, and the ranked hits.
+"""Retrieval against the real database: session lookup, k clamping, and the ranked hits.
 
 The session's participant id comes through the real session-lookup seam (``api.py`` registers
 it when the integration conftest imports the app). The encoder is passed as the argument and
@@ -34,25 +34,6 @@ async def test_an_unknown_session_with_a_populated_index_is_not_found(
 
     with pytest.raises(retrieval_service.SessionNotFoundError, match="no-such-session"):
         await retrieval_service.retrieve_similar_tracks(db_session, "no-such-session", encoder, deap_dir=deap_dir)
-
-
-async def test_an_empty_index_returns_no_hits_without_an_encoder(db_session: AsyncSession, tmp_path: Path) -> None:
-    session = await create_session(db_session, participant_id="P01")
-
-    # No encoder and no DEAP file: an empty index never reaches the embedding step.
-    hits = await retrieval_service.retrieve_similar_tracks(db_session, session.id, None, deap_dir=tmp_path)
-
-    assert hits == []
-
-
-async def test_no_encoder_with_a_populated_index_says_how_to_fetch_the_checkpoint(
-    db_session: AsyncSession, deap_dir: Path
-) -> None:
-    session = await create_session(db_session, participant_id="P01")
-    await _create_rows(db_session, 1)
-
-    with pytest.raises(retrieval_service.ContrastiveEncoderMissingError, match="download-checkpoints.sh"):
-        await retrieval_service.retrieve_similar_tracks(db_session, session.id, None, deap_dir=deap_dir)
 
 
 async def test_a_participant_with_no_deap_file_is_reported_with_its_path(
@@ -93,7 +74,7 @@ async def test_hits_are_ranked_nearest_first_with_cosine_similarity(
     session = await create_session(db_session, participant_id="P01")
     # The encoder's weights are random, so the query is read back from the service and the
     # index is built around it: the query itself, a vector orthogonal to it, and its opposite.
-    query = await retrieval_service.encode_session_to_clap_space(db_session, session.id, encoder, deap_dir=deap_dir)
+    query = await retrieval_service.encode_session_to_clap_space("P01", encoder, deap_dir=deap_dir)
     other = np.zeros(EMBEDDING_DIM, dtype=np.float32)
     other[0] = 1.0
     orthogonal = other - float(np.dot(other, query)) * query

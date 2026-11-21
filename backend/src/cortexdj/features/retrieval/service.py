@@ -18,9 +18,7 @@ The encoder arrives as an argument: the route and the tool read it from
 import asyncio
 import functools
 import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +26,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from cortexdj.core.paths import DEAP_DATA_DIR
 from cortexdj.features.retrieval.audio_catalog import cache_key as audio_cache_key_for
 from cortexdj.features.retrieval.encoder import ContrastiveEncoder
-from cortexdj.features.retrieval.model import EMBEDDING_DIM, TrackAudioEmbedding
+from cortexdj.features.retrieval.model import TrackAudioEmbedding
+from cortexdj.features.retrieval.schema import SimilarTrackSchema
 from cortexdj.ml.contrastive import encode_session
 from cortexdj.ml.contrastive_dataset import trial_to_eeg_windows
 from cortexdj.ml.dataset import load_deap_participant
@@ -47,30 +46,16 @@ class DeapFileMissingError(RuntimeError):
 
 
 class SessionNotFoundError(LookupError):
-    """No session has this id. A `LookupError` so the route's 404 covers it; the tool
-    tells it apart from a session with no EEG windows, which the model cannot fix by retrying."""
+    """No session has this id. A `LookupError` so the route's 404 covers it."""
 
 
 class ContrastiveEncoderMissingError(RuntimeError):
     """No contrastive checkpoint was loaded at startup, so a session cannot be embedded."""
 
 
-@dataclass(frozen=True)
-class TrackHit:
-    spotify_id: str
-    title: str
-    artist: str
-    itunes_preview_url: str | None
-    audio_cache_key: str | None
-    similarity: float  # cosine similarity in [-1, 1], higher is closer
-
-
 def _participant_dat_path(participant_id_str: str, deap_dir: Path) -> Path:
     # Sessions are seeded with `participant_id=f"P{n:02d}"` (see seed_sessions.py),
     # which maps back to `data/deap/s{n:02d}.dat`.
-    if not participant_id_str.startswith("P"):
-        msg = f"unexpected participant_id format: {participant_id_str!r} (expected 'P##')"
-        raise ValueError(msg)
     n = int(participant_id_str[1:])
     return deap_dir / f"s{n:02d}.dat"
 
@@ -89,23 +74,16 @@ def _load_session_windows(participant_id_str: str, deap_dir: Path) -> np.ndarray
         msg = f"DEAP file for participant {participant_id_str} not found at {path}"
         raise DeapFileMissingError(msg)
     data, _labels = load_deap_participant(path)  # (n_trials, 32, 7680) at 128Hz
-    per_trial_windows = [trial_to_eeg_windows(data[trial_idx]) for trial_idx in range(data.shape[0])]
-    return np.concatenate(per_trial_windows, axis=0) if per_trial_windows else np.zeros((0, 32, 800), dtype=np.float32)
+    return np.concatenate([trial_to_eeg_windows(trial) for trial in data], axis=0)
 
 
 async def encode_session_to_clap_space(
-    db: AsyncSession,
-    session_id: str,
+    participant_id: str,
     encoder: ContrastiveEncoder | None,
     *,
     deap_dir: Path = DEAP_DATA_DIR,
 ) -> np.ndarray:
-    """Produce a 512-d unit query vector for a session."""
-    participant_id = await get_session_participant_id(db, session_id)
-    if participant_id is None:
-        msg = f"session {session_id} not found"
-        raise SessionNotFoundError(msg)
-
+    """Produce a 512-d unit query vector for a participant's session."""
     if encoder is None:
         msg = (
             "The contrastive encoder checkpoint is missing, so sessions cannot be embedded. "
@@ -116,15 +94,7 @@ async def encode_session_to_clap_space(
     # lru_cache is sync; offload to a thread so the pickle parse doesn't
     # block the event loop. Subsequent cache hits return in microseconds.
     windows = await asyncio.to_thread(_load_session_windows, participant_id, deap_dir)
-    if windows.shape[0] == 0:
-        msg = f"no EEG windows for session {session_id}"
-        raise LookupError(msg)
-
-    query = encode_session(encoder.model, windows, encoder.device)
-    if query.shape != (EMBEDDING_DIM,):
-        msg = f"expected query shape ({EMBEDDING_DIM},), got {query.shape}"
-        raise ValueError(msg)
-    return query
+    return encode_session(encoder.model, windows, encoder.device)
 
 
 async def retrieve_similar_tracks(
@@ -134,7 +104,7 @@ async def retrieve_similar_tracks(
     *,
     k: int = 10,
     deap_dir: Path = DEAP_DATA_DIR,
-) -> list[TrackHit]:
+) -> list[SimilarTrackSchema]:
     """Top-k Spotify tracks whose CLAP audio embedding is closest to this session.
 
     `k` is clamped to [1, 100]. An empty list is returned if the retrieval
@@ -143,10 +113,11 @@ async def retrieve_similar_tracks(
     """
     k = max(1, min(100, k))
 
-    # Validate the session exists first so a bogus id raises SessionNotFoundError
+    # Look the session up first so a bogus id raises SessionNotFoundError
     # (→ 404) even when the retrieval index happens to be empty. Otherwise
     # the empty-index short-circuit would mask the missing-session case.
-    if await get_session_participant_id(db, session_id) is None:
+    participant_id = await get_session_participant_id(db, session_id)
+    if participant_id is None:
         msg = f"session {session_id} not found"
         raise SessionNotFoundError(msg)
 
@@ -155,35 +126,18 @@ async def retrieve_similar_tracks(
         logger.info("retrieval skipped: track_audio_embeddings is empty")
         return []
 
-    query = await encode_session_to_clap_space(db, session_id, encoder, deap_dir=deap_dir)
+    query = await encode_session_to_clap_space(participant_id, encoder, deap_dir=deap_dir)
     rows_with_distance = await TrackAudioEmbedding.search_similar(db, query, k=k)
 
-    hits: list[TrackHit] = []
-    for row, distance in rows_with_distance:
-        # pgvector's cosine distance is in [0, 2]; convert to similarity in [-1, 1].
-        similarity = 1.0 - distance
-        hits.append(
-            TrackHit(
-                spotify_id=row.spotify_id,
-                title=row.title,
-                artist=row.artist,
-                itunes_preview_url=row.itunes_preview_url,
-                audio_cache_key=(audio_cache_key_for(row.artist, row.title) if row.itunes_preview_url else None),
-                similarity=similarity,
-            )
-        )
-    return hits
-
-
-def serialize_hits(hits: list[TrackHit]) -> list[dict[str, Any]]:
     return [
-        {
-            "spotify_id": h.spotify_id,
-            "title": h.title,
-            "artist": h.artist,
-            "itunes_preview_url": h.itunes_preview_url,
-            "audio_cache_key": h.audio_cache_key,
-            "similarity": round(h.similarity, 4),
-        }
-        for h in hits
+        SimilarTrackSchema(
+            spotify_id=row.spotify_id,
+            title=row.title,
+            artist=row.artist,
+            itunes_preview_url=row.itunes_preview_url,
+            audio_cache_key=(audio_cache_key_for(row.artist, row.title) if row.itunes_preview_url else None),
+            # pgvector's cosine distance is in [0, 2]; similarity is in [-1, 1], higher is closer.
+            similarity=1.0 - distance,
+        )
+        for row, distance in rows_with_distance
     ]

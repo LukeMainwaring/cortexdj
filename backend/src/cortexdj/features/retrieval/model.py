@@ -69,14 +69,7 @@ class TrackAudioEmbedding(Base):
         stmt = pg_insert(cls).values(**values)
         stmt = stmt.on_conflict_do_update(
             index_elements=[cls.spotify_id],
-            set_={
-                "title": stmt.excluded.title,
-                "artist": stmt.excluded.artist,
-                "source": stmt.excluded.source,
-                "embedding": stmt.excluded.embedding,
-                "itunes_track_id": stmt.excluded.itunes_track_id,
-                "itunes_preview_url": stmt.excluded.itunes_preview_url,
-            },
+            set_={name: stmt.excluded[name] for name in values if name != "spotify_id"},
         )
         await db.execute(stmt)
 
