@@ -1,9 +1,29 @@
-"""What each emotion quadrant means, for ``explain_brain_state``.
+"""The emotion quadrants: their fixed order, how a count of them picks one, and what each means.
 
 The quadrants come from the arousal-valence model (Russell, 1980). Each explanation says what
 the quadrant means for a listener and nothing about what their frequency bands did: no tool
 measures band activity for a session, so do not add a band claim back.
 """
+
+from collections.abc import Mapping
+
+EMOTION_STATES: tuple[str, ...] = ("relaxed", "calm", "excited", "stressed")
+
+
+def dominant_quadrant(counts: Mapping[str, float]) -> str:
+    """The most counted quadrant, a tie going to the one first in ``EMOTION_STATES``.
+
+    Every view that names a session's dominant quadrant (the card, the summary, the
+    trajectory) picks it here, so a tie cannot name different quadrants in different places.
+    A state outside ``EMOTION_STATES`` ranks after the known ones. Raises on empty ``counts``.
+    """
+
+    def rank(state: str) -> tuple[float, int]:
+        order = EMOTION_STATES.index(state) if state in EMOTION_STATES else len(EMOTION_STATES)
+        return (-counts[state], order)
+
+    return min(counts, key=rank)
+
 
 BRAIN_STATE_EXPLANATIONS: dict[str, str] = {
     "excited": (

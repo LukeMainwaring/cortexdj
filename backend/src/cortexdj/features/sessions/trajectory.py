@@ -12,6 +12,7 @@ import logging
 from collections.abc import Sequence
 from math import sqrt
 
+from cortexdj.features.sessions.emotion import EMOTION_STATES, dominant_quadrant
 from cortexdj.features.sessions.model import SessionTrack
 from cortexdj.features.sessions.schema import (
     SmoothedPoint,
@@ -20,8 +21,6 @@ from cortexdj.features.sessions.schema import (
 )
 
 logger = logging.getLogger(__name__)
-
-EMOTION_STATES: tuple[str, ...] = ("relaxed", "calm", "excited", "stressed")
 
 
 def compute_trajectory_summary(
@@ -54,8 +53,6 @@ def compute_trajectory_summary(
     for k in dwell:
         dwell[k] = round(dwell[k] / n, 4)
 
-    dominant_quadrant = max(dwell, key=lambda k: dwell[k])
-
     transitions = [
         TransitionEvent(time=start, from_quadrant=prev.dominant_state, to_quadrant=curr.dominant_state)
         for prev, curr, start in zip(ordered[:-1], ordered[1:], starts[1:], strict=True)
@@ -74,7 +71,7 @@ def compute_trajectory_summary(
 
     return TrajectorySummary(
         dwell_fractions=dwell,
-        dominant_quadrant=dominant_quadrant,
+        dominant_quadrant=dominant_quadrant(dwell),
         transition_count=len(transitions),
         transitions=transitions,
         centroid=(round(centroid_a, 4), round(centroid_v, 4)),

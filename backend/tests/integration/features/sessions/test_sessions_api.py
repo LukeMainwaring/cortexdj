@@ -75,6 +75,20 @@ async def test_list_sessions_enriched_counts_the_label_over_tracks(
     assert summary["track_count"] == 10
 
 
+async def test_list_sessions_enriched_breaks_a_tie_in_quadrant_order(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    session = await create_session(db_session)
+    for order, state in enumerate(["stressed", "excited", "stressed", "excited"]):
+        track = await create_track(db_session)
+        await create_session_track(db_session, session.id, track.id, track_order=order, dominant_state=state)
+
+    response = await client.get("/api/sessions/enriched")
+    summary = response.json()["sessions"][0]
+    assert summary["dominant_state"] == "excited"
+    assert summary["label"] == "Mixed, leaning excited"
+
+
 async def test_list_sessions_enriched_label_throughout(client: AsyncClient, db_session: AsyncSession) -> None:
     session = await create_session(db_session)
     for order in range(10):
