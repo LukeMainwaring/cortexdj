@@ -11,3 +11,4 @@ Given what DEAP's preprocessed files already did, which steps does our pipeline 
 ## Comments
 
 - 2026-11-22: the baseline (ticket 04) found per-participant z-scoring of the features is the one thing that moved leave-one-subject-out off chance (0.50 to about 0.53 balanced accuracy, logistic regression on differential entropy). It needs a participant's whole recording before any window is scored, which matters for how the app's sessions are classified.
+- 2026-11-22: ticket 05 resolved: one model per participant, within-subject by trial (ADR 0005). Each model only ever sees one participant, so normalization at the participant level is the natural default; fit it on the training trials of a fold so the held-out trials stay unseen.
