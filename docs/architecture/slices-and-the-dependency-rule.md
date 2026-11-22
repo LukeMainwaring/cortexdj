@@ -22,7 +22,7 @@ flowchart TB
     subgraph kernel[Kernel]
         agents["agents/<br/>runtime: recipe, hooks, history, deps"]
         shared["shared/<br/>Base, BaseSchema,<br/>seams: track_access, session_lookup"]
-        ml["ml/<br/>EEG models, datasets, preprocessing"]
+        ml["ml/<br/>EEG models, datasets, band features"]
         core["core/<br/>config, db, startup hooks, logging, observability, paths"]
     end
     roots -->|import and wire| features
@@ -38,7 +38,7 @@ flowchart TB
 
 A slice is a folder with the files it needs: `model.py`, `schema.py`, `service.py`, `router.py` where the slice has a table or routes, and `tools.py` and `capability.py` where it talks to an agent. There are four: `chat` (threads and messages, the title generator, and the streaming endpoint), `sessions` (EEG sessions and a thread's brain context, with its tools), `spotify` (the Spotify login, saved playlists, and the Spotify tools), and `retrieval` (the track index and the route and tool that rank it against a session's EEG). A slice adds files beyond the role files where it has something of its own to hold: `sessions/eeg_model.py` and `retrieval/encoder.py` hold the two models loaded at startup, and `spotify/client.py` decides which Spotify client a request gets. Route handlers stay thin and call the slice's `service.py`; tools do the same, through the session on `AgentDeps`.
 
-The kernel is `core/` (settings, `db.py` with the request session and the one for work outside a request, the startup and shutdown hook registries, logging with credential redaction, and Logfire observability), `shared/` (the base model and schema classes, and the two seams), `agents/` (the agent runtime: the shared recipe in `assistant.py`, the named-agent registry, the tool and output error hooks, the history compactor, and `AgentDeps`), and `ml/` (inference for the quadrant classifier and the contrastive EEG-to-audio encoder: models, datasets, preprocessing, and checkpoint loading). `ml/` is the strictest part of the kernel: among this repo's packages it imports only `core/`.
+The kernel is `core/` (settings, `db.py` with the request session and the one for work outside a request, the startup and shutdown hook registries, logging with credential redaction, and Logfire observability), `shared/` (the base model and schema classes, and the two seams), `agents/` (the agent runtime: the shared recipe in `assistant.py`, the named-agent registry, the tool and output error hooks, the history compactor, and `AgentDeps`), and `ml/` (inference for the quadrant classifier and the contrastive EEG-to-audio encoder: models, DEAP loading, band features, the training recipe, and checkpoint loading). `ml/` is the strictest part of the kernel: among this repo's packages it imports only `core/`.
 
 Three files are composition roots and may import across slices:
 

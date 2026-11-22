@@ -48,12 +48,16 @@ _Avoid_: Band energy, spectrum; differential entropy (the log of a band power, w
 One of the four emotion states a pair of arousal and valence scores maps to: excited (high arousal, high valence), stressed (high, low), relaxed (low, high), calm (low, low). High is at or above the midpoint: a score of 0.5, or a self-rating of 5 on DEAP's 1 to 9 scale.
 _Avoid_: Mood (the word the user and the playlist tools use for a quadrant), emotion class, label
 
+**Training recipe**:
+`RECIPE` in `ml/recipe.py`: the fixed, untuned settings every participant's quadrant classifiers are trained with (bands, window, label threshold, folds, seed, learning rate, epochs, weight decay). A checkpoint stores the recipe it was made with, and loading refuses one that differs from the code's.
+_Avoid_: Config, hyperparameters (they are not searched); shared recipe (the agent runtime's wiring, unrelated)
+
 **Brain context**:
 The brain state a thread is focused on: a session id, a dominant mood, and average arousal and valence, each optional. It is stored per thread, written into the assistant's instructions on every run, and shown in the chat header.
 _Avoid_: Brain state (what a segment or session shows; the context is what the conversation holds on to), session context
 
 **Trajectory**:
-A session's path through arousal and valence, one point per track (the mean of that track's segments), with what is computed from it: time spent in each quadrant, transitions, centroid, dispersion, and path length.
+A session's path through arousal and valence, one point per track (the mean of that track's segments), with what is computed from it: the share of tracks in each quadrant, transitions (a quadrant change from one track to the next, timed at the start of the track it lands on), centroid, dispersion, and path length. The session card's label is counted over the same tracks; quadrant changes between segments of one track are not transitions.
 _Avoid_: Timeline (the per-segment chart), emotional arc, history
 
 **Track index**:
@@ -94,7 +98,7 @@ _Avoid_: Plugin, toolset (the toolset is one part of it), skill
 
 **Shared recipe**:
 `build_agent` in `agents/assistant.py`: the runtime wiring every named agent gets (tool-error hooks, history compaction, prompt caching, optional thinking, the tool timeout). An agent adds its capabilities and output type and inherits the rest.
-_Avoid_: Base agent, agent factory, template agent
+_Avoid_: Base agent, agent factory, template agent; training recipe (the classifier's settings, unrelated)
 
 **Named agent**:
 An agent the registry builds lazily by name (`get_agent(ASSISTANT)`). Callers ask for a name and never import a builder.

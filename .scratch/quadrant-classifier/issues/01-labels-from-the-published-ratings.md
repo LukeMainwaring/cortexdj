@@ -6,12 +6,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
-- [ ] A participant's ratings are read from the ratings file in a data directory passed as an argument, joined on participant and experiment id (a file's trial index `e` is experiment id `e + 1`)
-- [ ] Loading raises, naming the participant, when the ratings file is missing
-- [ ] Loading raises when the ratings' dominance and liking differ from the EEG file's own label array: that comparison is the check that the join is aligned
-- [ ] "High" is one function of a rating: at or above 5
-- [ ] The EEG the DEAP loader returns is unchanged, and the retrieval tests pass untouched
-- [ ] A shared test builder writes one made-up participant in DEAP's shape (the pickle and a matching ratings file) under a temporary directory; no test reads `backend/data/`
-- [ ] `backend/data/DEAP_SETUP.md` says the mirror's valence and arousal are altered, drops "the same preprocessed data" and the "~24/76" split, and adds the ratings-file step with its source and checksum (ml-rebuild 09 has both)
+- [x] A participant's ratings are read from the ratings file in a data directory passed as an argument, joined on participant and experiment id (a file's trial index `e` is experiment id `e + 1`)
+- [x] Loading raises, naming the participant, when the ratings file is missing
+- [x] Loading raises when the ratings' dominance and liking differ from the EEG file's own label array: that comparison is the check that the join is aligned
+- [x] "High" is one function of a rating: at or above 5
+- [x] The EEG the DEAP loader returns is unchanged, and the retrieval tests pass untouched
+- [x] A shared test builder writes one made-up participant in DEAP's shape (the pickle and a matching ratings file) under a temporary directory; no test reads `backend/data/`
+- [x] `backend/data/DEAP_SETUP.md` says the mirror's valence and arousal are altered, drops "the same preprocessed data" and the "~24/76" split, and adds the ratings-file step with its source and checksum (ml-rebuild 09 has both)

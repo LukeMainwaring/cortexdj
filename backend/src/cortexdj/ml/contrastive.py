@@ -29,11 +29,9 @@ CBRAMOD_SFREQ = 200.0
 def _load_cbramod_backbone() -> nn.Module:
     """Load the CBraMod pretrained encoder for contrastive fine-tuning.
 
-    Instantiated directly (not via pretrained.py::load_pretrained_dual_head)
-    because the latter auto-freezes, logs a misleading "training heads only"
-    message, and wraps the encoder in an unused dual-head module. We want
-    the raw backbone with all parameters trainable — EEG foundation models
-    collapse when frozen (EEG-FM-Bench 2025, arxiv 2508.17742).
+    The raw backbone with all parameters trainable: EEG foundation models
+    collapse when frozen (EEG-FM-Bench 2025, arxiv 2508.17742), so do not
+    freeze it or wrap it in classification heads.
     """
     from braindecode.models import CBraMod
 

@@ -139,22 +139,35 @@ export function EmotionTrajectory({ segments, summary }: Props) {
     setProgress(v);
   };
 
+  const elapsedSessionTime = startTime + progress * totalDuration;
+
+  // The head moves on session time, not on point index: it travels from each point
+  // to the next across that point's span of start_time, and holds on the last point
+  // until the session ends, so the clock and the head agree on which track is playing.
   const { headX, headY } = useMemo(() => {
     if (smoothed.length === 0) {
       return { headX: VIEWBOX / 2, headY: VIEWBOX / 2 };
     }
-    const last = smoothed.length - 1;
-    const raw = progress * last;
-    const idx = Math.min(last, Math.floor(raw));
-    const nextIdx = Math.min(last, idx + 1);
-    const frac = raw - idx;
+    let idx = 0;
+    while (
+      idx < smoothed.length - 1 &&
+      smoothed[idx + 1].start_time <= elapsedSessionTime
+    ) {
+      idx += 1;
+    }
+    const current = smoothed[idx];
+    const next = smoothed[idx + 1];
+    if (next === undefined || elapsedSessionTime <= current.start_time) {
+      return { headX: toX(current.valence), headY: toY(current.arousal) };
+    }
+    const span = next.start_time - current.start_time;
+    const frac =
+      span > 0 ? (elapsedSessionTime - current.start_time) / span : 0;
     return {
-      headX: toX(lerp(smoothed[idx].valence, smoothed[nextIdx].valence, frac)),
-      headY: toY(lerp(smoothed[idx].arousal, smoothed[nextIdx].arousal, frac)),
+      headX: toX(lerp(current.valence, next.valence, frac)),
+      headY: toY(lerp(current.arousal, next.arousal, frac)),
     };
-  }, [progress, smoothed]);
-
-  const elapsedSessionTime = startTime + progress * totalDuration;
+  }, [elapsedSessionTime, smoothed]);
 
   if (segments.length < 2) {
     return (

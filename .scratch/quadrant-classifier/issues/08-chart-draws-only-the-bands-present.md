@@ -6,10 +6,10 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
-- [ ] The chart keeps its five-band order and colours and draws a series, and a legend entry, only for bands present in the data
-- [ ] A session whose segments have all five bands looks as it does today
-- [ ] A session whose segments have four bands shows four, with each band's share computed over the bands present
-- [ ] No backend change and no client regeneration
-- [ ] `pnpm -C frontend format`, `lint` and `typecheck` pass
+- [x] The chart keeps its five-band order and colours and draws a series, and a legend entry, only for bands present in the data
+- [x] A session whose segments have all five bands looks as it does today
+- [x] A session whose segments have four bands shows four, with each band's share computed over the bands present
+- [x] No backend change and no client regeneration
+- [x] `pnpm -C frontend format`, `lint` and `typecheck` pass

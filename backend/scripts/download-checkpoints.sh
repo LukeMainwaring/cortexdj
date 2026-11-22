@@ -1,6 +1,7 @@
 #!/bin/bash
-# Download pre-trained model checkpoints from the GitHub Release into
-# backend/data/checkpoints/. Skips files that already exist.
+# Download the contrastive encoder's checkpoint (contrastive_best.pt) from the GitHub Release
+# into backend/data/checkpoints/. Skips it if it already exists. The quadrant classifier's
+# checkpoint is never downloaded: `uv run --directory backend train-classifier` makes it.
 #
 # Usage:
 #   ./backend/scripts/download-checkpoints.sh
@@ -25,15 +26,13 @@ fi
 
 mkdir -p "$CHECKPOINTS_DIR"
 
-echo "Downloading $RELEASE_TAG checkpoints into $CHECKPOINTS_DIR ..."
+echo "Downloading the $RELEASE_TAG contrastive checkpoint into $CHECKPOINTS_DIR ..."
 gh release download "$RELEASE_TAG" \
   --repo "$REPO" \
   --dir "$CHECKPOINTS_DIR" \
-  --pattern 'cbramod_best.pt' \
   --pattern 'contrastive_best.pt' \
-  --pattern 'eegnet_best.pt' \
   --skip-existing
 
 echo
-echo "Checkpoints ready:"
-ls -lh "$CHECKPOINTS_DIR"/*.pt
+echo "Checkpoint ready:"
+ls -lh "$CHECKPOINTS_DIR/contrastive_best.pt"

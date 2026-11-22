@@ -1,17 +1,16 @@
 import json
+from dataclasses import asdict
 from typing import Any
 
-import torch
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry, ToolFailed
 
 from cortexdj.agents.deps import AgentDeps
-from cortexdj.core.paths import CHECKPOINTS_DIR
 from cortexdj.features.sessions import service as session_service
 from cortexdj.features.sessions.eeg_model import get_eeg_model
 from cortexdj.features.sessions.emotion import get_brain_state_explanation
 from cortexdj.features.sessions.schema import BrainContext
-from cortexdj.ml.pretrained import PretrainedDualHead
+from cortexdj.ml.dataset import NUM_EEG_CHANNELS
 
 
 def _unknown_session(session_id: str) -> ModelRetry:
@@ -71,8 +70,8 @@ async def analyze_session(ctx: RunContext[AgentDeps], session_id: str) -> str:
 async def explain_brain_state(ctx: RunContext[AgentDeps], session_id: str) -> str:
     """Explain what the brain was doing during a session in plain language.
 
-    Provides educational context about EEG frequency bands and their
-    relationship to emotional states.
+    Gives the session's dominant quadrant, its average arousal and valence,
+    and what that quadrant means for a listener.
     """
     if await session_service.get_session(ctx.deps.db, session_id) is None:
         raise _unknown_session(session_id)
@@ -151,46 +150,53 @@ async def find_relaxing_tracks(ctx: RunContext[AgentDeps], limit: int = 20) -> d
 
 
 async def get_model_info(ctx: RunContext[AgentDeps]) -> str:
-    """Get information about the loaded EEG classification model.
+    """Describe the quadrant classifier that scored the sessions: its features, split, accuracy and training recipe.
 
-    Returns the model architecture, parameter count, and training metrics.
+    Call when the user asks how the brain-state readings are made or how reliable they are.
     """
-    model = get_eeg_model()
-    if model is None:
+    checkpoint = get_eeg_model()
+    if checkpoint is None:
         raise ToolFailed(
-            "No EEG model loaded. Run `./backend/scripts/download-checkpoints.sh` first, then restart the backend."
+            "No quadrant-classifier checkpoint loaded. Run `uv run --directory backend train-classifier`, "
+            "then restart the backend."
         )
 
-    is_pretrained = isinstance(model, PretrainedDualHead)
-    param_count = sum(p.numel() for p in model.parameters())
-    trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    checkpoint_name = "cbramod_best.pt" if is_pretrained else "eegnet_best.pt"
-    checkpoint_path = CHECKPOINTS_DIR / checkpoint_name
-    metrics = {}
-    if checkpoint_path.exists():
-        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
-        metrics = checkpoint.get("metrics", {})
-
-    if is_pretrained:
-        architecture = "CBraMod Pretrained + Dual-Head Fine-Tuned"
-        input_desc = "Raw EEG (32 channels x 800 samples at 200Hz)"
-    else:
-        architecture = "EEGNet Dual-Head Classifier"
-        input_desc = "Differential entropy features (32 channels x 5 bands = 160 features)"
-
+    recipe = checkpoint.recipe
+    summary = checkpoint.summary
+    recipe_values = asdict(recipe)
+    recipe_values["bands"] = {band.name: [band.low, band.high] for band in recipe.bands}
     info = {
-        "architecture": architecture,
-        "input": input_desc,
-        "outputs": {
-            "arousal_head": "Binary classification (low/high arousal)",
-            "valence_head": "Binary classification (low/high valence)",
+        "model": (
+            f"One linear layer on {NUM_EEG_CHANNELS * len(recipe.bands)} band features, with the training "
+            "fold's feature scaling built in; two outputs, the logits of a high arousal and a high valence "
+            "rating. A segment's score is the sigmoid of its logit, and its quadrant is cut at 0.5 on each axis."
+        ),
+        "features": {
+            "count": NUM_EEG_CHANNELS * len(recipe.bands),
+            "description": (
+                f"Differential entropy (half the log of the band-passed variance) of each of "
+                f"{NUM_EEG_CHANNELS} channels in each band, over one {recipe.window_seconds}-second window"
+            ),
+            "bands_hz": recipe_values["bands"],
         },
-        "parameters": {
-            "total": param_count,
-            "trainable": trainable_count,
+        "models": (
+            f"One set of {recipe.n_folds} fold models per participant, trained only on that participant's "
+            "own trials; no model reads a participant it was not trained on"
+        ),
+        "participants": len(checkpoint.participants),
+        "split": (
+            f"Within-subject: a stratified {recipe.n_folds}-fold over each participant's trials, every window "
+            "of a trial on one side, every trial held out once. Each stored segment was scored by the fold "
+            "model that never saw its trial."
+        ),
+        "balanced_accuracy": {
+            "arousal": asdict(summary.arousal),
+            "valence": asdict(summary.valence),
+            "mean": asdict(summary.mean),
+            "chance": 0.5,
+            "scored_over": "each participant's held-out windows, then averaged over participants (std across them)",
         },
-        "training_metrics": metrics or "No metrics available (model not yet trained)",
+        "training_recipe": recipe_values,
     }
 
     return json.dumps(info, indent=2)

@@ -266,7 +266,7 @@ These workflows will become available as upcoming roadmap features are implement
 
 > "Fine-tune the model on my brain data"
 
-- Few-shot fine-tuning: freeze the pretrained encoder, train the classification head on ~10 minutes of the user's labeled EEG data
+- Calibration to the user: train the quadrant classifier with the same training recipe on ~10 minutes of the user's own labeled EEG, as each DEAP participant's models are trained today
 - Future sessions use the personalized model for better individual accuracy
 - Calibration flow: 5-minute baseline recording to establish the user's neural patterns
 
@@ -274,7 +274,7 @@ These workflows will become available as upcoming roadmap features are implement
 
 > "Show me which brain regions drove the prediction for segment 12"
 
-- Extract transformer attention weights from CBraMod
+- Read the linear classifier's weight on each channel and band, or a transformer's attention weights if the Phase 4 bake-off replaces it
 - Render channel/timepoint importance maps showing which EEG channels and moments most influenced the arousal/valence classification
 - Topographic brain maps visualize electrode activation patterns on a 2D scalp layout
 

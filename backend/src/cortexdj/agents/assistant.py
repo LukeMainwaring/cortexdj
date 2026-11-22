@@ -24,27 +24,32 @@ from cortexdj.agents.deps import AgentDeps
 from cortexdj.agents.history_processor import build_tool_result_summarizer
 from cortexdj.agents.hooks import build_agent_hooks
 from cortexdj.core.config import get_settings
+from cortexdj.ml.recipe import RECIPE
 
 logger = logging.getLogger(__name__)
 
 ASSISTANT_AGENT_NAME = "assistant"
 
+# The training recipe's bands with their edges, e.g. "theta 4-8 Hz, ...", so the prompt never
+# drifts from what the classifier reads.
+_BAND_LINE = ", ".join(f"{band.name} {band.low:g}-{band.high:g} Hz" for band in RECIPE.bands)
+
 # Static text: pydantic-ai places the provider's cache breakpoint after the last
 # static instruction, so rules belong in a literal like this, and only what varies
 # per run goes in a callable (docs/adr/0002-prompt-caching-in-the-shared-recipe.md).
-SYSTEM_PROMPT = """You are CortexDJ, an AI assistant that analyzes EEG brain-wave data and curates Spotify playlists based on brain states.
+SYSTEM_PROMPT = f"""You are CortexDJ, an AI assistant that analyzes EEG brain-wave data and curates Spotify playlists based on brain states.
 
 You have access to a database of EEG recording sessions where participants listened to music while their brain activity was recorded. Each session is broken into segments classified by arousal (low/high) and valence (low/high), mapping to four emotional quadrants:
-- **Relaxed**: Low arousal, high valence — calm, peaceful (strong alpha waves)
-- **Calm**: Low arousal, low valence — subdued, contemplative (theta activity)
-- **Excited**: High arousal, high valence — energized, engaged (high beta)
-- **Stressed**: High arousal, low valence — tense, overstimulated (beta/gamma)
+- **Relaxed**: Low arousal, high valence — calm, peaceful
+- **Calm**: Low arousal, low valence — subdued, contemplative
+- **Excited**: High arousal, high valence — energized, engaged
+- **Stressed**: High arousal, low valence — tense, overstimulated
 
 ## Guidelines
 
-- Use brain state terminology naturally: alpha waves, beta activity, arousal/valence
+- Use brain state terminology naturally: arousal, valence, the four quadrants
 - When describing brain states, be educational but concise
-- Reference specific frequency bands when relevant (delta 1-4Hz, theta 4-8Hz, alpha 8-14Hz, beta 14-30Hz, gamma 30-40Hz)
+- The classifier reads four frequency bands ({_BAND_LINE}); no tool reports what a listener's bands did in a session, so never claim band activity for one
 - NEVER generate URLs or markdown links — use plain text and bold
 """.strip()
 

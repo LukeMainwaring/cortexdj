@@ -1,4 +1,8 @@
-"""EEG sessions for the assistant: listing, analysis, comparison, the model, and brain context.
+"""EEG sessions for the assistant: listing, analysis, comparison, the model, the reliability hedge, and brain context.
+
+The reliability hedge is worded from the checkpoint loaded at startup. pydantic-ai reads a
+capability's instructions once, when the registry builds the agent, which is after the
+startup hooks ran, so the hedge is fixed for the life of the process and stays static text.
 
 The conversation's brain context is read from the database before every model request,
 not carried on ``AgentDeps``: ``set_brain_context`` may change it mid-run, and the next
@@ -27,6 +31,7 @@ from cortexdj.features.sessions.tools import (
     list_sessions,
     set_brain_context,
 )
+from cortexdj.ml.checkpoint import QuadrantCheckpoint
 
 _SESSIONS_INSTRUCTIONS = """
 ## EEG Analysis
@@ -35,7 +40,7 @@ _SESSIONS_INSTRUCTIONS = """
 - **analyze_session** — Detailed breakdown of a session's brain states (per-segment timeline, band powers, tracks)
 - **explain_brain_state** — Plain-language explanation of what the brain was doing during a session
 - **compare_sessions** — Compare brain patterns across two sessions
-- **get_model_info** — Return the EEGNet model architecture and training metrics
+- **get_model_info** — Describe the quadrant classifier: its features, split, accuracy and training recipe
 - **set_brain_context** — Set the active brain state context for this conversation
 - **find_relaxing_tracks** — Find tracks that triggered calm/relaxed brain states from EEG data
 
@@ -75,21 +80,63 @@ per-session labels or counts in prose.
 ## Session Narrative
 
 When summarizing an `analyze_session` result, narrate the listener's emotional
-arc using the `trajectory_summary` fields, not just the single dominant state:
+arc track by track using the `trajectory_summary` fields, not just the single
+dominant state. Every field is counted over the session's tracks, one point per
+track at the mean of its segments:
 
-- **dwell_fractions** — percent of the session spent in each quadrant
+- **dwell_fractions** — share of the session's tracks in each quadrant
   (`relaxed`, `calm`, `excited`, `stressed`).
-- **transition_count** and **transitions** — how often and when the listener
-  crossed quadrant boundaries; cite notable transitions with their timestamps.
-- **path_length** — total distance travelled through affect space; a proxy for
-  how dynamic the session was (low = steady, high = volatile).
-- **dispersion** — spread around the centroid; a proxy for affective
-  variability.
-- **centroid** — the "average" point in (valence, arousal) space.
+- **transition_count** and **transitions** — how often the listener moved to a
+  different quadrant from one track to the next; a transition's `time` is the
+  start of the track it lands on. Cite notable transitions by track (its
+  position and title from `tracks`), not by timestamp.
+- **path_length** — total distance travelled through affect space from track
+  to track; a proxy for how dynamic the session was (low = steady, high =
+  volatile).
+- **dispersion** — spread of the tracks around the centroid; a proxy for
+  affective variability.
+- **centroid** — the "average" point in (arousal, valence) space.
 
 Prefer a two-to-three-sentence arc (e.g. "Started calm, shifted to excited
-around 2:30, finished relaxed") over a flat list of statistics.
+after the third track, finished relaxed") over a flat list of statistics.
 """.strip()
+
+# The single number's cut-offs: below the first "a rough read", up to the second "a fair read",
+# from the second up no hedge.
+_FAIR_FROM = 0.60
+_NO_HEDGE_FROM = 0.75
+
+
+def render_reliability(checkpoint: QuadrantCheckpoint | None) -> str:
+    """The "Reliability" block: how to hedge a session's quadrants, worded by the checkpoint's single number.
+
+    The single number is the checkpoint's balanced accuracy, the mean of arousal and valence,
+    averaged over the participants it holds, rounded to the two places it is printed with before
+    the tier is picked. With no checkpoint loaded the most cautious tier
+    is used, since nothing vouches for the stored quadrants.
+    """
+    if checkpoint is None:
+        basis = "No quadrant-classifier checkpoint is loaded, so nothing vouches for the stored quadrants."
+        tier: str | None = "a rough read"
+    else:
+        # The tier is chosen on the figure the model reads, so 0.5996 prints "0.60" beside "a fair read",
+        # never beside "a rough read".
+        score = round(checkpoint.summary.mean.mean, 2)
+        basis = (
+            f"The quadrant classifier's balanced accuracy, averaged over arousal and valence and over "
+            f"its participants, is {score:.2f} (chance is 0.50)."
+        )
+        tier = "a rough read" if score < _FAIR_FROM else "a fair read" if score < _NO_HEDGE_FROM else None
+    if tier is None:
+        rule = "That is reliable enough to state the quadrants plainly: add no reliability caveat."
+    else:
+        rule = (
+            f'When you analyze or explain a session, say once, in one short clause, that its quadrants are "{tier}" '
+            f'(for example: "this is {tier}, but the session leans calm"). One clause per analysis, never a '
+            "paragraph, and do not repeat it for each track."
+        )
+    return f"## Reliability\n\n{basis} {rule}"
+
 
 # Hidden while no checkpoint is loaded, so the model never offers a tool that can only fail.
 _MODEL_TOOLS = frozenset({get_model_info.__name__})
@@ -144,14 +191,16 @@ class SessionsCapability(AbstractCapability[AgentDeps]):
         return ts
 
     def get_instructions(self) -> list[str | Callable[[RunContext[AgentDeps]], Awaitable[str]]]:
-        return [_SESSIONS_INSTRUCTIONS, _brain_context_for_request]
+        # Both strings are static and sit in the cached prefix; brain context is the only
+        # per-request part (ADR 0002).
+        return [_SESSIONS_INSTRUCTIONS, render_reliability(get_eeg_model()), _brain_context_for_request]
 
     async def prepare_tools(
         self,
         ctx: RunContext[AgentDeps],
         tool_defs: list[ToolDefinition],
     ) -> list[ToolDefinition]:
-        """Hide the model tools when no EEG model is loaded."""
+        """Hide the model tools when no quadrant-classifier checkpoint is loaded."""
         if get_eeg_model() is None:
             return [td for td in tool_defs if td.name not in _MODEL_TOOLS]
         return tool_defs

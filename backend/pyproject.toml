@@ -36,6 +36,7 @@ dependencies = [
 [project.scripts]
 seed-sessions = "cortexdj.scripts.seed_sessions:main"
 seed-track-index = "cortexdj.scripts.seed_track_index:main"
+train-classifier = "cortexdj.training.command:main"
 
 [dependency-groups]
 dev = [
@@ -80,18 +81,19 @@ skip_covered = false
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["braindecode.*", "pgvector.*", "scipy.*", "spotipy.*"]
+module = ["braindecode.*", "pgvector.*", "scipy.*", "sklearn.*", "spotipy.*"]
 ignore_missing_imports = true
 
 
 [tool.deptry]
 # Run by the updating-deps skill. asyncpg is loaded by SQLAlchemy as the driver, never imported;
-# starlette is imported directly in the usual FastAPI way.
+# starlette is imported directly in the usual FastAPI way. sklearn is imported only by the
+# cross-subject baseline script and stays transitive: braindecode installs it.
 known_first_party = ["cortexdj"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["asyncpg"]
-DEP003 = ["starlette"]
+DEP003 = ["sklearn", "starlette"]
 
 [tool.ruff]
 line-length = 120
@@ -148,6 +150,36 @@ forbidden_modules = [
   "cortexdj.shared",
   "cortexdj.agents",
   "cortexdj.features",
+  "cortexdj.api",
+  "cortexdj.app",
+  "cortexdj.migrations",
+]
+
+[[tool.importlinter.contracts]]
+name = "Nothing in the app imports the training package"
+type = "forbidden"
+source_modules = [
+  "cortexdj.core",
+  "cortexdj.shared",
+  "cortexdj.agents",
+  "cortexdj.ml",
+  "cortexdj.features",
+  "cortexdj.scripts",
+  "cortexdj.migrations",
+  "cortexdj.api",
+  "cortexdj.app",
+]
+forbidden_modules = ["cortexdj.training"]
+
+[[tool.importlinter.contracts]]
+name = "The training package imports only the ML kernel and the platform kernel"
+type = "forbidden"
+source_modules = ["cortexdj.training"]
+forbidden_modules = [
+  "cortexdj.shared",
+  "cortexdj.agents",
+  "cortexdj.features",
+  "cortexdj.scripts",
   "cortexdj.api",
   "cortexdj.app",
   "cortexdj.migrations",

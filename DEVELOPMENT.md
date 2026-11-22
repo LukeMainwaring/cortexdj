@@ -12,7 +12,8 @@ cp .env.sample .env            # set ANTHROPIC_API_KEY (the default models); OPE
 
 docker compose up -d           # PostgreSQL (pgvector) and the backend on :8003
 ./backend/scripts/migrate-docker.sh
-uv run --directory backend seed-sessions   # EEG sessions from backend/data/deap (see below)
+uv run --directory backend train-classifier   # the quadrant classifier's checkpoint (see below)
+uv run --directory backend seed-sessions      # EEG sessions from backend/data/deap, scored by it
 # the track index, if you have backend/data/track-index.dump (see below)
 docker compose exec -T postgres pg_restore -U postgres -d cortexdj --data-only < backend/data/track-index.dump
 
@@ -21,22 +22,57 @@ pnpm -C frontend generate-client
 pnpm -C frontend dev           # http://localhost:3003
 ```
 
-The model checkpoints live in `backend/data/checkpoints/`, which is not in git;
-`./backend/scripts/download-checkpoints.sh` fetches them from a GitHub Release (it needs the
-`gh` CLI). The backend container sees `backend/data` at `/app/data` through a bind mount.
-The first model load in the container downloads the CBraMod backbone from the Hugging Face hub
-into the `huggingface_cache` volume. Without a checkpoint the backend still boots: it logs a
-warning and the assistant does not offer `get_model_info`. The backend loads two models at
-startup, the EEG classifier and the contrastive encoder (`contrastive_best.pt`), so a boot and
-each dev reload take a few seconds longer; without the contrastive checkpoint the boot logs a
-warning and retrieval answers with a message that points at the download script.
+The model checkpoints live in `backend/data/checkpoints/`, which is not in git. The backend
+loads two at startup. The quadrant classifier's (`quadrant_classifier.pt`) is made locally by
+`train-classifier` (see below); without it the backend still boots, logs a warning that names
+`train-classifier`, and the assistant does not offer `get_model_info`; one made under a
+different training recipe stops the backend at startup, naming the setting. The contrastive
+encoder's (`contrastive_best.pt`) comes from a GitHub Release through
+`./backend/scripts/download-checkpoints.sh` (it needs the `gh` CLI); without it the boot logs a
+warning and retrieval answers with a message that points at the download script. The backend
+container sees `backend/data` at `/app/data` through a bind mount. The first load of the
+contrastive encoder in the container downloads the CBraMod backbone from the Hugging Face hub
+into the `huggingface_cache` volume, and a boot and each dev reload take a few seconds longer.
 
-`seed-sessions` reads the 32 DEAP participant files (`backend/data/deap/s01.dat` to `s32.dat`;
-`backend/data/DEAP_SETUP.md` says how to get them), classifies every 4-second segment with the
-checkpoint it loads itself (`--model cbramod` by default, ground-truth labels when there is no
-checkpoint), and writes one session per participant. It runs on the host against the Postgres
-container, takes about three and a half minutes for all 32 (3 min 33 s on an Apple-silicon
-laptop), and appends: run it once on a fresh database.
+`train-classifier` trains the rebuilt quadrant classifier and writes
+`backend/data/checkpoints/quadrant_classifier.pt`, made locally and never downloaded. It reads
+the same DEAP files plus `participant_ratings.csv` (valence and arousal come only from that
+file), trains each participant's five fold models on that participant's own trials, and prints
+balanced accuracy for arousal, for valence and their mean, each ± its spread across
+participants (chance is 0.50). It runs on CPU. `--participants 1 2 3` trains a subset and
+overwrites the file with only those participants. Its settings are the training recipe in
+`ml/recipe.py`, fixed and untuned; loading a checkpoint made under a different recipe raises
+and names the setting. The code lives in `cortexdj.training`, which imports only the ML kernel
+and the platform kernel; an import-linter contract keeps everything else from importing it.
+`seed-sessions` scores with this checkpoint, and the app loads it at startup for `get_model_info`.
+
+A full run over the 32 participants prints, as mean ± standard deviation across participants:
+
+```text
+arousal  0.558 ± 0.053
+valence  0.609 ± 0.080
+mean     0.583 ± 0.053
+```
+
+The run is deterministic, so a rerun prints the same figures; a different number means the code
+or the data changed. The number is within-subject and within one recording sitting: a decoder
+trained on one day and used on another is a harder problem it does not cover.
+
+The cross-subject baseline script re-runs the evidence for training each participant on their
+own trials: logistic regression on the same band features scores at chance when trained on
+other participants and held out on one. It prints one table and takes about 40 seconds:
+`uv run --directory backend python -m cortexdj.training.cross_subject_baseline data/deap`.
+
+`seed-sessions` runs after `train-classifier`. It reads the 32 DEAP participant files
+(`backend/data/deap/s01.dat` to `s32.dat`; `backend/data/DEAP_SETUP.md` says how to get them)
+and scores every 4-second segment with the fold model that did not train on that segment's
+trial, so a session looks as good as the held-out number and no better. A segment's band powers
+are the model's four bands (theta, alpha, beta, gamma). Without the checkpoint, or for a
+participant the checkpoint does not hold, it refuses and says to run `train-classifier`. A
+re-seed replaces: each participant's existing DEAP session is deleted and a fresh one, with a
+new id, is inserted, so the database keeps one session per participant; tracks stay, and a
+thread's brain context that pointed at a replaced session loses that session id. It runs on the
+host against the Postgres container and takes about three and a half minutes for all 32.
 `--participants 1 2 3` seeds a subset.
 
 The track index is the table `track_audio_embeddings`: one 512-dimension CLAP audio vector per

@@ -8,11 +8,17 @@ the shape is typed) so a test states only the fields it is about. Add a builder 
 rather than a private helper in a test file once two test files need the same shape.
 """
 
+import csv
+import pickle
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import numpy as np
+import numpy.typing as npt
 from pydantic_ai import RunContext
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
@@ -25,6 +31,10 @@ from cortexdj.features.chat.model import Thread
 from cortexdj.features.retrieval.model import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.spotify.model import SpotifyToken
+from cortexdj.ml.checkpoint import AxisScores, ParticipantModels, QuadrantCheckpoint
+from cortexdj.ml.dataset import NUM_EEG_CHANNELS, RATINGS_FILENAME
+from cortexdj.ml.quadrant_classifier import QuadrantClassifier
+from cortexdj.ml.recipe import RECIPE
 
 
 async def create_session(db: AsyncSession, **overrides: object) -> Session:
@@ -55,7 +65,7 @@ def make_eeg_segment(session_id: str, **overrides: object) -> EegSegment:
         "arousal_score": 0.7,
         "valence_score": 0.6,
         "dominant_state": "excited",
-        "band_powers": {"alpha": 1.0, "beta": 0.5, "theta": 0.3, "delta": 0.2, "gamma": 0.1},
+        "band_powers": {"theta": 0.3, "alpha": 1.0, "beta": 0.5, "gamma": 0.1},
     }
     data.update(overrides)
     return EegSegment(**data)
@@ -81,8 +91,8 @@ async def create_track(db: AsyncSession, **overrides: object) -> Track:
     return track
 
 
-async def create_session_track(db: AsyncSession, session_id: str, track_id: str, **overrides: object) -> SessionTrack:
-    """Persist the listener's response to an existing track within an existing session; ``relaxed`` by default."""
+def make_session_track(session_id: str, track_id: str, **overrides: object) -> SessionTrack:
+    """Unpersisted listener's response to the first track of ``session_id``; ``relaxed`` by default."""
     data: dict[str, object] = {
         "id": str(uuid4()),
         "session_id": session_id,
@@ -93,7 +103,12 @@ async def create_session_track(db: AsyncSession, session_id: str, track_id: str,
         "dominant_state": "relaxed",
     }
     data.update(overrides)
-    session_track = SessionTrack(**data)
+    return SessionTrack(**data)
+
+
+async def create_session_track(db: AsyncSession, session_id: str, track_id: str, **overrides: object) -> SessionTrack:
+    """Persist the listener's response to an existing track within an existing session; ``relaxed`` by default."""
+    session_track = make_session_track(session_id, track_id, **overrides)
     db.add(session_track)
     await db.flush()
     await db.refresh(session_track)
@@ -211,3 +226,144 @@ def make_evaluator_context[InputsT, OutputT](
         attributes=attributes if attributes is not None else {},
         metrics={},
     )
+
+
+# DEAP's preprocessed layout: 40 channels (32 EEG first), 384 baseline + 7680 stimulus samples at 128Hz.
+_DEAP_CHANNELS = 40
+_DEAP_SAMPLES = 8064
+_RATINGS_COLUMNS = [
+    "Participant_id",
+    "Trial",
+    "Experiment_id",
+    "Start_time",
+    "Valence",
+    "Arousal",
+    "Dominance",
+    "Liking",
+    "Familiarity",
+]
+
+
+@dataclass(frozen=True)
+class FakeDeapParticipant:
+    """What ``write_deap_participant`` wrote: the EEG file and the published ratings, in the file's trial order."""
+
+    eeg_path: Path
+    valence: npt.NDArray[np.float64]
+    arousal: npt.NDArray[np.float64]
+    ratings: npt.NDArray[np.float64]
+    """``(n_trials, 4)`` valence, arousal, dominance, liking, as ``write_participant_ratings`` takes them."""
+
+
+# The planted signal: a high-valence trial carries an alpha sine and a high-arousal trial a beta
+# sine on every EEG channel, over unit white noise, so a linear model on band features finds it.
+_VALENCE_HZ = 10.0
+_AROUSAL_HZ = 20.0
+_PLANTED_AMPLITUDE = 0.3
+
+
+def write_deap_participant(
+    data_dir: Path,
+    participant_id: int = 1,
+    *,
+    n_trials: int = 40,
+    seed: int = 0,
+    valence_arousal: npt.NDArray[np.float64] | None = None,
+) -> FakeDeapParticipant:
+    """Write one made-up DEAP participant under ``data_dir``: ``sNN.dat`` and its rows of ``participant_ratings.csv``.
+
+    The pickle's label array is altered the way the Kaggle mirror's is (valence and arousal
+    are ``9 - rating`` where both ratings exceed 5) while its dominance and liking match the
+    ratings, so a loader that reads valence or arousal from the pickle gets the wrong answer.
+    Ratings rows are written in a shuffled presentation order, so only a join on experiment id
+    lines them up. An ``n_trials`` below DEAP's 40 keeps a test's pickle small.
+
+    The EEG carries a planted signal a linear model can find: an alpha sine in every trial rated
+    high on valence and a beta sine in every trial rated high on arousal. ``valence_arousal``,
+    ``(n_trials, 2)``, sets those ratings instead of drawing them.
+    """
+    rng = np.random.default_rng(seed)
+    ratings = rng.uniform(1, 9, (n_trials, 4)).round(2)
+    if valence_arousal is not None:
+        ratings[:, :2] = valence_arousal
+    else:
+        ratings[0, :2] = [7.0, 8.0]  # at least one trial the mirror alters
+    labels = ratings.copy()
+    altered = (ratings[:, 0] > 5) & (ratings[:, 1] > 5)
+    labels[altered, :2] = 9 - ratings[altered, :2]
+    data = rng.standard_normal((n_trials, _DEAP_CHANNELS, _DEAP_SAMPLES)).astype(np.float32)
+    t = np.arange(_DEAP_SAMPLES) / 128
+    for trial in range(n_trials):
+        for hz, rating in ((_VALENCE_HZ, ratings[trial, 0]), (_AROUSAL_HZ, ratings[trial, 1])):
+            if rating >= 5:
+                phase = rng.uniform(0, 2 * np.pi, (NUM_EEG_CHANNELS, 1))
+                data[trial, :NUM_EEG_CHANNELS] += _PLANTED_AMPLITUDE * np.sin(2 * np.pi * hz * t + phase)
+    eeg_path = data_dir / f"s{participant_id:02d}.dat"
+    with eeg_path.open("wb") as f:
+        pickle.dump({"labels": labels, "data": data}, f)
+    write_participant_ratings(data_dir, participant_id, ratings, seed=seed)
+    return FakeDeapParticipant(eeg_path=eeg_path, valence=ratings[:, 0], arousal=ratings[:, 1], ratings=ratings)
+
+
+def flatten_channel(eeg_path: Path, *, trial: int, channel: int) -> None:
+    """Zero one EEG channel of one trial in a written ``sNN.dat``: a dead electrode, whose band variance is 0."""
+    with eeg_path.open("rb") as f:
+        participant = pickle.load(f)  # noqa: S301 (a file this module wrote)
+    participant["data"][trial, channel] = 0.0
+    with eeg_path.open("wb") as f:
+        pickle.dump(participant, f)
+
+
+def write_participant_ratings(
+    data_dir: Path, participant_id: int, ratings: npt.NDArray[np.float64], *, seed: int = 0
+) -> None:
+    """Replace ``participant_id``'s rows of ``participant_ratings.csv`` under ``data_dir`` with ``ratings``.
+
+    ``ratings`` is ``(n_trials, 4)`` valence, arousal, dominance, liking in the EEG file's trial
+    order, so row ``e`` becomes experiment id ``e + 1``. Other participants' rows are kept.
+    """
+    path = data_dir / RATINGS_FILENAME
+    rows: list[dict[str, str]] = []
+    if path.exists():
+        with path.open(newline="") as f:
+            rows = [row for row in csv.DictReader(f) if int(row["Participant_id"]) != participant_id]
+    presentation = np.random.default_rng(seed).permutation(len(ratings))
+    for trial, e in enumerate(presentation, start=1):
+        valence, arousal, dominance, liking = (str(v) for v in ratings[e])
+        rows.append(
+            {
+                "Participant_id": str(participant_id),
+                "Trial": str(trial),
+                "Experiment_id": str(e + 1),
+                "Start_time": str(trial * 70_000),
+                "Valence": valence,
+                "Arousal": arousal,
+                "Dominance": dominance,
+                "Liking": liking,
+                "Familiarity": "",
+            }
+        )
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_RATINGS_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def make_quadrant_checkpoint(
+    participant_ids: tuple[int, ...] = (1,), *, metrics: AxisScores | None = None
+) -> QuadrantCheckpoint:
+    """An untrained quadrant-classifier checkpoint: fresh fold models, a round-robin fold per trial, and ``metrics``.
+
+    For a test that needs a checkpoint to hold or describe, not one whose models score anything;
+    ``tests/unit/training/`` trains real ones on a made-up participant.
+    """
+    scores = metrics or AxisScores(arousal=0.55, valence=0.6, mean=0.575)
+    participants = {
+        participant_id: ParticipantModels(
+            models=[QuadrantClassifier() for _ in range(RECIPE.n_folds)],
+            fold_of_trial=[trial % RECIPE.n_folds for trial in range(40)],
+            metrics=scores,
+        )
+        for participant_id in participant_ids
+    }
+    return QuadrantCheckpoint.of(participants)
