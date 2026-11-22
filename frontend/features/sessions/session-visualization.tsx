@@ -51,30 +51,39 @@ const BAND_COLORS: Record<Band, string> = {
   gamma: "#ef4444", // red
 };
 
-interface TimelineRow {
-  alpha: number;
-  arousal: number;
-  beta: number;
-  delta: number;
-  gamma: number;
-  state: string;
-  theta: number;
-  time: number;
-  valence: number;
+/**
+ * The bands any segment carries, in `BAND_ORDER`.
+ *
+ * The band set depends on the source's preprocessing (DEAP's 4-45 Hz band-pass leaves no
+ * delta), so the chart reads it from the data rather than assuming all five. Do not
+ * hardcode the four DEAP bands: a source that has delta should get it back unchanged.
+ */
+function bandsPresent(segments: SegmentSchema[]): Band[] {
+  return BAND_ORDER.filter((band) =>
+    segments.some((s) => s.band_powers[band] !== undefined)
+  );
 }
 
-function buildRows(segments: SegmentSchema[]): TimelineRow[] {
-  return segments.map((s) => ({
-    time: Number(s.start_time.toFixed(1)),
-    arousal: s.arousal_score,
-    valence: s.valence_score,
-    state: s.dominant_state,
-    delta: s.band_powers.delta ?? 0,
-    theta: s.band_powers.theta ?? 0,
-    alpha: s.band_powers.alpha ?? 0,
-    beta: s.band_powers.beta ?? 0,
-    gamma: s.band_powers.gamma ?? 0,
-  }));
+type TimelineRow = {
+  arousal: number;
+  state: string;
+  time: number;
+  valence: number;
+} & Partial<Record<Band, number>>;
+
+function buildRows(segments: SegmentSchema[], bands: Band[]): TimelineRow[] {
+  return segments.map((s) => {
+    const row: TimelineRow = {
+      time: Number(s.start_time.toFixed(1)),
+      arousal: s.arousal_score,
+      valence: s.valence_score,
+      state: s.dominant_state,
+    };
+    for (const band of bands) {
+      row[band] = s.band_powers[band] ?? 0;
+    }
+    return row;
+  });
 }
 
 function HeaderBadges({
@@ -167,7 +176,19 @@ function TimelineChart({ rows }: { rows: TimelineRow[] }) {
   );
 }
 
-function BandPowersChart({ rows }: { rows: TimelineRow[] }) {
+/**
+ * Stacked share of band power per segment.
+ *
+ * `stackOffset="expand"` normalises over the drawn series, so each band's share is over the
+ * bands present.
+ */
+function BandPowersChart({
+  rows,
+  bands,
+}: {
+  rows: TimelineRow[];
+  bands: Band[];
+}) {
   return (
     <ResponsiveContainer height={180} width="100%">
       <ComposedChart
@@ -198,7 +219,7 @@ function BandPowersChart({ rows }: { rows: TimelineRow[] }) {
           labelFormatter={tooltipLabelFormatter}
         />
         <Legend iconSize={10} wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
-        {BAND_ORDER.map((band) => (
+        {bands.map((band) => (
           <Area
             dataKey={band}
             fill={BAND_COLORS[band]}
@@ -223,9 +244,13 @@ function PureSessionVisualization({ sessionId }: Props) {
     isError,
   } = useSessionSegments(sessionId);
 
-  const rows = useMemo(
-    () => (segmentsData?.segments ? buildRows(segmentsData.segments) : []),
+  const bands = useMemo(
+    () => bandsPresent(segmentsData?.segments ?? []),
     [segmentsData]
+  );
+  const rows = useMemo(
+    () => buildRows(segmentsData?.segments ?? [], bands),
+    [segmentsData, bands]
   );
 
   const trajectorySummary = segmentsData?.trajectory_summary ?? null;
@@ -291,7 +316,7 @@ function PureSessionVisualization({ sessionId }: Props) {
         <div className="text-muted-foreground mb-1 text-xs">
           Frequency Band Powers
         </div>
-        <BandPowersChart rows={rows} />
+        <BandPowersChart bands={bands} rows={rows} />
       </div>
     </Card>
   );
