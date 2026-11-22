@@ -41,7 +41,7 @@ A 4-second window of a session's EEG, stored with an arousal score, a valence sc
 _Avoid_: Window (the model's input, before it is stored), epoch, sample
 
 **Quadrant**:
-One of the four emotion states a pair of arousal and valence scores maps to: excited (high arousal, high valence), stressed (high, low), relaxed (low, high), calm (low, low).
+One of the four emotion states a pair of arousal and valence scores maps to: excited (high arousal, high valence), stressed (high, low), relaxed (low, high), calm (low, low). High is at or above the midpoint: a score of 0.5, or a self-rating of 5 on DEAP's 1 to 9 scale.
 _Avoid_: Mood (the word the user and the playlist tools use for a quadrant), emotion class, label
 
 **Brain context**:
