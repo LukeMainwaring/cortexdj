@@ -32,7 +32,7 @@ Fake only at these seams; everything else in `cortexdj` runs for real in a test
 | The database session (unit tier) | `make_deps()` from `tests/factories.py` |
 | The database session (integration tier) | the `client` fixture, which sets `app.dependency_overrides` |
 | Title generation | `app.dependency_overrides[get_title_generator]`, already set by `tests/integration/features/chat/conftest.py` |
-| The EEG model | `override_eeg_model(model)` from `features/sessions/eeg_model.py`; `None` stands for no checkpoint |
+| The EEG model | `override_eeg_model(checkpoint)` from `features/sessions/eeg_model.py`, with `make_quadrant_checkpoint()` from `tests/factories.py` (untrained models, given metrics); `None` stands for no checkpoint |
 | The contrastive encoder | `override_contrastive_encoder(ContrastiveEncoder(model=EegCLAPEncoder(backbone=fake), device=...))` from `features/retrieval/encoder.py` for the tool, `app.dependency_overrides[get_contrastive_encoder]` for the route; `None` stands for no checkpoint. A service test passes the encoder as the argument |
 | The DEAP files | the service's `deap_dir=` argument, pointed at a small pickle a test writes under `tmp_path`. Never read or write `backend/data/` in a test |
 | The Spotify client | `override_spotify_client(fake)` from `features/spotify/client.py`, with a small hand-written fake for the spotipy client; `override_spotify_client(None)` stands for not connected. To test what the getter itself does with and without a login, add or leave out a `spotify_tokens` row (`create_spotify_token`) instead. Never set `SPOTIFY_CLIENT_ID` in a test: a stored token that needs a refresh would then call Spotify |

@@ -16,12 +16,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from cortexdj.ml.preprocessing import DEFAULT_SAMPLING_RATE
-
 NUM_EEG_CHANNELS = 32
-SEGMENT_SAMPLES = DEFAULT_SAMPLING_RATE * 4  # 4-second segments (512 samples at 128Hz)
-AROUSAL_THRESHOLD = 5.0
-VALENCE_THRESHOLD = 5.0
+DEAP_SAMPLING_RATE = 128
+SEGMENT_SAMPLES = DEAP_SAMPLING_RATE * 4  # 4-second segments (512 samples at 128Hz)
 
 # Multiply DEAP µV signals by this before feeding CBraMod. Without it, CBraMod
 # sees signals ~100× too large and its pretrained features operate
@@ -40,17 +37,6 @@ RATINGS_FILENAME = "participant_ratings.csv"
 # CBraMod target sampling rate
 CBRAMOD_SAMPLING_RATE = 200
 CBRAMOD_SEGMENT_SAMPLES = CBRAMOD_SAMPLING_RATE * 4  # 800 samples for 4s at 200Hz
-
-
-def scores_to_quadrant(arousal: float, valence: float) -> str:
-    if arousal >= AROUSAL_THRESHOLD and valence >= VALENCE_THRESHOLD:
-        return "excited"
-    elif arousal < AROUSAL_THRESHOLD and valence >= VALENCE_THRESHOLD:
-        return "relaxed"
-    elif arousal >= AROUSAL_THRESHOLD and valence < VALENCE_THRESHOLD:
-        return "stressed"
-    else:
-        return "calm"
 
 
 def load_deap_participant(

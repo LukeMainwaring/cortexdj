@@ -9,13 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from cortexdj.features.sessions import tools as session_tools
 from cortexdj.features.sessions.eeg_model import override_eeg_model
-from cortexdj.ml.model import EEGNetClassifier
+from cortexdj.ml.checkpoint import AxisScores
 from tests.factories import (
     create_eeg_segment,
     create_session,
     create_session_track,
     create_track,
     make_deps,
+    make_quadrant_checkpoint,
     make_run_context,
 )
 
@@ -121,16 +122,26 @@ async def test_find_relaxing_tracks_lists_relaxed_and_calm_tracks_once_each(db_s
     assert result["total_available"] == 2
 
 
-async def test_get_model_info_describes_the_held_model(db_session: AsyncSession) -> None:
-    model = EEGNetClassifier()
+async def test_get_model_info_describes_the_held_checkpoint(db_session: AsyncSession) -> None:
+    checkpoint = make_quadrant_checkpoint((1, 2, 3), metrics=AxisScores(arousal=0.55, valence=0.61, mean=0.58))
 
-    with override_eeg_model(model):
+    with override_eeg_model(checkpoint):
         info = json.loads(await session_tools.get_model_info(make_run_context(make_deps(db_session))))
 
-    assert info["architecture"] == "EEGNet Dual-Head Classifier"
-    assert info["parameters"]["total"] == sum(p.numel() for p in model.parameters())
+    assert "linear layer" in info["model"]
+    assert info["features"]["count"] == 128
+    assert list(info["features"]["bands_hz"]) == ["theta", "alpha", "beta", "gamma"]
+    assert info["participants"] == 3
+    assert "within-subject" in info["split"].lower()
+    accuracy = info["balanced_accuracy"]
+    assert accuracy["valence"] == {"mean": 0.61, "std": 0.0}
+    assert accuracy["arousal"] == {"mean": 0.55, "std": 0.0}
+    assert accuracy["mean"] == {"mean": 0.58, "std": 0.0}
+    assert accuracy["chance"] == 0.5
+    assert info["training_recipe"]["n_folds"] == 5
+    assert info["training_recipe"]["weight_decay"] == checkpoint.recipe.weight_decay
 
 
-async def test_get_model_info_without_a_model_fails(db_session: AsyncSession) -> None:
-    with override_eeg_model(None), pytest.raises(ToolFailed, match="download-checkpoints.sh"):
+async def test_get_model_info_without_a_checkpoint_names_train_classifier(db_session: AsyncSession) -> None:
+    with override_eeg_model(None), pytest.raises(ToolFailed, match="train-classifier"):
         await session_tools.get_model_info(make_run_context(make_deps(db_session)))

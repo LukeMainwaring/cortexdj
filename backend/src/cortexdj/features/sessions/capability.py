@@ -35,7 +35,7 @@ _SESSIONS_INSTRUCTIONS = """
 - **analyze_session** — Detailed breakdown of a session's brain states (per-segment timeline, band powers, tracks)
 - **explain_brain_state** — Plain-language explanation of what the brain was doing during a session
 - **compare_sessions** — Compare brain patterns across two sessions
-- **get_model_info** — Return the EEGNet model architecture and training metrics
+- **get_model_info** — Describe the quadrant classifier: its features, split, accuracy and training recipe
 - **set_brain_context** — Set the active brain state context for this conversation
 - **find_relaxing_tracks** — Find tracks that triggered calm/relaxed brain states from EEG data
 
@@ -156,7 +156,7 @@ class SessionsCapability(AbstractCapability[AgentDeps]):
         ctx: RunContext[AgentDeps],
         tool_defs: list[ToolDefinition],
     ) -> list[ToolDefinition]:
-        """Hide the model tools when no EEG model is loaded."""
+        """Hide the model tools when no quadrant-classifier checkpoint is loaded."""
         if get_eeg_model() is None:
             return [td for td in tool_defs if td.name not in _MODEL_TOOLS]
         return tool_defs

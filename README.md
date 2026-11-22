@@ -16,12 +16,12 @@ Music shapes your brain state, and your brain state shapes what music you want n
 
 ## Features
 
-- **Brain state classification** — Per-segment arousal/valence prediction mapped to four emotion quadrants (relaxed / calm / excited / stressed) for every 4-second EEG window
-- **Dual model backends** — CBraMod pretrained transformer (4.9M params, raw EEG) or lightweight EEGNet (25K params, differential entropy features), selectable via env var and benchmarked leave-one-subject-out on 32-subject DEAP
+- **Brain state classification** — Per-segment arousal/valence scores mapped to four emotion quadrants (relaxed / calm / excited / stressed) for every 4-second EEG window
+- **A classifier you can explain weight by weight** — One linear layer on differential entropy in four frequency bands, calibrated to each DEAP participant and scored on trials it never saw; its training code is in the repo and runs on a laptop in about a minute
 - **Agentic orchestration** — A Pydantic AI agent decides which tools to call per query, enabling multi-step reasoning across session analysis, playlist curation, and track retrieval
 - **Persistent brain context** — Dominant mood / arousal / valence attached to the conversation thread, surviving page refreshes and flowing dynamically into the system prompt
 - **Contrastive EEG↔CLAP retrieval** — Joint 512-d embedding between raw EEG and LAION-CLAP audio, served via pgvector HNSW cosine search (proof-of-concept; see [Limitations](#limitations))
-- **Emotion trajectory visualization** — Animated SVG path through Russell's affect space, plus a stacked band-power chart with delta / theta / alpha / beta / gamma activity
+- **Emotion trajectory visualization** — Animated SVG path through Russell's affect space, plus a stacked band-power chart of the theta / alpha / beta / gamma activity the classifier reads
 - **Brain-grounded playlist curation** — Queries historical EEG classifications to find tracks that consistently triggered a target mood, then builds a Spotify playlist with a user-confirmation gate
 - **Inline tool transparency** — Every agent step renders an expandable tool-call panel with input parameters, output JSON, and a domain-specific visualization beneath
 
@@ -57,10 +57,10 @@ Side-by-side comparison of brain responses across two different listening sessio
 
 Retrieving tracks from brain state embeds the session's EEG into the joint EEG↔CLAP space and returns top-k tracks ranked with cosine-similarity bars and inline 30-second iTunes previews for smoother, accurate music discovery.
 
-## Why dual models + agent?
+## Why a per-participant classifier + agent?
 
-- **EEGNet** (custom dual-head): Compact CNN designed for EEG data, adapted with separate arousal and valence classification heads. Learns spatial and temporal EEG patterns from differential entropy features.
-- **CBraMod** (pretrained dual-head): Transformer encoder pretrained on the TUEG corpus, fine-tuned with custom dual arousal/valence heads on DEAP. Flexible channel count via asymmetric conditional positional encoding — supports 32-channel DEAP and future 4-channel Muse 2 BCI.
+- **Quadrant classifier**: One linear layer on 128 band features (differential entropy of 32 channels in theta, alpha, beta and gamma), with two outputs, arousal and valence. Each DEAP participant gets their own models, trained only on their own trials and scored on trials those models never saw: a model trained on other people reads a new one at chance on DEAP, for every model family, so the app is a decoder calibrated to one person. The headline is balanced accuracy per axis against a chance of 0.50. `get_model_info` reports the loaded checkpoint's features, split, figures and training recipe.
+- **Contrastive encoder**: CBraMod, a transformer pretrained on the TUEG corpus, is the backbone of the EEG↔CLAP encoder behind track retrieval.
 - **Agent**: Orchestrates classification, analysis, and playlist curation. A query like _"build me a relaxation playlist"_ triggers brain state querying, track filtering by arousal/valence, and Spotify integration — multi-step reasoning that a static pipeline can't do.
 
 ## Quick Start
@@ -71,7 +71,7 @@ Retrieving tracks from brain state embeds the session's EEG into the joint EEG�
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [pnpm](https://pnpm.io/) (Node package manager)
 - [Node.js](https://nodejs.org/) 26+
-- [GitHub CLI](https://cli.github.com/) (for checkpoint download)
+- [GitHub CLI](https://cli.github.com/) (to download the contrastive encoder's checkpoint)
 - Anthropic API key
 
 ### Setup
@@ -90,7 +90,7 @@ uv run --directory backend pre-commit install
 # Download DEAP dataset (see backend/data/DEAP_SETUP.md)
 # Place .dat files in backend/data/deap/
 
-# Download the model checkpoints: the app loads two at startup, the EEG classifier and the contrastive encoder
+# Download the contrastive encoder's checkpoint (the quadrant classifier's is trained below)
 ./backend/scripts/download-checkpoints.sh
 
 # Start PostgreSQL (port 5433) + backend (port 8003), then create the tables
@@ -123,8 +123,8 @@ The track index that retrieval searches is built by `seed-track-index`, which ca
 | Visualization | Recharts (timeline + band-power charts), motion/react (animated trajectory), Radix Tabs, wavesurfer.js (preview waveforms) |
 | Backend | FastAPI, Pydantic v2, async SQLAlchemy 2.0, Alembic |
 | Agent | Pydantic AI with Anthropic (Claude) |
-| ML | PyTorch (EEGNet), braindecode (CBraMod pretrained), CLAP audio embeddings via transformers, librosa, scipy |
-| EEG Processing | Bandpass filtering, differential entropy, Welch PSD |
+| ML | PyTorch (linear quadrant classifier, contrastive encoder), braindecode (CBraMod backbone), CLAP audio embeddings via transformers, librosa, scipy |
+| EEG Processing | Butterworth band-pass (second-order sections), differential entropy, band variance |
 | Database | PostgreSQL 18 + pgvector (HNSW cosine index) |
 | Spotify | spotipy (OAuth 2.0) |
 | Observability | Pydantic Logfire (FastAPI, SQLAlchemy, and agent traces) |
