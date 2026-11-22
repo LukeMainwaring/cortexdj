@@ -31,7 +31,7 @@ from cortexdj.features.chat.model import Thread
 from cortexdj.features.retrieval.model import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.spotify.model import SpotifyToken
-from cortexdj.ml.dataset import RATINGS_FILENAME
+from cortexdj.ml.dataset import NUM_EEG_CHANNELS, RATINGS_FILENAME
 
 
 async def create_session(db: AsyncSession, **overrides: object) -> Session:
@@ -248,10 +248,24 @@ class FakeDeapParticipant:
     eeg_path: Path
     valence: npt.NDArray[np.float64]
     arousal: npt.NDArray[np.float64]
+    ratings: npt.NDArray[np.float64]
+    """``(n_trials, 4)`` valence, arousal, dominance, liking, as ``write_participant_ratings`` takes them."""
+
+
+# The planted signal: a high-valence trial carries an alpha sine and a high-arousal trial a beta
+# sine on every EEG channel, over unit white noise, so a linear model on band features finds it.
+_VALENCE_HZ = 10.0
+_AROUSAL_HZ = 20.0
+_PLANTED_AMPLITUDE = 0.3
 
 
 def write_deap_participant(
-    data_dir: Path, participant_id: int = 1, *, n_trials: int = 40, seed: int = 0
+    data_dir: Path,
+    participant_id: int = 1,
+    *,
+    n_trials: int = 40,
+    seed: int = 0,
+    valence_arousal: npt.NDArray[np.float64] | None = None,
 ) -> FakeDeapParticipant:
     """Write one made-up DEAP participant under ``data_dir``: ``sNN.dat`` and its rows of ``participant_ratings.csv``.
 
@@ -260,19 +274,32 @@ def write_deap_participant(
     ratings, so a loader that reads valence or arousal from the pickle gets the wrong answer.
     Ratings rows are written in a shuffled presentation order, so only a join on experiment id
     lines them up. An ``n_trials`` below DEAP's 40 keeps a test's pickle small.
+
+    The EEG carries a planted signal a linear model can find: an alpha sine in every trial rated
+    high on valence and a beta sine in every trial rated high on arousal. ``valence_arousal``,
+    ``(n_trials, 2)``, sets those ratings instead of drawing them.
     """
     rng = np.random.default_rng(seed)
     ratings = rng.uniform(1, 9, (n_trials, 4)).round(2)
-    ratings[0, :2] = [7.0, 8.0]  # at least one trial the mirror alters
+    if valence_arousal is not None:
+        ratings[:, :2] = valence_arousal
+    else:
+        ratings[0, :2] = [7.0, 8.0]  # at least one trial the mirror alters
     labels = ratings.copy()
     altered = (ratings[:, 0] > 5) & (ratings[:, 1] > 5)
     labels[altered, :2] = 9 - ratings[altered, :2]
     data = rng.standard_normal((n_trials, _DEAP_CHANNELS, _DEAP_SAMPLES)).astype(np.float32)
+    t = np.arange(_DEAP_SAMPLES) / 128
+    for trial in range(n_trials):
+        for hz, rating in ((_VALENCE_HZ, ratings[trial, 0]), (_AROUSAL_HZ, ratings[trial, 1])):
+            if rating >= 5:
+                phase = rng.uniform(0, 2 * np.pi, (NUM_EEG_CHANNELS, 1))
+                data[trial, :NUM_EEG_CHANNELS] += _PLANTED_AMPLITUDE * np.sin(2 * np.pi * hz * t + phase)
     eeg_path = data_dir / f"s{participant_id:02d}.dat"
     with eeg_path.open("wb") as f:
         pickle.dump({"labels": labels, "data": data}, f)
     write_participant_ratings(data_dir, participant_id, ratings, seed=seed)
-    return FakeDeapParticipant(eeg_path=eeg_path, valence=ratings[:, 0], arousal=ratings[:, 1])
+    return FakeDeapParticipant(eeg_path=eeg_path, valence=ratings[:, 0], arousal=ratings[:, 1], ratings=ratings)
 
 
 def write_participant_ratings(

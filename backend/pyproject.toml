@@ -36,6 +36,7 @@ dependencies = [
 [project.scripts]
 seed-sessions = "cortexdj.scripts.seed_sessions:main"
 seed-track-index = "cortexdj.scripts.seed_track_index:main"
+train-classifier = "cortexdj.training.command:main"
 
 [dependency-groups]
 dev = [
@@ -148,6 +149,36 @@ forbidden_modules = [
   "cortexdj.shared",
   "cortexdj.agents",
   "cortexdj.features",
+  "cortexdj.api",
+  "cortexdj.app",
+  "cortexdj.migrations",
+]
+
+[[tool.importlinter.contracts]]
+name = "Nothing in the app imports the training package"
+type = "forbidden"
+source_modules = [
+  "cortexdj.core",
+  "cortexdj.shared",
+  "cortexdj.agents",
+  "cortexdj.ml",
+  "cortexdj.features",
+  "cortexdj.scripts",
+  "cortexdj.migrations",
+  "cortexdj.api",
+  "cortexdj.app",
+]
+forbidden_modules = ["cortexdj.training"]
+
+[[tool.importlinter.contracts]]
+name = "The training package imports only the ML kernel and the platform kernel"
+type = "forbidden"
+source_modules = ["cortexdj.training"]
+forbidden_modules = [
+  "cortexdj.shared",
+  "cortexdj.agents",
+  "cortexdj.features",
+  "cortexdj.scripts",
   "cortexdj.api",
   "cortexdj.app",
   "cortexdj.migrations",
