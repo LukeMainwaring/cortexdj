@@ -45,3 +45,15 @@ def band_powers(window: npt.NDArray[np.floating[Any]], recipe: TrainingRecipe = 
     """A window's displayed band powers: each band's variance averaged over channels, by band name."""
     mean_variance = band_variance(window, recipe).mean(axis=0)
     return {band.name: float(power) for band, power in zip(recipe.bands, mean_variance, strict=True)}
+
+
+def windows_of(eeg: npt.NDArray[np.floating[Any]], recipe: TrainingRecipe = RECIPE) -> npt.NDArray[np.floating[Any]]:
+    """Cut ``(trials, channels, samples)`` into non-overlapping windows: ``(trials, windows, channels, window_samples)``.
+
+    Training and seeding both cut with this, so window ``w`` of trial ``e`` is the EEG of the
+    stored Segment ``e * windows + w``.
+    """
+    n_trials, n_channels, n_samples = eeg.shape
+    n_windows = n_samples // recipe.window_samples
+    cut = eeg[..., : n_windows * recipe.window_samples].reshape(n_trials, n_channels, n_windows, -1)
+    return cut.transpose(0, 2, 1, 3)

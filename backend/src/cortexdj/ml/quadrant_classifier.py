@@ -6,6 +6,16 @@ from torch import nn
 # The model's two outputs, in column order: the logit of a high rating on each axis.
 AXES = ("arousal", "valence")
 
+SCORE_THRESHOLD = 0.5
+
+
+def quadrant_of(arousal_score: float, valence_score: float) -> str:
+    """The quadrant of two 0-to-1 scores, cut at 0.5 on each. The scores are the sigmoid as it comes, uncalibrated."""
+    high_arousal, high_valence = arousal_score >= SCORE_THRESHOLD, valence_score >= SCORE_THRESHOLD
+    if high_valence:
+        return "excited" if high_arousal else "relaxed"
+    return "stressed" if high_arousal else "calm"
+
 
 class Standardize(nn.Module):
     """Scales features by the training fold's mean and standard deviation, held as buffers.

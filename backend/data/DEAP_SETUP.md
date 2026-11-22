@@ -1,6 +1,6 @@
 # DEAP Dataset Setup
 
-CortexDJ's EEG sessions come from the [DEAP dataset](https://www.eecs.qmul.ac.uk/mmv/datasets/deap/) — a widely cited benchmark for EEG-based emotion recognition (32 participants, 40 music video trials each). `seed-sessions` reads the 32 files, classifies each segment with the downloaded checkpoint (`./backend/scripts/download-checkpoints.sh`), and writes one session per participant; retrieval re-reads a participant's file when it embeds a session.
+CortexDJ's EEG sessions come from the [DEAP dataset](https://www.eecs.qmul.ac.uk/mmv/datasets/deap/) — a widely cited benchmark for EEG-based emotion recognition (32 participants, 40 music video trials each). `train-classifier` trains on the 32 files and `seed-sessions` then scores each segment with that checkpoint and writes one session per participant, replacing any it wrote before; retrieval re-reads a participant's file when it embeds a session.
 
 ## Download Instructions
 
@@ -57,6 +57,7 @@ The shipped checkpoints predate this: they were trained on the mirror's altered 
 ## Seed the sessions
 
 ```bash
+uv run --directory backend train-classifier
 uv run --directory backend seed-sessions
 ```
 

@@ -97,7 +97,9 @@ uv run --directory backend pre-commit install
 docker compose up -d
 ./backend/scripts/migrate-docker.sh
 
-# Seed the database (about 3.5 minutes for the 32 DEAP files: 3 min 33 s on an Apple-silicon laptop)
+# Train the quadrant classifier, then seed the database with sessions it scores
+# (seeding takes about 3.5 minutes for the 32 DEAP files; a re-seed replaces each session)
+uv run --directory backend train-classifier
 uv run --directory backend seed-sessions
 
 # Frontend setup

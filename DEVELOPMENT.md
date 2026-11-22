@@ -12,7 +12,8 @@ cp .env.sample .env            # set ANTHROPIC_API_KEY (the default models); OPE
 
 docker compose up -d           # PostgreSQL (pgvector) and the backend on :8003
 ./backend/scripts/migrate-docker.sh
-uv run --directory backend seed-sessions   # EEG sessions from backend/data/deap (see below)
+uv run --directory backend train-classifier   # the quadrant classifier's checkpoint (see below)
+uv run --directory backend seed-sessions      # EEG sessions from backend/data/deap, scored by it
 # the track index, if you have backend/data/track-index.dump (see below)
 docker compose exec -T postgres pg_restore -U postgres -d cortexdj --data-only < backend/data/track-index.dump
 
@@ -41,19 +42,23 @@ overwrites the file with only those participants. Its settings are the training 
 `ml/recipe.py`, fixed and untuned; loading a checkpoint made under a different recipe raises
 and names the setting. The code lives in `cortexdj.training`, which imports only the ML kernel
 and the platform kernel; an import-linter contract keeps everything else from importing it.
-Neither the app nor `seed-sessions` reads this checkpoint yet.
+`seed-sessions` reads this checkpoint; the app does not yet.
 
 The cross-subject baseline script re-runs the evidence for training each participant on their
 own trials: logistic regression on the same band features scores at chance when trained on
 other participants and held out on one. It prints one table and takes about 40 seconds:
 `uv run --directory backend python -m cortexdj.training.cross_subject_baseline data/deap`.
 
-`seed-sessions` reads the 32 DEAP participant files (`backend/data/deap/s01.dat` to `s32.dat`;
-`backend/data/DEAP_SETUP.md` says how to get them), classifies every 4-second segment with the
-checkpoint it loads itself (`--model cbramod` by default, ground-truth labels when there is no
-checkpoint), and writes one session per participant. It runs on the host against the Postgres
-container, takes about three and a half minutes for all 32 (3 min 33 s on an Apple-silicon
-laptop), and appends: run it once on a fresh database.
+`seed-sessions` runs after `train-classifier`. It reads the 32 DEAP participant files
+(`backend/data/deap/s01.dat` to `s32.dat`; `backend/data/DEAP_SETUP.md` says how to get them)
+and scores every 4-second segment with the fold model that did not train on that segment's
+trial, so a session looks as good as the held-out number and no better. A segment's band powers
+are the model's four bands (theta, alpha, beta, gamma). Without the checkpoint, or for a
+participant the checkpoint does not hold, it refuses and says to run `train-classifier`. A
+re-seed replaces: each participant's existing DEAP session is deleted and a fresh one, with a
+new id, is inserted, so the database keeps one session per participant; tracks stay, and a
+thread's brain context that pointed at a replaced session loses that session id. It runs on the
+host against the Postgres container and takes about three and a half minutes for all 32.
 `--participants 1 2 3` seeds a subset.
 
 The track index is the table `track_audio_embeddings`: one 512-dimension CLAP audio vector per

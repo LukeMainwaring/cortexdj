@@ -9,7 +9,7 @@ import numpy.typing as npt
 import torch
 from torch import nn
 
-from cortexdj.ml.band_features import differential_entropy
+from cortexdj.ml.band_features import differential_entropy, windows_of
 from cortexdj.ml.checkpoint import AxisScores, ParticipantModels
 from cortexdj.ml.dataset import load_deap_participant, load_participant_ratings
 from cortexdj.ml.quadrant_classifier import AXES, QuadrantClassifier
@@ -41,14 +41,6 @@ def train_participant(participant_id: int, data_dir: Path, recipe: TrainingRecip
         recipe=recipe,
     )
     return ParticipantModels(models=models, fold_of_trial=fold_of_trial.tolist(), metrics=metrics)
-
-
-def windows_of(eeg: Windows, recipe: TrainingRecipe = RECIPE) -> Windows:
-    """Cut ``(trials, channels, samples)`` into non-overlapping windows: ``(trials, windows, channels, window_samples)``."""
-    n_trials, n_channels, n_samples = eeg.shape
-    n_windows = n_samples // recipe.window_samples
-    cut = eeg[..., : n_windows * recipe.window_samples].reshape(n_trials, n_channels, n_windows, -1)
-    return cut.transpose(0, 2, 1, 3)
 
 
 def cross_validate[ModelT: nn.Module](
