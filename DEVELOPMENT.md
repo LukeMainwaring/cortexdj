@@ -44,6 +44,11 @@ and names the setting. The code lives in `cortexdj.training`, which imports only
 and the platform kernel; an import-linter contract keeps everything else from importing it.
 `seed-sessions` reads this checkpoint; the app does not yet.
 
+The cross-subject baseline script re-runs the evidence for training each participant on their
+own trials: logistic regression on the same band features scores at chance when trained on
+other participants and held out on one. It prints one table and takes about 40 seconds:
+`uv run --directory backend python -m cortexdj.training.cross_subject_baseline data/deap`.
+
 `seed-sessions` runs after `train-classifier`. It reads the 32 DEAP participant files
 (`backend/data/deap/s01.dat` to `s32.dat`; `backend/data/DEAP_SETUP.md` says how to get them)
 and scores every 4-second segment with the fold model that did not train on that segment's

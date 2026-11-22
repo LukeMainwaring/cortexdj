@@ -81,18 +81,19 @@ skip_covered = false
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["braindecode.*", "pgvector.*", "scipy.*", "spotipy.*"]
+module = ["braindecode.*", "pgvector.*", "scipy.*", "sklearn.*", "spotipy.*"]
 ignore_missing_imports = true
 
 
 [tool.deptry]
 # Run by the updating-deps skill. asyncpg is loaded by SQLAlchemy as the driver, never imported;
-# starlette is imported directly in the usual FastAPI way.
+# starlette is imported directly in the usual FastAPI way. sklearn is imported only by the
+# cross-subject baseline script and stays transitive: braindecode installs it.
 known_first_party = ["cortexdj"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["asyncpg"]
-DEP003 = ["starlette"]
+DEP003 = ["sklearn", "starlette"]
 
 [tool.ruff]
 line-length = 120
