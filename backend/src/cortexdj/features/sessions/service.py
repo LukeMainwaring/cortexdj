@@ -38,6 +38,9 @@ async def get_session_participant_id(db: AsyncSession, session_id: str) -> str |
 async def list_sessions_enriched(db: AsyncSession, *, limit: int = 50) -> tuple[list[SessionSummarySchema], int]:
     """Return the newest sessions with display index, dominant-state label, and segment stats.
 
+    The label and ``state_distribution`` are counted over the session's tracks, not its
+    segments, so segment-to-segment noise inside a track does not decide the card.
+
     display_index is a 1-based ordinal computed from chronological insertion
     order, whatever order the sessions are returned in. Indices are *not*
     persisted, so a deletion renumbers every subsequent session — acceptable
@@ -56,22 +59,25 @@ async def list_sessions_enriched(db: AsyncSession, *, limit: int = 50) -> tuple[
     if not page_ids:
         return [], total
 
-    state_counts: dict[str, dict[str, int]] = {sid: {} for sid in page_ids}
     weighted_arousal: dict[str, float] = dict.fromkeys(page_ids, 0.0)
     weighted_valence: dict[str, float] = dict.fromkeys(page_ids, 0.0)
     seg_totals: dict[str, int] = dict.fromkeys(page_ids, 0)
-    for sid, dominant_state, n, avg_arousal, avg_valence in await EegSegment.get_state_aggregates(db, page_ids):
-        state_counts[sid][dominant_state] = n
+    for sid, _, n, avg_arousal, avg_valence in await EegSegment.get_state_aggregates(db, page_ids):
         weighted_arousal[sid] += avg_arousal * n
         weighted_valence[sid] += avg_valence * n
         seg_totals[sid] += n
+
+    track_state_counts: dict[str, dict[str, int]] = {sid: {} for sid in page_ids}
+    for sid, dominant_state, n in await SessionTrack.get_state_counts(db, page_ids):
+        track_state_counts[sid][dominant_state] = n
 
     track_counts = await SessionTrack.get_distinct_track_counts(db, page_ids)
 
     summaries: list[SessionSummarySchema] = []
     for sid in page_ids:
         segment_count = seg_totals[sid]
-        distribution = {state: count / segment_count for state, count in state_counts[sid].items()}
+        session_track_total = sum(track_state_counts[sid].values())
+        distribution = {state: count / session_track_total for state, count in track_state_counts[sid].items()}
         dominant_state, dominant_fraction = (
             max(distribution.items(), key=lambda kv: kv[1]) if distribution else ("unknown", 0.0)
         )
@@ -96,8 +102,8 @@ async def list_sessions_enriched(db: AsyncSession, *, limit: int = 50) -> tuple[
 async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any] | None:
     """The session, its segment summary, trajectory, and tracks as the ``analyze_session`` tool returns them.
 
-    None when the session does not exist; ``summary`` and ``trajectory_summary`` are None
-    for a session with no segments.
+    None when the session does not exist; ``summary`` is None for a session with no
+    segments and ``trajectory_summary`` for one with no tracks.
     """
     session = await Session.get(db, session_id)
     if session is None:
@@ -105,8 +111,8 @@ async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any
 
     segments = await EegSegment.get_by_session(db, session_id)
     summary = EegSegment.summarize_segments(session_id, segments)
-    trajectory_summary = compute_trajectory_summary(segments)
     session_tracks = await SessionTrack.get_by_session(db, session_id)
+    trajectory_summary = compute_trajectory_summary(session_tracks, duration_seconds=session.duration_seconds)
 
     track_details = []
     for st in session_tracks:
@@ -133,10 +139,10 @@ async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any
             "duration_seconds": session.duration_seconds,
         },
         "summary": summary,
-        # Exclude `smoothed` here: it's dense per-segment data that bloats the
-        # agent context but isn't cited by SessionsCapability's narration
-        # instructions. The frontend fetches it separately via
-        # GET /sessions/{id}/segments for the trajectory chart.
+        # Exclude `smoothed` here: the per-track path repeats the `tracks` list's
+        # scores and isn't cited by SessionsCapability's narration instructions.
+        # The frontend fetches it separately via GET /sessions/{id}/segments for
+        # the trajectory chart.
         "trajectory_summary": (
             trajectory_summary.model_dump(mode="json", exclude={"smoothed"}) if trajectory_summary else None
         ),
@@ -147,9 +153,13 @@ async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any
 async def get_session_segments(
     db: AsyncSession, session_id: str
 ) -> tuple[Sequence[EegSegment], TrajectorySummary | None]:
-    """A session's segments in order with their trajectory summary; empty for an unknown session."""
+    """A session's segments in order with its track-level trajectory summary; empty for an unknown session."""
+    session = await Session.get(db, session_id)
+    if session is None:
+        return [], None
     segments = await EegSegment.get_by_session(db, session_id)
-    return segments, compute_trajectory_summary(segments)
+    session_tracks = await SessionTrack.get_by_session(db, session_id)
+    return segments, compute_trajectory_summary(session_tracks, duration_seconds=session.duration_seconds)
 
 
 async def get_session_summary(db: AsyncSession, session_id: str) -> dict[str, Any] | None:

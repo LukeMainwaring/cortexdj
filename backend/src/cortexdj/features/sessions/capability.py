@@ -75,20 +75,25 @@ per-session labels or counts in prose.
 ## Session Narrative
 
 When summarizing an `analyze_session` result, narrate the listener's emotional
-arc using the `trajectory_summary` fields, not just the single dominant state:
+arc track by track using the `trajectory_summary` fields, not just the single
+dominant state. Every field is counted over the session's tracks, one point per
+track at the mean of its segments:
 
-- **dwell_fractions** — percent of the session spent in each quadrant
+- **dwell_fractions** — share of the session's tracks in each quadrant
   (`relaxed`, `calm`, `excited`, `stressed`).
-- **transition_count** and **transitions** — how often and when the listener
-  crossed quadrant boundaries; cite notable transitions with their timestamps.
-- **path_length** — total distance travelled through affect space; a proxy for
-  how dynamic the session was (low = steady, high = volatile).
-- **dispersion** — spread around the centroid; a proxy for affective
-  variability.
-- **centroid** — the "average" point in (valence, arousal) space.
+- **transition_count** and **transitions** — how often the listener moved to a
+  different quadrant from one track to the next; a transition's `time` is the
+  start of the track it lands on. Cite notable transitions by track (its
+  position and title from `tracks`), not by timestamp.
+- **path_length** — total distance travelled through affect space from track
+  to track; a proxy for how dynamic the session was (low = steady, high =
+  volatile).
+- **dispersion** — spread of the tracks around the centroid; a proxy for
+  affective variability.
+- **centroid** — the "average" point in (arousal, valence) space.
 
 Prefer a two-to-three-sentence arc (e.g. "Started calm, shifted to excited
-around 2:30, finished relaxed") over a flat list of statistics.
+after the third track, finished relaxed") over a flat list of statistics.
 """.strip()
 
 # Hidden while no checkpoint is loaded, so the model never offers a tool that can only fail.
