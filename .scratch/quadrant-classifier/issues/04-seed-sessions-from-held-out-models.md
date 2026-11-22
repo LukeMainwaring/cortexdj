@@ -8,13 +8,13 @@
 
 **Status:** ready-for-agent
 
-- [ ] Each segment's arousal and valence scores are the sigmoid of the logits from the fold model that held out its trial, with no calibration; the quadrant is cut at 0.5 on each score
-- [ ] A segment's band powers are the four bands from the model's feature path; delta is not computed or stored
-- [ ] With no checkpoint, or for a participant the checkpoint does not hold, seeding fails with a message that names `train-classifier` and writes nothing
-- [ ] The fallback that stored participants' ratings as predictions is gone, and so is the `--model` option
-- [ ] A participant's existing DEAP session is deleted and the fresh one inserted, so seeding twice leaves one session for that participant; tracks stay
-- [ ] Any thread's brain context that pointed at the replaced session has its session id cleared in the same transaction; its mood and averages stay
-- [ ] The seed function takes the data directory and the checkpoint as arguments, defaulting to the standard paths
-- [ ] Integration tests seed the made-up participant with a checkpoint trained on it in the test and check the scores against the held-out models, the replace, the brain-context clear, and both refusals
-- [ ] Test factories and any fixture that builds a segment lose delta
-- [ ] `README.md`, `DEVELOPMENT.md` and `AGENTS.md` say setup is `train-classifier` then `seed-sessions`, and that a re-seed replaces
+- [x] Each segment's arousal and valence scores are the sigmoid of the logits from the fold model that held out its trial, with no calibration; the quadrant is cut at 0.5 on each score
+- [x] A segment's band powers are the four bands from the model's feature path; delta is not computed or stored
+- [x] With no checkpoint, or for a participant the checkpoint does not hold, seeding fails with a message that names `train-classifier` and writes nothing
+- [x] The fallback that stored participants' ratings as predictions is gone, and so is the `--model` option
+- [x] A participant's existing DEAP session is deleted and the fresh one inserted, so seeding twice leaves one session for that participant; tracks stay
+- [x] Any thread's brain context that pointed at the replaced session has its session id cleared in the same transaction; its mood and averages stay
+- [x] The seed function takes the data directory and the checkpoint as arguments, defaulting to the standard paths
+- [x] Integration tests seed the made-up participant with a checkpoint trained on it in the test and check the scores against the held-out models, the replace, the brain-context clear, and both refusals
+- [x] Test factories and any fixture that builds a segment lose delta
+- [x] `README.md`, `DEVELOPMENT.md` and `AGENTS.md` say setup is `train-classifier` then `seed-sessions`, and that a re-seed replaces

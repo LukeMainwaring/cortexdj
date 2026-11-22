@@ -7,13 +7,12 @@ import numpy as np
 import pytest
 import torch
 
-from cortexdj.ml.band_features import differential_entropy
+from cortexdj.ml.band_features import differential_entropy, windows_of
 from cortexdj.ml.checkpoint import load_checkpoint
 from cortexdj.ml.dataset import load_deap_participant
 from cortexdj.ml.quadrant_classifier import QuadrantClassifier
 from cortexdj.ml.recipe import RECIPE
 from cortexdj.training.command import describe, train_classifier
-from cortexdj.training.train import windows_of
 from tests.factories import write_deap_participant
 
 

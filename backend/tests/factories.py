@@ -62,7 +62,7 @@ def make_eeg_segment(session_id: str, **overrides: object) -> EegSegment:
         "arousal_score": 0.7,
         "valence_score": 0.6,
         "dominant_state": "excited",
-        "band_powers": {"alpha": 1.0, "beta": 0.5, "theta": 0.3, "delta": 0.2, "gamma": 0.1},
+        "band_powers": {"theta": 0.3, "alpha": 1.0, "beta": 0.5, "gamma": 0.1},
     }
     data.update(overrides)
     return EegSegment(**data)
