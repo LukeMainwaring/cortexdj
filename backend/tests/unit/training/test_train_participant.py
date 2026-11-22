@@ -4,10 +4,17 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
+from torch import nn
 
 from cortexdj.ml.checkpoint import ParticipantModels
-from cortexdj.training.train import train_participant
-from tests.factories import FakeDeapParticipant, write_deap_participant, write_participant_ratings
+from cortexdj.training.train import cross_validate, train_participant
+from tests.factories import (
+    FakeDeapParticipant,
+    flatten_channel,
+    write_deap_participant,
+    write_participant_ratings,
+)
 
 _TRIALS = 20
 
@@ -68,6 +75,35 @@ class TestScores:
         assert rerun.fold_of_trial == trained.fold_of_trial
 
 
+class _PassThrough(nn.Module):
+    """Its input is its logits; a zero-weighted parameter gives the optimizer something to hold."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.unused = nn.Parameter(torch.zeros(()))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x + 0 * self.unused
+
+
+class TestCrossValidateThreshold:
+    def test_a_logit_of_exactly_zero_scores_as_high_as_seeding_reads_it(self) -> None:
+        # Seeding reads sigmoid(0) = 0.5 as high, so the held-out metric must too: every high
+        # trial's logit is exactly 0 and every low trial's is -1, a perfect read at >= 0.
+        high = np.array([[True, False], [False, True]] * 5)
+        windows = np.where(high, 0.0, -1.0)[:, None, :]  # (trials, 1 window, 2 "features")
+
+        _, metrics = cross_validate(
+            windows,
+            high,
+            np.arange(10) % 5,
+            make_model=lambda _inputs: _PassThrough(),
+            to_input=lambda w: w,
+        )
+
+        assert (metrics.arousal, metrics.valence) == (1.0, 1.0)
+
+
 class TestTrainingRaises:
     def test_a_fold_whose_training_trials_lack_a_low_valence_raises(self, tmp_path: Path) -> None:
         valence_arousal = np.column_stack([np.full(10, 7.0), np.tile([3.0, 7.0], 5)])
@@ -76,4 +112,11 @@ class TestTrainingRaises:
         write_deap_participant(tmp_path, participant_id=1, n_trials=10, valence_arousal=valence_arousal)
 
         with pytest.raises(ValueError, match="valence"):
+            train_participant(1, tmp_path)
+
+    def test_a_flat_eeg_channel_raises_rather_than_training_on_infinity(self, tmp_path: Path) -> None:
+        written = write_deap_participant(tmp_path, participant_id=1, n_trials=10)
+        flatten_channel(written.eeg_path, trial=2, channel=5)
+
+        with pytest.raises(ValueError, match="non-finite"):
             train_participant(1, tmp_path)

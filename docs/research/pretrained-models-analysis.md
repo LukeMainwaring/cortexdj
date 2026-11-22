@@ -1,6 +1,6 @@
 # Pretrained EEG Models Reference
 
-> braindecode 1.4.0 model catalog evaluated for CortexDJ. For current implementation details, see the codebase (`ml/pretrained.py`).
+> braindecode 1.4.0 model catalog evaluated for CortexDJ. For current implementation details, see the codebase (`ml/contrastive.py`, where CBraMod is loaded as the contrastive encoder's backbone).
 
 ## Model Catalog
 
@@ -24,7 +24,7 @@
 
 ## Recommendation
 
-**Tier 1 (evaluate first):** CBraMod is the current primary backbone — compact enough for real-time inference and the only flexible-channel option with a demonstrated single-epoch fine-tune on DEAP-scale data. REVE is the strongest secondary candidate given its breadth of pretraining and linear-probing efficacy. **CodeBrain** (ICLR 2026, [arxiv 2506.09110](https://arxiv.org/abs/2506.09110)) joins this tier as the smallest-diff CBraMod alternative *architecturally* — it shares the `(B, n_chans, n_times)` input contract that's already wired through `ml/pretrained.py` and `ml/contrastive.py`, and the existing dummy-forward-pass `embed_dim` inference would carry over unchanged. But at **115.2M params it's ~23× heavier than CBraMod (4.9M)**, so any backbone swap needs to clear the Phase 3 real-time-latency bar before it's a viable production replacement; the cleanest entry point is a Modal-only A/B run for accuracy first, then a CPU-latency follow-up only if the accuracy win justifies the engineering.
+**Tier 1 (evaluate first):** CBraMod is the current primary backbone — compact enough for real-time inference and the only flexible-channel option with a demonstrated single-epoch fine-tune on DEAP-scale data. REVE is the strongest secondary candidate given its breadth of pretraining and linear-probing efficacy. **CodeBrain** (ICLR 2026, [arxiv 2506.09110](https://arxiv.org/abs/2506.09110)) joins this tier as the smallest-diff CBraMod alternative *architecturally* — it shares the `(B, n_chans, n_times)` input contract that's already wired through `ml/contrastive.py`, and the existing dummy-forward-pass `embed_dim` inference would carry over unchanged. But at **115.2M params it's ~23× heavier than CBraMod (4.9M)**, so any backbone swap needs to clear the Phase 3 real-time-latency bar before it's a viable production replacement; the cleanest entry point is a Modal-only A/B run for accuracy first, then a CPU-latency follow-up only if the accuracy win justifies the engineering.
 
 **Tier 2 (evaluate if Tier 1 insufficient):** LUNA as a Muse 2 fallback if CBraMod's 4-channel transfer degrades badly; SignalJEPA for embedding-based trend analysis in Phase 4.
 

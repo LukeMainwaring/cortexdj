@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from cortexdj.features.sessions.emotion import dominant_quadrant
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.sessions.schema import BrainContext, SessionSummarySchema, TrajectorySummary
 from cortexdj.features.sessions.trajectory import compute_trajectory_summary
@@ -78,9 +79,8 @@ async def list_sessions_enriched(db: AsyncSession, *, limit: int = 50) -> tuple[
         segment_count = seg_totals[sid]
         session_track_total = sum(track_state_counts[sid].values())
         distribution = {state: count / session_track_total for state, count in track_state_counts[sid].items()}
-        dominant_state, dominant_fraction = (
-            max(distribution.items(), key=lambda kv: kv[1]) if distribution else ("unknown", 0.0)
-        )
+        dominant_state = dominant_quadrant(distribution) if distribution else "unknown"
+        dominant_fraction = distribution.get(dominant_state, 0.0)
         summaries.append(
             SessionSummarySchema(
                 id=sid,
@@ -110,8 +110,8 @@ async def get_session_detail(db: AsyncSession, session_id: str) -> dict[str, Any
         return None
 
     segments = await EegSegment.get_by_session(db, session_id)
-    summary = EegSegment.summarize_segments(session_id, segments)
     session_tracks = await SessionTrack.get_by_session(db, session_id)
+    summary = EegSegment.summarize_segments(session_id, segments, session_tracks)
     trajectory_summary = compute_trajectory_summary(session_tracks, duration_seconds=session.duration_seconds)
 
     track_details = []
@@ -163,7 +163,7 @@ async def get_session_segments(
 
 
 async def get_session_summary(db: AsyncSession, session_id: str) -> dict[str, Any] | None:
-    """A session's segment-level summary; None when it has no segments."""
+    """A session's summary, its dominant state counted over tracks; None when it has no segments."""
     return await EegSegment.get_session_summary(db, session_id)
 
 

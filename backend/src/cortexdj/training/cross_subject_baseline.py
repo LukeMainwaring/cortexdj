@@ -143,8 +143,8 @@ def load(data_dir: Path) -> tuple[Floats, dict[str, Floats]]:
     """Every participant's window features and their published ratings by axis, both indexed by participant and trial."""
     features, valence, arousal = [], [], []
     for participant_id in range(1, N_PARTICIPANTS + 1):
-        eeg, _ = load_deap_participant(data_dir / f"s{participant_id:02d}.dat")
-        ratings = load_participant_ratings(participant_id, data_dir)
+        eeg, eeg_labels = load_deap_participant(data_dir / f"s{participant_id:02d}.dat")
+        ratings = load_participant_ratings(participant_id, data_dir, eeg_labels=eeg_labels)
         features.append(de_features(eeg))
         valence.append(ratings.valence)
         arousal.append(ratings.arousal)

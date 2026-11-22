@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
+from cortexdj.features.sessions.emotion import dominant_quadrant
 from cortexdj.shared.model_base import Base
 
 
@@ -154,18 +155,27 @@ class EegSegment(Base):
         return result.scalars().all()
 
     @classmethod
-    def summarize_segments(cls, session_id: str, segments: Sequence[EegSegment]) -> dict[str, Any] | None:
-        """Aggregate a pre-fetched segment list into a session-level summary; None when there are no segments."""
+    def summarize_segments(
+        cls, session_id: str, segments: Sequence[EegSegment], tracks: Sequence[SessionTrack]
+    ) -> dict[str, Any] | None:
+        """Aggregate a session's segments and tracks into its summary; None when there are no segments.
+
+        ``segment_count``, the averages and the duration come from the segments, but
+        ``dominant_state`` and ``state_distribution`` count the tracks, as the session card and
+        the trajectory do: the track is the unit the app talks in, and counting segments would
+        let segment-to-segment noise name a different quadrant. A session with no tracks has
+        ``dominant_state`` "unknown" and an empty distribution, as on the card.
+        """
         if not segments:
             return None
 
         arousal_scores = [s.arousal_score for s in segments]
         valence_scores = [s.valence_score for s in segments]
         state_counts: dict[str, int] = {}
-        for s in segments:
-            state_counts[s.dominant_state] = state_counts.get(s.dominant_state, 0) + 1
+        for t in tracks:
+            state_counts[t.dominant_state] = state_counts.get(t.dominant_state, 0) + 1
 
-        dominant = max(state_counts, key=lambda state: state_counts[state])
+        dominant = dominant_quadrant(state_counts) if state_counts else "unknown"
         return {
             "session_id": session_id,
             "segment_count": len(segments),
@@ -179,7 +189,8 @@ class EegSegment(Base):
     @classmethod
     async def get_session_summary(cls, db: AsyncSession, session_id: str) -> dict[str, Any] | None:
         segments = await cls.get_by_session(db, session_id)
-        return cls.summarize_segments(session_id, segments)
+        tracks = await SessionTrack.get_by_session(db, session_id)
+        return cls.summarize_segments(session_id, segments, tracks)
 
     @classmethod
     async def get_state_aggregates(

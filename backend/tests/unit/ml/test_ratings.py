@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from cortexdj.ml.dataset import RATINGS_FILENAME, is_high, load_participant_ratings
+from cortexdj.ml.dataset import RATINGS_FILENAME, is_high, load_deap_participant, load_participant_ratings
 from tests.factories import write_deap_participant, write_participant_ratings
 
 
@@ -19,6 +19,16 @@ class TestLoadParticipantRatings:
         written = write_deap_participant(tmp_path, participant_id=3, n_trials=6)
 
         ratings = load_participant_ratings(3, tmp_path)
+
+        np.testing.assert_allclose(ratings.valence, written.valence)
+        np.testing.assert_allclose(ratings.arousal, written.arousal)
+
+    def test_a_caller_that_loaded_the_eeg_file_passes_its_labels_instead_of_a_reread(self, tmp_path: Path) -> None:
+        written = write_deap_participant(tmp_path, participant_id=3, n_trials=6)
+        _, eeg_labels = load_deap_participant(written.eeg_path)
+        written.eeg_path.unlink()
+
+        ratings = load_participant_ratings(3, tmp_path, eeg_labels=eeg_labels)
 
         np.testing.assert_allclose(ratings.valence, written.valence)
         np.testing.assert_allclose(ratings.arousal, written.arousal)

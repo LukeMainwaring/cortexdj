@@ -305,6 +305,15 @@ def write_deap_participant(
     return FakeDeapParticipant(eeg_path=eeg_path, valence=ratings[:, 0], arousal=ratings[:, 1], ratings=ratings)
 
 
+def flatten_channel(eeg_path: Path, *, trial: int, channel: int) -> None:
+    """Zero one EEG channel of one trial in a written ``sNN.dat``: a dead electrode, whose band variance is 0."""
+    with eeg_path.open("rb") as f:
+        participant = pickle.load(f)  # noqa: S301 (a file this module wrote)
+    participant["data"][trial, channel] = 0.0
+    with eeg_path.open("wb") as f:
+        pickle.dump(participant, f)
+
+
 def write_participant_ratings(
     data_dir: Path, participant_id: int, ratings: npt.NDArray[np.float64], *, seed: int = 0
 ) -> None:

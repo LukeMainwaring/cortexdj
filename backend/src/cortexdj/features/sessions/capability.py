@@ -111,14 +111,17 @@ def render_reliability(checkpoint: QuadrantCheckpoint | None) -> str:
     """The "Reliability" block: how to hedge a session's quadrants, worded by the checkpoint's single number.
 
     The single number is the checkpoint's balanced accuracy, the mean of arousal and valence,
-    averaged over the participants it holds. With no checkpoint loaded the most cautious tier
+    averaged over the participants it holds, rounded to the two places it is printed with before
+    the tier is picked. With no checkpoint loaded the most cautious tier
     is used, since nothing vouches for the stored quadrants.
     """
     if checkpoint is None:
         basis = "No quadrant-classifier checkpoint is loaded, so nothing vouches for the stored quadrants."
         tier: str | None = "a rough read"
     else:
-        score = checkpoint.summary.mean.mean
+        # The tier is chosen on the figure the model reads, so 0.5996 prints "0.60" beside "a fair read",
+        # never beside "a rough read".
+        score = round(checkpoint.summary.mean.mean, 2)
         basis = (
             f"The quadrant classifier's balanced accuracy, averaged over arousal and valence and over "
             f"its participants, is {score:.2f} (chance is 0.50)."

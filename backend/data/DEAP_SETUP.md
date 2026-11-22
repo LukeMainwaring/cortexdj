@@ -52,7 +52,7 @@ CortexDJ's loader automatically strips the baseline and extracts the 32 EEG chan
 
 A rating is high at or above 5 on the 1–9 scale, the same line for every participant. On the published ratings that makes about 57% of trials high on valence and 59% on arousal.
 
-The shipped checkpoints predate this: they were trained on the mirror's altered labels, binarized at each subject's own median per axis.
+No quadrant-classifier checkpoint ships with the repo: `train-classifier` writes one from these labels, and `seed-sessions` refuses to run until it exists.
 
 ## Seed the sessions
 
