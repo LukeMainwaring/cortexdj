@@ -27,13 +27,13 @@ Settled decisions for one spec: the DEAP signal pipeline and the quadrant classi
 - [Are the local DEAP labels the official ones?](issues/09-are-the-local-deap-labels-official.md): no, the Kaggle mirror re-saved the files with valence and arousal changed in 439 trials; the effort keeps the local EEG (unverified against an official copy, accepted) and takes labels from `participant_ratings.csv` in `backend/data/deap/`, joined on participant and `Experiment_id`; the official site is down.
 - [A baseline run on band features](issues/04-baseline-run.md): logistic regression on differential entropy scores chance cross-subject (0.50 balanced accuracy, about 0.53 with per-participant z-scoring) and 0.60 valence, 0.55 arousal within-subject by trial; the label rule barely moves balanced accuracy; the whole run takes 40 seconds on a laptop.
 - [Labels, split and metric](issues/05-labels-split-and-metric.md): one model per participant, scored within-subject by trial (stratified 5-fold); high is a rating `>= 5`; the headline is per-window balanced accuracy for each axis, their mean the single number (baseline 0.57); the app shows only held-out predictions; cross-subject is quoted from a kept baseline script.
+- [Which libraries and which features for band features on DEAP](issues/10-signal-libraries-and-features-for-band-features.md): no industry-standard library for band features; MNE stops at the spectrum, torcheeg (the only one with differential entropy) does not install beside scipy 1.18; differential entropy is log band power and nothing trial-safe on DEAP beats it; the four band edges are standard; keep plain scipy.
+- [What preprocessing we own](issues/06-what-preprocessing-we-own.md): the model reads differential entropy in four bands (theta, alpha, beta, gamma; no delta) from 4-second windows with no overlap, the same slice as a stored segment; one standardization fitted on the training fold; the pre-trial is dropped; plain numpy and scipy, no MNE.
 
 ## Not yet specified
 
 - Autoresearch: once a training script and one metric exist, how a `/goal`-style loop runs against them, and whether it is worth having at all. Last leg, kept light.
 - Seeding after the new checkpoint: how re-seeding gets held-out predictions for every segment (saved by the training run, or made by the fold models at seed time), what a session should look like in the app at about 0.57, and whether the stored scores need calibrating.
-- Whether the app contract has to reopen (segment length, score meaning), if the label or preprocessing tickets find it plainly wrong.
-- Band powers shown in the app: whether they come from the same preprocessing path as the model's input or stay a separate Welch computation.
 - How training code is tested and checked in CI without a GPU or the DEAP files.
 - What goes stale: `after-port 01`, `docs/ROADMAP.md`, the glossary's Segment and Quadrant entries, the architecture guide pages, the checkpoint download script, `backend/data/DEAP_SETUP.md` (its "same preprocessed data" and "~24/76" claims, and the missing ratings-file step), the recorded 52% figure.
 
