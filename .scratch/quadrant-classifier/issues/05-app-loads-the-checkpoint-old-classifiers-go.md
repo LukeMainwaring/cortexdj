@@ -8,14 +8,14 @@
 
 **Status:** ready-for-agent
 
-- [ ] The model holder in the sessions slice holds the loaded checkpoint (recipe and metrics); `override_eeg_model` stays the test seam and takes a checkpoint or `None`
-- [ ] A missing checkpoint is a startup warning that names `train-classifier` and hides `get_model_info`; a recipe mismatch fails startup
-- [ ] `get_model_info` reports a linear layer on 128 band features, one set of models per participant, the within-subject split, the three figures with their spread, and the training recipe; its failure message names `train-classifier`
-- [ ] Deleted: both old classifiers and the CBraMod dual-head loader, the old prediction module with its type check and schema version, the Welch band-power function, the five-band table, the `EEG_MODEL_BACKEND` setting, and the tests that covered only those
-- [ ] CBraMod remains as the contrastive encoder's backbone; the contrastive window function, the scale factor and the contrastive tests are unchanged and pass
-- [ ] The checkpoint download script fetches only `contrastive_best.pt`
-- [ ] The sessions capability's tool list no longer says "EEGNet"
-- [ ] `AGENTS.md` (the ML kernel, model holder and scripts paragraphs), `README.md`, `DEVELOPMENT.md`, `GLOSSARY.md`, `docs/ROADMAP.md` (the recorded 52% and anything else now untrue) and the testing-seams rule describe what is built; the architecture guide pages are checked for the old classifiers
+- [x] The model holder in the sessions slice holds the loaded checkpoint (recipe and metrics); `override_eeg_model` stays the test seam and takes a checkpoint or `None`
+- [x] A missing checkpoint is a startup warning that names `train-classifier` and hides `get_model_info`; a recipe mismatch fails startup
+- [x] `get_model_info` reports a linear layer on 128 band features, one set of models per participant, the within-subject split, the three figures with their spread, and the training recipe; its failure message names `train-classifier`
+- [x] Deleted: both old classifiers and the CBraMod dual-head loader, the old prediction module with its type check and schema version, the Welch band-power function, the five-band table, the `EEG_MODEL_BACKEND` setting, and the tests that covered only those
+- [x] CBraMod remains as the contrastive encoder's backbone; the contrastive window function, the scale factor and the contrastive tests are unchanged and pass
+- [x] The checkpoint download script fetches only `contrastive_best.pt`
+- [x] The sessions capability's tool list no longer says "EEGNet"
+- [x] `AGENTS.md` (the ML kernel, model holder and scripts paragraphs), `README.md`, `DEVELOPMENT.md`, `GLOSSARY.md`, `docs/ROADMAP.md` (the recorded 52% and anything else now untrue) and the testing-seams rule describe what is built; the architecture guide pages are checked for the old classifiers
 - [ ] This ticket's PR also resolves `after-port 01`, as the issue tracker describes
 
 **For the user, not the agent** (a real run is never one of the checks):
