@@ -52,7 +52,7 @@ def _checkpoint_scoring(mean: float) -> QuadrantCheckpoint:
 
 @pytest.mark.parametrize(
     ("score", "tier"),
-    [(0.55, "a rough read"), (0.5999, "a rough read"), (0.60, "a fair read"), (0.7499, "a fair read")],
+    [(0.55, "a rough read"), (0.594, "a rough read"), (0.60, "a fair read"), (0.744, "a fair read")],
 )
 def test_the_hedge_is_worded_by_the_checkpoints_single_number(score: float, tier: str) -> None:
     static = _static_instructions(_checkpoint_scoring(score))
@@ -60,6 +60,17 @@ def test_the_hedge_is_worded_by_the_checkpoints_single_number(score: float, tier
     assert f'"{tier}"' in static
     assert "one short clause" in static
     assert "never a paragraph" in static
+
+
+@pytest.mark.parametrize(
+    ("score", "printed", "tier"),
+    [(0.5996, "0.60", '"a fair read"'), (0.7496, "0.75", "no reliability caveat")],
+)
+def test_the_tier_agrees_with_the_printed_score(score: float, printed: str, tier: str) -> None:
+    static = _static_instructions(_checkpoint_scoring(score))
+
+    assert f"is {printed} (chance is 0.50)" in static
+    assert tier in static
 
 
 @pytest.mark.parametrize("score", [0.75, 0.9])
