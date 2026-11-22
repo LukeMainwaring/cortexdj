@@ -14,7 +14,6 @@ import logging
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -25,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from cortexdj.core.db import get_async_sqlalchemy_session
 from cortexdj.core.paths import DEAP_DATA_DIR
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
-from cortexdj.ml.band_features import band_powers, differential_entropy, windows_of
+from cortexdj.ml.band_features import band_powers_from, band_variance, differential_entropy_from, windows_of
 from cortexdj.ml.checkpoint import CHECKPOINT_PATH, ParticipantModels, load_checkpoint
 from cortexdj.ml.dataset import load_deap_participant
 from cortexdj.ml.quadrant_classifier import quadrant_of
@@ -123,8 +122,9 @@ async def _replace_session(db: AsyncSession, participant_id: int, trained: Parti
     session is cleared here, keeping its mood and averages.
     """
     eeg, _ = load_deap_participant(data_dir / f"s{participant_id:02d}.dat")
-    windows = windows_of(eeg)
-    scores = _held_out_scores(windows, trained)
+    # One band-pass per window: the model's features and the displayed band powers both come from it.
+    variance = band_variance(windows_of(eeg))
+    scores = _held_out_scores(variance, trained)
     participant = f"P{participant_id:02d}"
 
     old_ids = list(
@@ -170,7 +170,7 @@ async def _replace_session(db: AsyncSession, participant_id: int, trained: Parti
                     arousal_score=arousal,
                     valence_score=valence,
                     dominant_state=quadrant_of(arousal, valence),
-                    band_powers=band_powers(windows[trial, window]),
+                    band_powers=band_powers_from(variance[trial, window]),
                 )
             )
         avg_arousal, avg_valence = (float(mean) for mean in scores[trial].mean(axis=0))
@@ -189,9 +189,12 @@ async def _replace_session(db: AsyncSession, participant_id: int, trained: Parti
     return session_id
 
 
-def _held_out_scores(windows: npt.NDArray[np.floating[Any]], trained: ParticipantModels) -> npt.NDArray[np.float32]:
-    """``(trials, windows, 2)`` arousal and valence scores: the sigmoid of the logits of the model that held each trial out."""
-    inputs = torch.as_tensor(differential_entropy(windows), dtype=torch.float32)
+def _held_out_scores(variance: npt.NDArray[np.float64], trained: ParticipantModels) -> npt.NDArray[np.float32]:
+    """``(trials, windows, 2)`` arousal and valence scores from the windows' band variance.
+
+    Each score is the sigmoid of the logits of the model that held its trial out.
+    """
+    inputs = torch.as_tensor(differential_entropy_from(variance), dtype=torch.float32)
     with torch.no_grad():
         return np.stack(
             [
@@ -228,6 +231,8 @@ def main() -> None:
 
     try:
         asyncio.run(_seed(args.participants))
-    except (FileNotFoundError, ParticipantNotTrained) as error:
+    # ValueError: a checkpoint from another recipe, ratings that do not line up, or a flat EEG
+    # channel. Each message says what is wrong, so a traceback adds nothing.
+    except (FileNotFoundError, ParticipantNotTrained, ValueError) as error:
         raise SystemExit(f"seed-sessions: {error}") from error
     logger.info("Done: seeded %d participants", len(args.participants))

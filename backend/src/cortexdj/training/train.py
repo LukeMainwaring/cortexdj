@@ -27,8 +27,8 @@ def train_participant(participant_id: int, data_dir: Path, recipe: TrainingRecip
     function of its arguments: it reads no environment or global state and runs on CPU, so a
     batch runner or a recipe search can call it as it is.
     """
-    eeg, _ = load_deap_participant(data_dir / f"s{participant_id:02d}.dat")
-    ratings = load_participant_ratings(participant_id, data_dir)
+    eeg, eeg_labels = load_deap_participant(data_dir / f"s{participant_id:02d}.dat")
+    ratings = load_participant_ratings(participant_id, data_dir, eeg_labels=eeg_labels)
     high = np.column_stack([ratings.arousal, ratings.valence]) >= recipe.label_threshold  # AXES order
     fold_of_trial = stratified_folds(high[:, 0] * 2 + high[:, 1], recipe.n_folds, recipe.seed)
 
@@ -78,7 +78,9 @@ def cross_validate[ModelT: nn.Module](
             held_out_logits[test] = model(inputs[test].flatten(0, 1)).reshape(-1, n_windows, len(AXES)).numpy()
         models.append(model)
 
-    predicted = held_out_logits.reshape(-1, len(AXES)) > 0
+    # >= 0, not > 0: seeding's quadrant_of reads sigmoid(0) = 0.5 as high, and the metric must
+    # score the cut the app shows.
+    predicted = held_out_logits.reshape(-1, len(AXES)) >= 0
     arousal, valence = (balanced_accuracy(window_high[:, axis], predicted[:, axis]) for axis in range(len(AXES)))
     return models, AxisScores(arousal=arousal, valence=valence, mean=(arousal + valence) / 2)
 

@@ -1,6 +1,7 @@
 """Tests for the band features the quadrant classifier reads and the band powers a Segment shows."""
 
 import numpy as np
+import pytest
 
 from cortexdj.ml.band_features import band_powers, differential_entropy
 from cortexdj.ml.recipe import RECIPE
@@ -33,6 +34,13 @@ class TestDifferentialEntropy:
         powers = band_powers(window)
 
         np.testing.assert_allclose(features.mean(axis=0), 0.5 * np.log(list(powers.values())), rtol=1e-4)
+
+    def test_a_flat_channel_raises_rather_than_giving_minus_infinity(self) -> None:
+        window = _window(10.0)
+        window[5] = 0.0
+
+        with pytest.raises(ValueError, match="non-finite"):
+            differential_entropy(window)
 
 
 class TestBandPowers:

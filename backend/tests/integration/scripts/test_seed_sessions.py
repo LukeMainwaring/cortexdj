@@ -1,5 +1,6 @@
 """``seed-sessions`` against the test database: a made-up participant, scored by a checkpoint trained on it here."""
 
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +15,7 @@ from cortexdj.ml.checkpoint import ParticipantModels, load_checkpoint
 from cortexdj.ml.dataset import load_deap_participant
 from cortexdj.scripts.seed_sessions import ParticipantNotTrained, seed_sessions
 from cortexdj.training.command import train_classifier
-from tests.factories import create_brain_context, create_thread, write_deap_participant
+from tests.factories import create_brain_context, create_thread, flatten_channel, write_deap_participant
 
 N_TRIALS = 20
 
@@ -128,6 +129,17 @@ async def test_a_brain_context_on_the_replaced_session_loses_only_its_session_id
         0.3,
         0.4,
     )
+
+
+async def test_a_flat_eeg_channel_fails_seeding_rather_than_storing_nan_scores(
+    db_session: AsyncSession, data_dir: Path, checkpoint_path: Path, tmp_path: Path
+) -> None:
+    flat_dir = tmp_path / "deap"
+    shutil.copytree(data_dir, flat_dir)
+    flatten_channel(flat_dir / "s01.dat", trial=4, channel=9)
+
+    with pytest.raises(ValueError, match="non-finite"):
+        await seed_sessions(db_session, [1], data_dir=flat_dir, checkpoint_path=checkpoint_path)
 
 
 async def test_without_a_checkpoint_seeding_says_to_train_and_writes_nothing(

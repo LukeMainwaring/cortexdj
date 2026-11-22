@@ -76,13 +76,18 @@ class ParticipantRatings:
     arousal: npt.NDArray[np.float64]
 
 
-def load_participant_ratings(participant_id: int, data_dir: Path) -> ParticipantRatings:
+def load_participant_ratings(
+    participant_id: int, data_dir: Path, *, eeg_labels: npt.NDArray[np.floating[Any]] | None = None
+) -> ParticipantRatings:
     """Read a participant's valence and arousal from ``participant_ratings.csv`` in ``data_dir``.
 
     Rows join on participant and experiment id: trial index ``e`` in ``sNN.dat`` is
     ``Experiment_id`` ``e + 1``. The file's rows are in presentation order, not EEG order.
     Do not read valence or arousal from the ``.dat`` label array: the Kaggle mirror's copy
     is altered (``9 - rating`` in every trial where both ratings exceed 5).
+
+    The ratings are checked against ``sNN.dat``'s label array; a caller that has already loaded
+    the file passes that array as ``eeg_labels`` so it is not unpickled a second time.
     """
     ratings_path = data_dir / RATINGS_FILENAME
     if not ratings_path.exists():
@@ -94,7 +99,8 @@ def load_participant_ratings(participant_id: int, data_dir: Path) -> Participant
         rows = [row for row in csv.DictReader(f) if int(row["Participant_id"]) == participant_id]
     by_trial = {int(row["Experiment_id"]) - 1: row for row in rows}
 
-    _, eeg_labels = load_deap_participant(data_dir / f"s{participant_id:02d}.dat")
+    if eeg_labels is None:
+        _, eeg_labels = load_deap_participant(data_dir / f"s{participant_id:02d}.dat")
     n_trials = len(eeg_labels)
     if sorted(by_trial) != list(range(n_trials)):
         raise ValueError(
