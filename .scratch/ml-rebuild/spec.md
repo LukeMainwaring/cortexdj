@@ -4,6 +4,8 @@
 
 Settled by the wayfinder map in this directory (`map.md`) and its thirteen decision tickets (`issues/01` to `13`). Where this spec and a ticket disagree, the ticket's `## Answer` wins, except for the calls listed under Further Notes, which the spec made because no ticket did. The architectural decision is `docs/adr/0005-one-quadrant-classifier-per-participant.md`.
 
+Implementation tickets: `.scratch/quadrant-classifier/issues/` (01 to 08). They live in their own effort because this directory's `issues/` holds the map's decision tickets.
+
 ## Problem Statement
 
 Every seeded session in the app reads "Calm & focused throughout". The classifier checkpoint the app downloads was trained without the input scaling that inference applies, so all 600 segments of every session score about 0.49 on both axes (`after-port 01`).
