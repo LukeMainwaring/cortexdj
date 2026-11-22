@@ -6,7 +6,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 - [x] Each segment's arousal and valence scores are the sigmoid of the logits from the fold model that held out its trial, with no calibration; the quadrant is cut at 0.5 on each score
 - [x] A segment's band powers are the four bands from the model's feature path; delta is not computed or stored

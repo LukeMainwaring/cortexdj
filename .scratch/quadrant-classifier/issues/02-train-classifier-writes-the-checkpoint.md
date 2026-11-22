@@ -6,7 +6,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 - [x] The training recipe is one frozen dataclass of constants in the ML kernel: band edges (theta 4 to 8, alpha 8 to 13, beta 13 to 30, gamma 30 to 45Hz), window length, sample rate, label threshold, fold count, seed, learning rate, epochs, weight decay. Its docstring says the settings are fixed and untuned
 - [x] One function in the ML kernel turns a 4-second window into 128 differential-entropy features (second-order-sections Butterworth band-pass, then half the log of the variance, 32 channels by 4 bands), and the same path gives the four displayed band powers (the variance, averaged over channels)

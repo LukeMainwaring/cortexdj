@@ -1,6 +1,6 @@
 # Spec: Rebuild the signal pipeline and the quadrant classifier
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 Settled by the wayfinder map in this directory (`map.md`) and its thirteen decision tickets (`issues/01` to `13`). Where this spec and a ticket disagree, the ticket's `## Answer` wins, except for the calls listed under Further Notes, which the spec made because no ticket did. The architectural decision is `docs/adr/0005-one-quadrant-classifier-per-participant.md`.
 

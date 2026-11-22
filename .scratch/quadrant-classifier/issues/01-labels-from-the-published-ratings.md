@@ -6,7 +6,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 - [x] A participant's ratings are read from the ratings file in a data directory passed as an argument, joined on participant and experiment id (a file's trial index `e` is experiment id `e + 1`)
 - [x] Loading raises, naming the participant, when the ratings file is missing

@@ -6,7 +6,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 - [x] Time in each quadrant, transitions, the dominant quadrant, centroid, dispersion and path length are computed over a session's tracks, from the mean scores each session track already stores
 - [x] The summary's path is one point per track and the three-segment rolling mean is gone; a transition's time is the start of the track it lands on

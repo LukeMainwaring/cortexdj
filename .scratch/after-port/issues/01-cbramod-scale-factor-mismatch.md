@@ -1,6 +1,6 @@
 # 01: Every seeded segment is classified calm
 
-**Status:** needs-planning
+**Status:** resolved (2026-11-22, PR #99)
 **Planning approach:** grill-with-docs
 
 **Planning gate:** Refine against the current implementation with the user before

@@ -6,7 +6,7 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 - [x] The model holder in the sessions slice holds the loaded checkpoint (recipe and metrics); `override_eeg_model` stays the test seam and takes a checkpoint or `None`
 - [x] A missing checkpoint is a startup warning that names `train-classifier` and hides `get_model_info`; a recipe mismatch fails startup
@@ -16,7 +16,7 @@
 - [x] The checkpoint download script fetches only `contrastive_best.pt`
 - [x] The sessions capability's tool list no longer says "EEGNet"
 - [x] `AGENTS.md` (the ML kernel, model holder and scripts paragraphs), `README.md`, `DEVELOPMENT.md`, `GLOSSARY.md`, `docs/ROADMAP.md` (the recorded 52% and anything else now untrue) and the testing-seams rule describe what is built; the architecture guide pages are checked for the old classifiers
-- [ ] This ticket's PR also resolves `after-port 01`, as the issue tracker describes
+- [x] This ticket's PR also resolves `after-port 01`, as the issue tracker describes
 
 **For the user, not the agent** (a real run is never one of the checks):
 

@@ -6,7 +6,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 - [x] The script is one file in the training package, run directly with a data directory argument, and prints the table ml-rebuild 04 recorded
 - [x] It reads labels through ticket 01's ratings loader, never from the files' label array

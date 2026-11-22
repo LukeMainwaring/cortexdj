@@ -6,7 +6,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #99)
 
 - [x] The chart keeps its five-band order and colours and draws a series, and a legend entry, only for bands present in the data
 - [x] A session whose segments have all five bands looks as it does today
