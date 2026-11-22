@@ -47,11 +47,6 @@ class AgentSettings(BaseSettings):
     EVAL_JUDGE_MODEL: str = "anthropic:claude-opus-5-5"
 
 
-class EegSettings(BaseSettings):
-    # Which trained classifier the app loads at startup (features/sessions/eeg_model.py).
-    EEG_MODEL_BACKEND: Literal["eegnet", "cbramod"] = "cbramod"
-
-
 class ObservabilitySettings(BaseSettings):
     # Read through Settings, not only from the process environment, so a token in the
     # repo .env reaches a bare `uv run` as well as Compose. Unset, nothing is exported.
@@ -81,7 +76,6 @@ class SpotifySettings(BaseSettings):
 class Settings(
     ApiSettings,
     AgentSettings,
-    EegSettings,
     ObservabilitySettings,
     PostgresSettings,
     SpotifySettings,

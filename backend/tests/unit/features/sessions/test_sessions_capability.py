@@ -3,33 +3,40 @@
 from pydantic_ai.models.test import TestModel
 
 from cortexdj.agents.registry import ASSISTANT, get_agent
-from cortexdj.features.sessions.capability import render_brain_context
+from cortexdj.features.sessions.capability import SessionsCapability, render_brain_context
 from cortexdj.features.sessions.eeg_model import override_eeg_model
 from cortexdj.features.sessions.schema import BrainContext
-from cortexdj.ml.model import EEGNetClassifier
-from cortexdj.ml.predict import EEGModel
-from tests.factories import make_deps
+from cortexdj.ml.checkpoint import QuadrantCheckpoint
+from tests.factories import make_deps, make_quadrant_checkpoint
 
 
-async def _offered_tool_names(eeg_model: EEGModel | None) -> set[str]:
+async def _offered_tool_names(checkpoint: QuadrantCheckpoint | None) -> set[str]:
     model = TestModel(call_tools=[], custom_output_text="ok")
-    with override_eeg_model(eeg_model), get_agent(ASSISTANT).override(model=model):
+    with override_eeg_model(checkpoint), get_agent(ASSISTANT).override(model=model):
         await get_agent(ASSISTANT).run("hello", deps=make_deps())
     params = model.last_model_request_parameters
     assert params is not None, "TestModel has no recorded request parameters"
     return {t.name for t in params.function_tools}
 
 
-async def test_offers_get_model_info_when_an_eeg_model_is_held() -> None:
-    assert "get_model_info" in await _offered_tool_names(EEGNetClassifier())
+async def test_offers_get_model_info_when_a_checkpoint_is_held() -> None:
+    assert "get_model_info" in await _offered_tool_names(make_quadrant_checkpoint())
 
 
-async def test_only_get_model_info_is_hidden_when_no_eeg_model_is_loaded() -> None:
+async def test_only_get_model_info_is_hidden_when_no_checkpoint_is_loaded() -> None:
     offered = await _offered_tool_names(None)
 
     assert "get_model_info" not in offered
     for always in ("list_sessions", "analyze_session", "explain_brain_state", "compare_sessions", "set_brain_context"):
         assert always in offered
+
+
+def test_the_tool_list_describes_the_quadrant_classifier_not_the_old_ones() -> None:
+    static = next(i for i in SessionsCapability().get_instructions() if isinstance(i, str))
+    model_info_line = next(line for line in static.splitlines() if "**get_model_info**" in line)
+
+    assert "quadrant classifier" in model_info_line
+    assert "EEGNet" not in static
 
 
 def test_no_context_renders_nothing() -> None:

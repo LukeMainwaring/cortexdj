@@ -31,7 +31,10 @@ from cortexdj.features.chat.model import Thread
 from cortexdj.features.retrieval.model import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.spotify.model import SpotifyToken
+from cortexdj.ml.checkpoint import AxisScores, ParticipantModels, QuadrantCheckpoint
 from cortexdj.ml.dataset import NUM_EEG_CHANNELS, RATINGS_FILENAME
+from cortexdj.ml.quadrant_classifier import QuadrantClassifier
+from cortexdj.ml.recipe import RECIPE
 
 
 async def create_session(db: AsyncSession, **overrides: object) -> Session:
@@ -335,3 +338,23 @@ def write_participant_ratings(
         writer = csv.DictWriter(f, fieldnames=_RATINGS_COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def make_quadrant_checkpoint(
+    participant_ids: tuple[int, ...] = (1,), *, metrics: AxisScores | None = None
+) -> QuadrantCheckpoint:
+    """An untrained quadrant-classifier checkpoint: fresh fold models, a round-robin fold per trial, and ``metrics``.
+
+    For a test that needs a checkpoint to hold or describe, not one whose models score anything;
+    ``tests/unit/training/`` trains real ones on a made-up participant.
+    """
+    scores = metrics or AxisScores(arousal=0.55, valence=0.6, mean=0.575)
+    participants = {
+        participant_id: ParticipantModels(
+            models=[QuadrantClassifier() for _ in range(RECIPE.n_folds)],
+            fold_of_trial=[trial % RECIPE.n_folds for trial in range(40)],
+            metrics=scores,
+        )
+        for participant_id in participant_ids
+    }
+    return QuadrantCheckpoint.of(participants)

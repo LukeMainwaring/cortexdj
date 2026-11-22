@@ -1,10 +1,10 @@
-"""The EEG classifier the app loads once at startup, held for the tools that describe it.
+"""The quadrant-classifier checkpoint the app loads once at startup, held for the tools that describe it.
 
 A module-level slot rather than ``app.state``: the reader is an agent capability, which
 sees ``RunContext`` and never the request. Only ``get_model_info`` and the capability's
 rule that hides it read the slot. The checkpoint is optional: without one the app boots
 with the slot empty and the assistant simply does not offer ``get_model_info``.
-``seed-sessions`` loads its own model and does not use this slot.
+``seed-sessions`` loads its own copy of the checkpoint and does not use this slot.
 """
 
 import logging
@@ -14,54 +14,54 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from cortexdj.core.config import get_settings
-from cortexdj.ml.predict import EEGModel, load_model
+from cortexdj.ml.checkpoint import CHECKPOINT_PATH, QuadrantCheckpoint, load_checkpoint
 
 logger = logging.getLogger(__name__)
 
-_model: EEGModel | None = None
+_checkpoint: QuadrantCheckpoint | None = None
 
 
-def get_eeg_model() -> EEGModel | None:
-    """The model loaded at startup, or None when no checkpoint was found."""
-    return _model
+def get_eeg_model() -> QuadrantCheckpoint | None:
+    """The checkpoint loaded at startup, or None when none was found."""
+    return _checkpoint
 
 
 @contextmanager
-def override_eeg_model(model: EEGModel | None) -> Iterator[None]:
-    """Swap the held model for the length of a ``with`` block, then put the previous one back.
+def override_eeg_model(checkpoint: QuadrantCheckpoint | None) -> Iterator[None]:
+    """Swap the held checkpoint for the length of a ``with`` block, then put the previous one back.
 
-    For tests: a model to describe, or ``None`` to stand for "no checkpoint". The app
+    For tests: a checkpoint to describe, or ``None`` to stand for "no checkpoint". The app
     loads once at startup and never calls this.
     """
-    global _model
-    previous = _model
-    _model = model
+    global _checkpoint
+    previous = _checkpoint
+    _checkpoint = checkpoint
     try:
         yield
     finally:
-        _model = previous
+        _checkpoint = previous
 
 
 def load_eeg_model(checkpoint_path: Path | None = None) -> None:
-    """Load the ``EEG_MODEL_BACKEND`` checkpoint into the slot; a missing checkpoint leaves it empty.
+    """Load the quadrant-classifier checkpoint into the slot; a missing file leaves it empty.
 
-    ``checkpoint_path`` defaults to that backend's standard checkpoint; a test passes a path
-    of its own. Only a missing file is tolerated: a stale or corrupt checkpoint still fails
-    startup, with ``load_model``'s message saying how to replace it.
+    ``checkpoint_path`` defaults to the file ``train-classifier`` writes; a test passes a path
+    of its own. Only a missing file is tolerated: a checkpoint made with a different training
+    recipe raises, so the app refuses to start rather than describe a model it would read
+    wrongly. Do not soften that to a warning.
     """
-    global _model
-    model_type = get_settings().EEG_MODEL_BACKEND
+    global _checkpoint
+    path = checkpoint_path or CHECKPOINT_PATH
     try:
-        _model = load_model(checkpoint_path=checkpoint_path, model_type=model_type)
+        _checkpoint = load_checkpoint(path)
     except FileNotFoundError:
         logger.warning(
-            f"No {model_type} checkpoint found; starting without an EEG model. "
-            "Run `./backend/scripts/download-checkpoints.sh` to fetch it."
+            f"No quadrant-classifier checkpoint at {path}; starting without one. "
+            "Run `uv run --directory backend train-classifier` to make it."
         )
-        _model = None
+        _checkpoint = None
         return
-    logger.info(f"{model_type} model loaded successfully")
+    logger.info(f"Quadrant-classifier checkpoint loaded: {len(_checkpoint.participants)} participants")
 
 
 async def load_eeg_model_at_startup(app: FastAPI) -> None:
