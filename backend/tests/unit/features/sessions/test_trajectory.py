@@ -1,111 +1,87 @@
-"""Tests for the trajectory analytics service."""
+"""Tests for the trajectory analytics, computed over a session's tracks."""
 
 from math import isclose, sqrt
 
-from cortexdj.features.sessions.trajectory import (
-    compute_trajectory_summary,
-    smooth_trajectory,
-)
-from tests.factories import make_eeg_segment
+from cortexdj.features.sessions.model import SessionTrack
+from cortexdj.features.sessions.trajectory import compute_trajectory_summary
+from tests.factories import make_session_track
 
 
-class TestSmoothTrajectory:
-    def test_empty(self) -> None:
-        assert smooth_trajectory([]) == []
-
-    def test_window_3_rolling_mean(self) -> None:
-        segs = [
-            make_eeg_segment(
-                "s",
-                segment_index=i,
-                start_time=4.0 * i,
-                end_time=4.0 * i + 4.0,
-                arousal_score=arousal,
-                valence_score=valence,
-                dominant_state=state,
-            )
-            for i, (arousal, valence, state) in enumerate(
-                [
-                    (0.10, 0.10, "calm"),
-                    (0.30, 0.30, "calm"),
-                    (0.50, 0.50, "excited"),
-                    (0.70, 0.70, "excited"),
-                    (0.90, 0.90, "excited"),
-                ]
-            )
-        ]
-        points = smooth_trajectory(segs)
-
-        # Endpoints use a 2-wide half-window; interior uses full 3-wide.
-        assert isclose(points[0].arousal, (0.10 + 0.30) / 2, abs_tol=1e-4)
-        assert isclose(points[1].arousal, (0.10 + 0.30 + 0.50) / 3, abs_tol=1e-4)
-        assert isclose(points[2].valence, (0.30 + 0.50 + 0.70) / 3, abs_tol=1e-4)
-        assert isclose(points[4].valence, (0.70 + 0.90) / 2, abs_tol=1e-4)
-        assert [p.start_time for p in points] == [s.start_time for s in segs]
+def _tracks(points: list[tuple[float, float, str]]) -> list[SessionTrack]:
+    return [
+        make_session_track("s", f"t{i}", track_order=i, avg_arousal=arousal, avg_valence=valence, dominant_state=state)
+        for i, (arousal, valence, state) in enumerate(points)
+    ]
 
 
 class TestComputeTrajectorySummary:
-    def test_empty_returns_none(self) -> None:
-        assert compute_trajectory_summary([]) is None
+    def test_no_tracks_returns_none(self) -> None:
+        assert compute_trajectory_summary([], duration_seconds=0.0) is None
 
-    def test_dwell_transitions_and_metrics(self) -> None:
-        segs = [
-            make_eeg_segment(
-                "s",
-                segment_index=i,
-                start_time=4.0 * i,
-                end_time=4.0 * i + 4.0,
-                arousal_score=arousal,
-                valence_score=valence,
-                dominant_state=state,
-            )
-            for i, (arousal, valence, state) in enumerate(
-                [
-                    (0.2, 0.2, "calm"),
-                    (0.2, 0.2, "calm"),
-                    (0.8, 0.8, "excited"),
-                    (0.2, 0.8, "relaxed"),
-                ]
-            )
-        ]
+    def test_dwell_transitions_and_metrics_over_tracks(self) -> None:
+        tracks = _tracks(
+            [
+                (0.2, 0.2, "calm"),
+                (0.2, 0.2, "calm"),
+                (0.8, 0.8, "excited"),
+                (0.2, 0.8, "relaxed"),
+            ]
+        )
 
-        summary = compute_trajectory_summary(segs)
+        # Four one-minute tracks.
+        summary = compute_trajectory_summary(tracks, duration_seconds=240.0)
         assert summary is not None
 
-        assert summary.dwell_fractions["calm"] == 0.5
-        assert summary.dwell_fractions["excited"] == 0.25
-        assert summary.dwell_fractions["relaxed"] == 0.25
-        assert summary.dwell_fractions["stressed"] == 0.0
-
+        assert summary.dwell_fractions == {"relaxed": 0.25, "calm": 0.5, "excited": 0.25, "stressed": 0.0}
         assert summary.dominant_quadrant == "calm"
 
         assert summary.transition_count == 2
-        assert summary.transitions[0].from_quadrant == "calm"
-        assert summary.transitions[0].to_quadrant == "excited"
-        assert summary.transitions[0].time == 8.0
-        assert summary.transitions[1].from_quadrant == "excited"
-        assert summary.transitions[1].to_quadrant == "relaxed"
+        assert [(t.from_quadrant, t.to_quadrant, t.time) for t in summary.transitions] == [
+            ("calm", "excited", 120.0),
+            ("excited", "relaxed", 180.0),
+        ]
 
-        expected_ac = (0.2 + 0.2 + 0.8 + 0.2) / 4
-        expected_vc = (0.2 + 0.2 + 0.8 + 0.8) / 4
         # Centroid is (arousal, valence) to match the codebase-wide ordering.
-        assert isclose(summary.centroid[0], round(expected_ac, 4))
-        assert isclose(summary.centroid[1], round(expected_vc, 4))
-
-        # Path length: three edges between four points in (valence, arousal)
-        expected_path = (
-            sqrt((0.2 - 0.2) ** 2 + (0.2 - 0.2) ** 2)
-            + sqrt((0.8 - 0.2) ** 2 + (0.8 - 0.2) ** 2)
-            + sqrt((0.8 - 0.8) ** 2 + (0.2 - 0.8) ** 2)
-        )
+        assert summary.centroid == (0.35, 0.5)
+        expected_path = sqrt(0.6**2 + 0.6**2) + 0.6
         assert isclose(summary.path_length, round(expected_path, 4), abs_tol=1e-4)
-
         assert summary.dispersion > 0.0
-        assert len(summary.smoothed) == len(segs)
 
-    def test_single_segment_has_zero_path_and_no_transitions(self) -> None:
-        segs = [make_eeg_segment("s", start_time=0.0, arousal_score=0.5, valence_score=0.5, dominant_state="excited")]
-        summary = compute_trajectory_summary(segs)
+    def test_path_is_one_unsmoothed_point_per_track(self) -> None:
+        tracks = _tracks([(0.1, 0.1, "calm"), (0.9, 0.9, "excited"), (0.1, 0.1, "calm")])
+
+        summary = compute_trajectory_summary(tracks, duration_seconds=180.0)
+        assert summary is not None
+
+        assert [(p.start_time, p.arousal, p.valence, p.quadrant) for p in summary.smoothed] == [
+            (0.0, 0.1, 0.1, "calm"),
+            (60.0, 0.9, 0.9, "excited"),
+            (120.0, 0.1, 0.1, "calm"),
+        ]
+
+    def test_path_follows_track_order(self) -> None:
+        tracks = list(reversed(_tracks([(0.1, 0.1, "calm"), (0.9, 0.9, "excited")])))
+
+        summary = compute_trajectory_summary(tracks, duration_seconds=120.0)
+        assert summary is not None
+
+        assert [p.quadrant for p in summary.smoothed] == ["calm", "excited"]
+        assert [(t.from_quadrant, t.to_quadrant, t.time) for t in summary.transitions] == [("calm", "excited", 60.0)]
+
+    def test_tracks_in_the_same_quadrant_make_no_transition(self) -> None:
+        # Whatever the segments inside these tracks did, each track has one quadrant.
+        tracks = _tracks([(0.7, 0.6, "excited"), (0.8, 0.7, "excited"), (0.6, 0.9, "excited")])
+
+        summary = compute_trajectory_summary(tracks, duration_seconds=180.0)
+        assert summary is not None
+
+        assert summary.transition_count == 0
+        assert summary.transitions == []
+        assert summary.dwell_fractions["excited"] == 1.0
+
+    def test_single_track_has_zero_path_and_no_transitions(self) -> None:
+        tracks = _tracks([(0.5, 0.5, "excited")])
+        summary = compute_trajectory_summary(tracks, duration_seconds=60.0)
         assert summary is not None
         assert summary.path_length == 0.0
         assert summary.transition_count == 0

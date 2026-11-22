@@ -118,6 +118,18 @@ class SessionTrack(Base):
         )
         return {sid: int(count) for sid, count in result.all()}
 
+    @classmethod
+    async def get_state_counts(cls, db: AsyncSession, session_ids: Sequence[str]) -> list[tuple[str, str, int]]:
+        """Count tracks by (session_id, dominant_state): what a session card's label is counted over."""
+        if not session_ids:
+            return []
+        result = await db.execute(
+            select(cls.session_id, cls.dominant_state, func.count())
+            .where(cls.session_id.in_(session_ids))
+            .group_by(cls.session_id, cls.dominant_state)
+        )
+        return [(sid, state, int(n)) for sid, state, n in result.all()]
+
 
 class EegSegment(Base):
     """A fixed-length EEG window within a session, classified into an arousal/valence quadrant."""

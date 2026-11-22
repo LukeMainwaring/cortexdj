@@ -32,12 +32,13 @@ async def test_list_sessions_labels_newest_first_with_the_id_for_tool_calls(db_s
     t0 = datetime(2026, 1, 1, tzinfo=UTC)
     older = await create_session(db_session, created_at=t0)
     newer = await create_session(db_session, created_at=t0 + timedelta(hours=1))
-    await create_eeg_segment(db_session, newer.id, dominant_state="relaxed")
+    track = await create_track(db_session)
+    await create_session_track(db_session, newer.id, track.id, dominant_state="relaxed")
 
     result = await session_tools.list_sessions(make_run_context(make_deps(db_session)), limit=1)
 
     assert "**2 EEG sessions** (showing 1)" in result
-    assert "**Session 02** — Relaxed throughout" in result
+    assert "**Session 02** — Relaxed throughout · 1 tracks" in result
     assert f"<!-- id={newer.id} -->" in result
     assert older.id not in result
 

@@ -53,7 +53,7 @@ The brain state a thread is focused on: a session id, a dominant mood, and avera
 _Avoid_: Brain state (what a segment or session shows; the context is what the conversation holds on to), session context
 
 **Trajectory**:
-A session's path through arousal and valence, one point per track (the mean of that track's segments), with what is computed from it: time spent in each quadrant, transitions, centroid, dispersion, and path length.
+A session's path through arousal and valence, one point per track (the mean of that track's segments), with what is computed from it: the share of tracks in each quadrant, transitions (a quadrant change from one track to the next, timed at the start of the track it lands on), centroid, dispersion, and path length. The session card's label is counted over the same tracks; quadrant changes between segments of one track are not transitions.
 _Avoid_: Timeline (the per-segment chart), emotional arc, history
 
 **Track index**:

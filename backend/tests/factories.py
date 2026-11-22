@@ -81,8 +81,8 @@ async def create_track(db: AsyncSession, **overrides: object) -> Track:
     return track
 
 
-async def create_session_track(db: AsyncSession, session_id: str, track_id: str, **overrides: object) -> SessionTrack:
-    """Persist the listener's response to an existing track within an existing session; ``relaxed`` by default."""
+def make_session_track(session_id: str, track_id: str, **overrides: object) -> SessionTrack:
+    """Unpersisted listener's response to the first track of ``session_id``; ``relaxed`` by default."""
     data: dict[str, object] = {
         "id": str(uuid4()),
         "session_id": session_id,
@@ -93,7 +93,12 @@ async def create_session_track(db: AsyncSession, session_id: str, track_id: str,
         "dominant_state": "relaxed",
     }
     data.update(overrides)
-    session_track = SessionTrack(**data)
+    return SessionTrack(**data)
+
+
+async def create_session_track(db: AsyncSession, session_id: str, track_id: str, **overrides: object) -> SessionTrack:
+    """Persist the listener's response to an existing track within an existing session; ``relaxed`` by default."""
+    session_track = make_session_track(session_id, track_id, **overrides)
     db.add(session_track)
     await db.flush()
     await db.refresh(session_track)
