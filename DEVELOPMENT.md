@@ -46,6 +46,18 @@ and names the setting. The code lives in `cortexdj.training`, which imports only
 and the platform kernel; an import-linter contract keeps everything else from importing it.
 `seed-sessions` scores with this checkpoint, and the app loads it at startup for `get_model_info`.
 
+A full run over the 32 participants prints, as mean ± standard deviation across participants:
+
+```text
+arousal  0.558 ± 0.053
+valence  0.609 ± 0.080
+mean     0.583 ± 0.053
+```
+
+The run is deterministic, so a rerun prints the same figures; a different number means the code
+or the data changed. The number is within-subject and within one recording sitting: a decoder
+trained on one day and used on another is a harder problem it does not cover.
+
 The cross-subject baseline script re-runs the evidence for training each participant on their
 own trials: logistic regression on the same band features scores at chance when trained on
 other participants and held out on one. It prints one table and takes about 40 seconds:

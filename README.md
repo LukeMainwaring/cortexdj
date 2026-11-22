@@ -17,7 +17,7 @@ Music shapes your brain state, and your brain state shapes what music you want n
 ## Features
 
 - **Brain state classification** — Per-segment arousal/valence scores mapped to four emotion quadrants (relaxed / calm / excited / stressed) for every 4-second EEG window
-- **A classifier you can explain weight by weight** — One linear layer on differential entropy in four frequency bands, calibrated to each DEAP participant and scored on trials it never saw; its training code is in the repo and runs on a laptop in about a minute
+- **A classifier you can explain weight by weight** — One linear layer on differential entropy in four frequency bands, calibrated to each DEAP participant and scored on trials it never saw, for a balanced accuracy of 0.58 against chance at 0.50 (within one recording sitting, not across days); its training code is in the repo and runs on a laptop in about a minute
 - **Agentic orchestration** — A Pydantic AI agent decides which tools to call per query, enabling multi-step reasoning across session analysis, playlist curation, and track retrieval
 - **Persistent brain context** — Dominant mood / arousal / valence attached to the conversation thread, surviving page refreshes and flowing dynamically into the system prompt
 - **Contrastive EEG↔CLAP retrieval** — Joint 512-d embedding between raw EEG and LAION-CLAP audio, served via pgvector HNSW cosine search (proof-of-concept; see [Limitations](#limitations))
