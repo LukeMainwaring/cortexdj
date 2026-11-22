@@ -8,8 +8,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] The script is one file in the training package, run directly with a data directory argument, and prints the table ml-rebuild 04 recorded
-- [ ] It reads labels through ticket 01's ratings loader, never from the files' label array
-- [ ] It is the only file that imports scikit-learn, which stays a transitive dependency; its docstring says so and says why the file is kept
-- [ ] It passes mypy strict and the import-linter contracts; it has no test and nothing imports it
-- [ ] Docs call it the cross-subject baseline script, never a "baseline run" (that term is the eval tier's in the glossary)
+- [x] The script is one file in the training package, run directly with a data directory argument, and prints the table ml-rebuild 04 recorded
+- [x] It reads labels through ticket 01's ratings loader, never from the files' label array
+- [x] It is the only file that imports scikit-learn, which stays a transitive dependency; its docstring says so and says why the file is kept
+- [x] It passes mypy strict and the import-linter contracts; it has no test and nothing imports it
+- [x] Docs call it the cross-subject baseline script, never a "baseline run" (that term is the eval tier's in the glossary)
