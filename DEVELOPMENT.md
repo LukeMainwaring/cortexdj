@@ -31,6 +31,18 @@ startup, the EEG classifier and the contrastive encoder (`contrastive_best.pt`),
 each dev reload take a few seconds longer; without the contrastive checkpoint the boot logs a
 warning and retrieval answers with a message that points at the download script.
 
+`train-classifier` trains the rebuilt quadrant classifier and writes
+`backend/data/checkpoints/quadrant_classifier.pt`, made locally and never downloaded. It reads
+the same DEAP files plus `participant_ratings.csv` (valence and arousal come only from that
+file), trains each participant's five fold models on that participant's own trials, and prints
+balanced accuracy for arousal, for valence and their mean, each ± its spread across
+participants (chance is 0.50). It runs on CPU. `--participants 1 2 3` trains a subset and
+overwrites the file with only those participants. Its settings are the training recipe in
+`ml/recipe.py`, fixed and untuned; loading a checkpoint made under a different recipe raises
+and names the setting. The code lives in `cortexdj.training`, which imports only the ML kernel
+and the platform kernel; an import-linter contract keeps everything else from importing it.
+Neither the app nor `seed-sessions` reads this checkpoint yet.
+
 `seed-sessions` reads the 32 DEAP participant files (`backend/data/deap/s01.dat` to `s32.dat`;
 `backend/data/DEAP_SETUP.md` says how to get them), classifies every 4-second segment with the
 checkpoint it loads itself (`--model cbramod` by default, ground-truth labels when there is no
