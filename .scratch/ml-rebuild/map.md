@@ -23,6 +23,8 @@ Settled decisions for one spec: the DEAP signal pipeline and the quadrant classi
 - [Modal's current setup for small fan-out training runs](issues/03-modal-setup-for-small-fan-out-runs.md): a 30-line wrapper around a plain `train_fold`, CPU by default, folds via `.map`, data on a read-only Volume; about $0.67 per 32-fold run at an assumed 5 minutes a fold; untested on Modal.
 - [Current braindecode and MNE practice for DEAP](issues/01-current-braindecode-mne-practice-for-deap.md): no loader to adopt, so we keep wrapping the arrays; DEAP already filtered, re-referenced and baseline-corrected, leaving normalization, windowing and labels to us; the delta band is empty; small braindecode models are single-output; the local labels look altered.
 - [What recent benchmarks report for DEAP arousal and valence](issues/02-what-deap-benchmarks-report.md): trial-safe results sit near chance for every model family, foundation models included (about 0.50 to 0.57 balanced accuracy); numbers above 90% come from leaking window-level splits; and the local labels differ from the published ratings in 439 trials.
+- [Are the local DEAP labels the official ones?](issues/09-are-the-local-deap-labels-official.md): no, the Kaggle mirror re-saved the files with valence and arousal changed in 439 trials; the effort keeps the local EEG (unverified against an official copy, accepted) and takes labels from `participant_ratings.csv` in `backend/data/deap/`, joined on participant and `Experiment_id`; the official site is down.
+- [A baseline run on band features](issues/04-baseline-run.md): logistic regression on differential entropy scores chance cross-subject (0.50 balanced accuracy, about 0.53 with per-participant z-scoring) and 0.60 valence, 0.55 arousal within-subject by trial; the label rule barely moves balanced accuracy; the whole run takes 40 seconds on a laptop.
 
 ## Not yet specified
 
@@ -31,7 +33,7 @@ Settled decisions for one spec: the DEAP signal pipeline and the quadrant classi
 - Whether the app contract has to reopen (segment length, score meaning), if the label or preprocessing tickets find it plainly wrong.
 - Band powers shown in the app: whether they come from the same preprocessing path as the model's input or stay a separate Welch computation.
 - How training code is tested and checked in CI without a GPU or the DEAP files.
-- What goes stale: `after-port 01`, `docs/ROADMAP.md`, the glossary's Segment and Quadrant entries, the architecture guide pages, the checkpoint download script.
+- What goes stale: `after-port 01`, `docs/ROADMAP.md`, the glossary's Segment and Quadrant entries, the architecture guide pages, the checkpoint download script, `backend/data/DEAP_SETUP.md` (its "same preprocessed data" and "~24/76" claims, and the missing ratings-file step), the recorded 52% figure.
 
 ## Out of scope
 
