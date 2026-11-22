@@ -39,7 +39,6 @@
 - Personalized fine-tuning — few-shot adaptation of the CBraMod encoder to individual users on top of DEAP fine-tuning
 - Cross-session trend analysis — track embedding trajectories across sessions
 - Attention visualization — transformer attention weights as channel/timepoint importance maps (consider EEGMiner's learnable Gaussian filters + PLV connectivity as a non-attention interpretability comparator)
-- Model ensemble — combine EEGNet (DE features) and CBraMod (raw EEG) predictions
 - Discrete emotion classification — add a positive/neutral/negative head once SEED support lands (Phase 2); DEAP itself ships only continuous valence/arousal/dominance/liking
 - (Stretch) HBN-EEG intermediate-pretraining stage — masked-prediction or relative-positioning on 3,000-subject movie-watching data, between public CBraMod backbone and DEAP fine-tuning. Gated on Phase 2 / EEG↔CLAP work identifying a representation-quality bottleneck. See [datasets-analysis.md](research/datasets-analysis.md) Tier C / Path C.
 

@@ -22,15 +22,17 @@ pnpm -C frontend generate-client
 pnpm -C frontend dev           # http://localhost:3003
 ```
 
-The model checkpoints live in `backend/data/checkpoints/`, which is not in git;
-`./backend/scripts/download-checkpoints.sh` fetches them from a GitHub Release (it needs the
-`gh` CLI). The backend container sees `backend/data` at `/app/data` through a bind mount.
-The first model load in the container downloads the CBraMod backbone from the Hugging Face hub
-into the `huggingface_cache` volume. Without a checkpoint the backend still boots: it logs a
-warning and the assistant does not offer `get_model_info`. The backend loads two models at
-startup, the EEG classifier and the contrastive encoder (`contrastive_best.pt`), so a boot and
-each dev reload take a few seconds longer; without the contrastive checkpoint the boot logs a
-warning and retrieval answers with a message that points at the download script.
+The model checkpoints live in `backend/data/checkpoints/`, which is not in git. The backend
+loads two at startup. The quadrant classifier's (`quadrant_classifier.pt`) is made locally by
+`train-classifier` (see below); without it the backend still boots, logs a warning that names
+`train-classifier`, and the assistant does not offer `get_model_info`; one made under a
+different training recipe stops the backend at startup, naming the setting. The contrastive
+encoder's (`contrastive_best.pt`) comes from a GitHub Release through
+`./backend/scripts/download-checkpoints.sh` (it needs the `gh` CLI); without it the boot logs a
+warning and retrieval answers with a message that points at the download script. The backend
+container sees `backend/data` at `/app/data` through a bind mount. The first load of the
+contrastive encoder in the container downloads the CBraMod backbone from the Hugging Face hub
+into the `huggingface_cache` volume, and a boot and each dev reload take a few seconds longer.
 
 `train-classifier` trains the rebuilt quadrant classifier and writes
 `backend/data/checkpoints/quadrant_classifier.pt`, made locally and never downloaded. It reads
@@ -42,7 +44,7 @@ overwrites the file with only those participants. Its settings are the training 
 `ml/recipe.py`, fixed and untuned; loading a checkpoint made under a different recipe raises
 and names the setting. The code lives in `cortexdj.training`, which imports only the ML kernel
 and the platform kernel; an import-linter contract keeps everything else from importing it.
-`seed-sessions` reads this checkpoint; the app does not yet.
+`seed-sessions` scores with this checkpoint, and the app loads it at startup for `get_model_info`.
 
 The cross-subject baseline script re-runs the evidence for training each participant on their
 own trials: logistic regression on the same band features scores at chance when trained on
