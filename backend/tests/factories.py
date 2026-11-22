@@ -8,11 +8,17 @@ the shape is typed) so a test states only the fields it is about. Add a builder 
 rather than a private helper in a test file once two test files need the same shape.
 """
 
+import csv
+import pickle
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import numpy as np
+import numpy.typing as npt
 from pydantic_ai import RunContext
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
@@ -25,6 +31,7 @@ from cortexdj.features.chat.model import Thread
 from cortexdj.features.retrieval.model import EMBEDDING_DIM, TrackAudioEmbedding
 from cortexdj.features.sessions.model import EegSegment, Session, SessionTrack, ThreadBrainContext, Track
 from cortexdj.features.spotify.model import SpotifyToken
+from cortexdj.ml.dataset import RATINGS_FILENAME
 
 
 async def create_session(db: AsyncSession, **overrides: object) -> Session:
@@ -216,3 +223,88 @@ def make_evaluator_context[InputsT, OutputT](
         attributes=attributes if attributes is not None else {},
         metrics={},
     )
+
+
+# DEAP's preprocessed layout: 40 channels (32 EEG first), 384 baseline + 7680 stimulus samples at 128Hz.
+_DEAP_CHANNELS = 40
+_DEAP_SAMPLES = 8064
+_RATINGS_COLUMNS = [
+    "Participant_id",
+    "Trial",
+    "Experiment_id",
+    "Start_time",
+    "Valence",
+    "Arousal",
+    "Dominance",
+    "Liking",
+    "Familiarity",
+]
+
+
+@dataclass(frozen=True)
+class FakeDeapParticipant:
+    """What ``write_deap_participant`` wrote: the EEG file and the published ratings, in the file's trial order."""
+
+    eeg_path: Path
+    valence: npt.NDArray[np.float64]
+    arousal: npt.NDArray[np.float64]
+
+
+def write_deap_participant(
+    data_dir: Path, participant_id: int = 1, *, n_trials: int = 40, seed: int = 0
+) -> FakeDeapParticipant:
+    """Write one made-up DEAP participant under ``data_dir``: ``sNN.dat`` and its rows of ``participant_ratings.csv``.
+
+    The pickle's label array is altered the way the Kaggle mirror's is (valence and arousal
+    are ``9 - rating`` where both ratings exceed 5) while its dominance and liking match the
+    ratings, so a loader that reads valence or arousal from the pickle gets the wrong answer.
+    Ratings rows are written in a shuffled presentation order, so only a join on experiment id
+    lines them up. An ``n_trials`` below DEAP's 40 keeps a test's pickle small.
+    """
+    rng = np.random.default_rng(seed)
+    ratings = rng.uniform(1, 9, (n_trials, 4)).round(2)
+    ratings[0, :2] = [7.0, 8.0]  # at least one trial the mirror alters
+    labels = ratings.copy()
+    altered = (ratings[:, 0] > 5) & (ratings[:, 1] > 5)
+    labels[altered, :2] = 9 - ratings[altered, :2]
+    data = rng.standard_normal((n_trials, _DEAP_CHANNELS, _DEAP_SAMPLES)).astype(np.float32)
+    eeg_path = data_dir / f"s{participant_id:02d}.dat"
+    with eeg_path.open("wb") as f:
+        pickle.dump({"labels": labels, "data": data}, f)
+    write_participant_ratings(data_dir, participant_id, ratings, seed=seed)
+    return FakeDeapParticipant(eeg_path=eeg_path, valence=ratings[:, 0], arousal=ratings[:, 1])
+
+
+def write_participant_ratings(
+    data_dir: Path, participant_id: int, ratings: npt.NDArray[np.float64], *, seed: int = 0
+) -> None:
+    """Replace ``participant_id``'s rows of ``participant_ratings.csv`` under ``data_dir`` with ``ratings``.
+
+    ``ratings`` is ``(n_trials, 4)`` valence, arousal, dominance, liking in the EEG file's trial
+    order, so row ``e`` becomes experiment id ``e + 1``. Other participants' rows are kept.
+    """
+    path = data_dir / RATINGS_FILENAME
+    rows: list[dict[str, str]] = []
+    if path.exists():
+        with path.open(newline="") as f:
+            rows = [row for row in csv.DictReader(f) if int(row["Participant_id"]) != participant_id]
+    presentation = np.random.default_rng(seed).permutation(len(ratings))
+    for trial, e in enumerate(presentation, start=1):
+        valence, arousal, dominance, liking = (str(v) for v in ratings[e])
+        rows.append(
+            {
+                "Participant_id": str(participant_id),
+                "Trial": str(trial),
+                "Experiment_id": str(e + 1),
+                "Start_time": str(trial * 70_000),
+                "Valence": valence,
+                "Arousal": arousal,
+                "Dominance": dominance,
+                "Liking": liking,
+                "Familiarity": "",
+            }
+        )
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_RATINGS_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
