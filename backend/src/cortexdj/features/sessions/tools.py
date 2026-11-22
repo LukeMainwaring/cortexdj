@@ -70,8 +70,8 @@ async def analyze_session(ctx: RunContext[AgentDeps], session_id: str) -> str:
 async def explain_brain_state(ctx: RunContext[AgentDeps], session_id: str) -> str:
     """Explain what the brain was doing during a session in plain language.
 
-    Provides educational context about EEG frequency bands and their
-    relationship to emotional states.
+    Gives the session's dominant quadrant, its average arousal and valence,
+    and what that quadrant means for a listener.
     """
     if await session_service.get_session(ctx.deps.db, session_id) is None:
         raise _unknown_session(session_id)

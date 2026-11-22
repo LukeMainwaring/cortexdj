@@ -1,4 +1,8 @@
-"""EEG sessions for the assistant: listing, analysis, comparison, the model, and brain context.
+"""EEG sessions for the assistant: listing, analysis, comparison, the model, the reliability hedge, and brain context.
+
+The reliability hedge is worded from the checkpoint loaded at startup. pydantic-ai reads a
+capability's instructions once, when the registry builds the agent, which is after the
+startup hooks ran, so the hedge is fixed for the life of the process and stays static text.
 
 The conversation's brain context is read from the database before every model request,
 not carried on ``AgentDeps``: ``set_brain_context`` may change it mid-run, and the next
@@ -27,6 +31,7 @@ from cortexdj.features.sessions.tools import (
     list_sessions,
     set_brain_context,
 )
+from cortexdj.ml.checkpoint import QuadrantCheckpoint
 
 _SESSIONS_INSTRUCTIONS = """
 ## EEG Analysis
@@ -96,6 +101,40 @@ Prefer a two-to-three-sentence arc (e.g. "Started calm, shifted to excited
 after the third track, finished relaxed") over a flat list of statistics.
 """.strip()
 
+# The single number's cut-offs: below the first "a rough read", up to the second "a fair read",
+# from the second up no hedge.
+_FAIR_FROM = 0.60
+_NO_HEDGE_FROM = 0.75
+
+
+def render_reliability(checkpoint: QuadrantCheckpoint | None) -> str:
+    """The "Reliability" block: how to hedge a session's quadrants, worded by the checkpoint's single number.
+
+    The single number is the checkpoint's balanced accuracy, the mean of arousal and valence,
+    averaged over the participants it holds. With no checkpoint loaded the most cautious tier
+    is used, since nothing vouches for the stored quadrants.
+    """
+    if checkpoint is None:
+        basis = "No quadrant-classifier checkpoint is loaded, so nothing vouches for the stored quadrants."
+        tier: str | None = "a rough read"
+    else:
+        score = checkpoint.summary.mean.mean
+        basis = (
+            f"The quadrant classifier's balanced accuracy, averaged over arousal and valence and over "
+            f"its participants, is {score:.2f} (chance is 0.50)."
+        )
+        tier = "a rough read" if score < _FAIR_FROM else "a fair read" if score < _NO_HEDGE_FROM else None
+    if tier is None:
+        rule = "That is reliable enough to state the quadrants plainly: add no reliability caveat."
+    else:
+        rule = (
+            f'When you analyze or explain a session, say once, in one short clause, that its quadrants are "{tier}" '
+            f'(for example: "this is {tier}, but the session leans calm"). One clause per analysis, never a '
+            "paragraph, and do not repeat it for each track."
+        )
+    return f"## Reliability\n\n{basis} {rule}"
+
+
 # Hidden while no checkpoint is loaded, so the model never offers a tool that can only fail.
 _MODEL_TOOLS = frozenset({get_model_info.__name__})
 
@@ -149,7 +188,9 @@ class SessionsCapability(AbstractCapability[AgentDeps]):
         return ts
 
     def get_instructions(self) -> list[str | Callable[[RunContext[AgentDeps]], Awaitable[str]]]:
-        return [_SESSIONS_INSTRUCTIONS, _brain_context_for_request]
+        # Both strings are static and sit in the cached prefix; brain context is the only
+        # per-request part (ADR 0002).
+        return [_SESSIONS_INSTRUCTIONS, render_reliability(get_eeg_model()), _brain_context_for_request]
 
     async def prepare_tools(
         self,
