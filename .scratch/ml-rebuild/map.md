@@ -29,10 +29,11 @@ Settled decisions for one spec: the DEAP signal pipeline and the quadrant classi
 - [Labels, split and metric](issues/05-labels-split-and-metric.md): one model per participant, scored within-subject by trial (stratified 5-fold); high is a rating `>= 5`; the headline is per-window balanced accuracy for each axis, their mean the single number (baseline 0.57); the app shows only held-out predictions; cross-subject is quoted from a kept baseline script.
 - [Which libraries and which features for band features on DEAP](issues/10-signal-libraries-and-features-for-band-features.md): no industry-standard library for band features; MNE stops at the spectrum, torcheeg (the only one with differential entropy) does not install beside scipy 1.18; differential entropy is log band power and nothing trial-safe on DEAP beats it; the four band edges are standard; keep plain scipy.
 - [What preprocessing we own](issues/06-what-preprocessing-we-own.md): the model reads differential entropy in four bands (theta, alpha, beta, gamma; no delta) from 4-second windows with no overlap, the same slice as a stored segment; one standardization fitted on the training fold; the pre-trial is dropped; plain numpy and scipy, no MNE.
+- [Which model survives](issues/07-which-model-survives.md): a linear layer in PyTorch (`nn.Linear(128, 2)`, arousal and valence as its two outputs) on the band features, fixed untuned settings; both current classifiers and `EEG_MODEL_BACKEND` are deleted; scikit-learn is not a dependency; no model was run, so 0.57 stays the baseline's figure until the first training run.
 
 ## Not yet specified
 
-- Autoresearch: once a training script and one metric exist, how a `/goal`-style loop runs against them, and whether it is worth having at all. Last leg, kept light.
+- Autoresearch: once a training script and one metric exist, how a `/goal`-style loop runs against them, and whether it is worth having at all. Last leg, kept light. A linear model leaves it little to tune (weight decay, learning rate, the feature choices), so it may fit the later architecture effort better than this one.
 - Seeding after the new checkpoint: how re-seeding gets held-out predictions for every segment (saved by the training run, or made by the fold models at seed time), what a session should look like in the app at about 0.57, and whether the stored scores need calibrating.
 - How training code is tested and checked in CI without a GPU or the DEAP files.
 - What goes stale: `after-port 01`, `docs/ROADMAP.md`, the glossary's Segment and Quadrant entries, the architecture guide pages, the checkpoint download script, `backend/data/DEAP_SETUP.md` (its "same preprocessed data" and "~24/76" claims, and the missing ratings-file step), the recorded 52% figure.
@@ -40,5 +41,6 @@ Settled decisions for one spec: the DEAP signal pipeline and the quadrant classi
 ## Out of scope
 
 - Retraining the contrastive EEG↔CLAP encoder: blocked on `audio-decoding 01` and a long run; a fresh effort later.
+- Bigger models, raw-window architectures (a real EEGNet) and fine-tuning CBraMod as the classifier: a later effort once the app works end to end, starting with a bake-off on Modal (`docs/ROADMAP.md`, Phase 4; [Which model survives](issues/07-which-model-survives.md)).
 - Going back to DEAP's raw recordings.
 - Other datasets than DEAP, the user's own Muse recordings included.

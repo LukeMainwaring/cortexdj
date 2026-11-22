@@ -31,6 +31,7 @@
 
 ## Phase 4: Advanced ML
 
+- Quadrant classifier architecture bake-off, once the rebuilt linear classifier works end to end: on Modal, same within-subject split and metric, compare it with a small MLP on the band features, a real EEGNet on raw windows, then a fine-tuned CBraMod. A model replaces the linear one only if it wins by about 0.03 balanced accuracy. Comes before the pretrained-encoder sweep below
 - EEG data augmentation — Gaussian noise, temporal jittering, channel dropout
 - Extend the autoresearch harness (readable at the `pre-port` tag under `backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out; warm the Modal image to cut the ~15-min cold-start on each run
 - Evaluate pretrained encoders beyond CBraMod — CodeBrain (smallest-diff swap; shares the `(B, n_chans, n_times)` input contract), EEGPT, BENDR, REVE, LUNA — as drop-in backbone replacements (note: REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement)
