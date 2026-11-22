@@ -62,3 +62,16 @@ async def test_the_system_prompt_reaches_the_model_as_a_static_instruction() -> 
 
     static = [p.content for p in seen if not p.dynamic]
     assert any(SYSTEM_PROMPT in text for text in static)
+
+
+def test_the_system_prompt_quadrant_list_makes_no_band_claims() -> None:
+    quadrant_lines = [line for line in SYSTEM_PROMPT.splitlines() if line.startswith("- **")]
+
+    assert len(quadrant_lines) == 4
+    for line in quadrant_lines:
+        assert not [band for band in ("theta", "alpha", "beta", "gamma") if band in line.lower()]
+
+
+def test_the_system_prompt_band_line_lists_the_four_recipe_bands() -> None:
+    assert "theta 4-8 Hz, alpha 8-13 Hz, beta 13-30 Hz, gamma 30-45 Hz" in SYSTEM_PROMPT
+    assert "delta" not in SYSTEM_PROMPT.lower()

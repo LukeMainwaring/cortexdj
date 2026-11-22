@@ -1,12 +1,13 @@
-"""The sessions capability as the assistant sees it: which tools it offers, and the brain-context block."""
+"""The sessions capability as the assistant sees it: which tools it offers, the reliability hedge, and the brain-context block."""
 
+import pytest
 from pydantic_ai.models.test import TestModel
 
 from cortexdj.agents.registry import ASSISTANT, get_agent
 from cortexdj.features.sessions.capability import SessionsCapability, render_brain_context
 from cortexdj.features.sessions.eeg_model import override_eeg_model
 from cortexdj.features.sessions.schema import BrainContext
-from cortexdj.ml.checkpoint import QuadrantCheckpoint
+from cortexdj.ml.checkpoint import AxisScores, QuadrantCheckpoint
 from tests.factories import make_deps, make_quadrant_checkpoint
 
 
@@ -37,6 +38,55 @@ def test_the_tool_list_describes_the_quadrant_classifier_not_the_old_ones() -> N
 
     assert "quadrant classifier" in model_info_line
     assert "EEGNet" not in static
+
+
+def _static_instructions(checkpoint: QuadrantCheckpoint | None) -> str:
+    with override_eeg_model(checkpoint):
+        parts = SessionsCapability().get_instructions()
+    return "\n".join(p for p in parts if isinstance(p, str))
+
+
+def _checkpoint_scoring(mean: float) -> QuadrantCheckpoint:
+    return make_quadrant_checkpoint(metrics=AxisScores(arousal=mean, valence=mean, mean=mean))
+
+
+@pytest.mark.parametrize(
+    ("score", "tier"),
+    [(0.55, "a rough read"), (0.5999, "a rough read"), (0.60, "a fair read"), (0.7499, "a fair read")],
+)
+def test_the_hedge_is_worded_by_the_checkpoints_single_number(score: float, tier: str) -> None:
+    static = _static_instructions(_checkpoint_scoring(score))
+
+    assert f'"{tier}"' in static
+    assert "one short clause" in static
+    assert "never a paragraph" in static
+
+
+@pytest.mark.parametrize("score", [0.75, 0.9])
+def test_no_hedge_from_075_up(score: float) -> None:
+    static = _static_instructions(_checkpoint_scoring(score))
+
+    assert "a rough read" not in static
+    assert "a fair read" not in static
+    assert "no reliability caveat" in static
+
+
+def test_with_no_checkpoint_the_most_cautious_tier_is_used() -> None:
+    static = _static_instructions(None)
+
+    assert '"a rough read"' in static
+    assert "a fair read" not in static
+
+
+def test_the_hedge_sits_in_the_static_instructions_and_brain_context_stays_the_only_callable() -> None:
+    with override_eeg_model(_checkpoint_scoring(0.65)):
+        parts = SessionsCapability().get_instructions()
+
+    static = "\n".join(p for p in parts if isinstance(p, str))
+    callables = [p for p in parts if not isinstance(p, str)]
+    assert "a fair read" in static
+    assert "0.65" in static
+    assert len(callables) == 1
 
 
 def test_no_context_renders_nothing() -> None:

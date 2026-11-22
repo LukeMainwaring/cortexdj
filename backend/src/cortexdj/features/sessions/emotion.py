@@ -1,24 +1,26 @@
-# Emotion quadrants based on arousal-valence model (Russell, 1980)
+"""What each emotion quadrant means, for ``explain_brain_state``.
+
+The quadrants come from the arousal-valence model (Russell, 1980). Each explanation says what
+the quadrant means for a listener and nothing about what their frequency bands did: no tool
+measures band activity for a session, so do not add a band claim back.
+"""
+
 BRAIN_STATE_EXPLANATIONS: dict[str, str] = {
     "excited": (
-        "Your brain showed high beta activity (14-30 Hz) and elevated alpha power, "
-        "indicating an alert, focused state with positive engagement. "
-        "This pattern is typical during upbeat, energizing music."
+        "Excited is high arousal with positive valence: an energized, engaged state. "
+        "The music most likely felt lively and pleasant, the kind that pulls you in."
     ),
     "stressed": (
-        "Your brain showed elevated beta and gamma activity with suppressed alpha waves. "
-        "This suggests mental tension or overstimulation — the music may have been "
-        "too intense or dissonant for your current state."
+        "Stressed is high arousal with negative valence: a tense, overstimulated state. "
+        "The music may have felt too intense or unsettling for your mood at the time."
     ),
     "relaxed": (
-        "Your brain showed strong alpha activity (8-14 Hz) with reduced beta power, "
-        "the classic signature of relaxation. Alpha waves are associated with "
-        "a calm, meditative state — this music was genuinely soothing."
+        "Relaxed is low arousal with positive valence: a calm, content state. "
+        "The music most likely felt soothing and pleasant without demanding attention."
     ),
     "calm": (
-        "Your brain showed increased theta activity (4-8 Hz) with moderate alpha power. "
-        "This suggests a dreamy, introspective state — not quite relaxed, "
-        "more contemplative or slightly detached from the stimulus."
+        "Calm is low arousal with negative valence: a subdued, contemplative state. "
+        "The music may have felt quiet or melancholy, more inward than uplifting."
     ),
 }
 
