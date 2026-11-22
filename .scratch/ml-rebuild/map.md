@@ -42,5 +42,6 @@ Settled decisions for one spec: the DEAP signal pipeline and the quadrant classi
 
 - Retraining the contrastive EEG↔CLAP encoder: blocked on `audio-decoding 01` and a long run; a fresh effort later.
 - Bigger models, raw-window architectures (a real EEGNet) and fine-tuning CBraMod as the classifier: a later effort once the app works end to end, starting with a bake-off on Modal, where the Modal wrapper is added and becomes the default training path (`docs/ROADMAP.md`, Phase 4; [Which model survives](issues/07-which-model-survives.md)).
+- An autoresearch loop that changes the training recipe and reruns: tuning on the folds the headline number is reported on would make it dishonest, and there is little to win; it goes with the bake-off, through `train_participant`'s `recipe` argument ([Is an autoresearch loop in this effort?](issues/13-is-autoresearch-in-this-effort.md)).
 - Going back to DEAP's raw recordings.
 - Other datasets than DEAP, the user's own Muse recordings included.
