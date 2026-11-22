@@ -40,6 +40,10 @@ _Avoid_: Recording, sitting; never for a conversation (that is a thread) or a da
 A 4-second window of a session's EEG, stored with an arousal score, a valence score, band powers, and the quadrant they fall in.
 _Avoid_: Window (the model's input, before it is stored), epoch, sample
 
+**Band power**:
+The power of a segment's EEG in one frequency band, averaged across channels. The session chart draws each band's share of a segment's total.
+_Avoid_: Band energy, spectrum; differential entropy (the log of a band power, which is what the classifier reads)
+
 **Quadrant**:
 One of the four emotion states a pair of arousal and valence scores maps to: excited (high arousal, high valence), stressed (high, low), relaxed (low, high), calm (low, low). High is at or above the midpoint: a score of 0.5, or a self-rating of 5 on DEAP's 1 to 9 scale.
 _Avoid_: Mood (the word the user and the playlist tools use for a quadrant), emotion class, label
