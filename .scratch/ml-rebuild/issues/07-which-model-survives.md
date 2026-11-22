@@ -11,3 +11,5 @@ Which one classifier pipeline is kept: a linear or small model on band features,
 ## Comments
 
 - 2026-11-22: ticket 05 resolved: one model per participant, within-subject by trial (ADR 0005). Judge candidates by the mean of arousal and valence balanced accuracy over the 32 participants, against the baseline's 0.57 (0.60 valence, 0.55 arousal). Each fit sees about 32 trials (480 windows) of one participant, and a full run is 160 fits, so how a candidate copes with that little data and how long 160 fits take both count. A pretrained model's case is now 'needs fewer labelled trials to calibrate', not 'works across people'.
+
+- 2026-11-22: ticket 06 resolved. The input is differential-entropy band features (128 a window, standardized on the training fold), so the choice is among models on those features; raw windows reopen only if a quick EEGNet run clearly beats 0.57. Also decide here whether scikit-learn becomes a dependency (scaler, fold splitter, and the model itself if it is linear).
