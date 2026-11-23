@@ -1,6 +1,6 @@
 # Spec: Train the quadrant classifier on Modal
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-22, PR #100)
 
 Settled in a Grill with Docs session on 2026-11-22 (fourteen decisions, no glossary entry, no ADR). It builds on two decision tickets of the ml-rebuild map: `ml-rebuild 03` (Modal's current setup for small fan-out runs) and `ml-rebuild 08` (where training code lives, and how Modal fits). The reference for Modal's API is `docs/research/modal-fan-out-training.md` on `refs/heads/research/ml-rebuild-modal-fan-out`, read from Modal's docs at SDK 1.6.4.
 
