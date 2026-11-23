@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 
 from cortexdj.core.paths import DEAP_DATA_DIR
-from cortexdj.ml.checkpoint import CHECKPOINT_PATH, QuadrantCheckpoint, ScoreSummary, save_checkpoint
+from cortexdj.ml.checkpoint import CHECKPOINT_PATH, AxisScores, QuadrantCheckpoint, ScoreSummary, save_checkpoint
 from cortexdj.ml.recipe import RECIPE, TrainingRecipe
 from cortexdj.training.train import train_participant
 
@@ -31,17 +31,18 @@ def train_classifier(
     trained = {}
     for participant_id in participants:
         trained[participant_id] = train_participant(participant_id, data_dir, recipe)
-        metrics = trained[participant_id].metrics
-        logger.info(
-            "Participant %d: arousal %.3f, valence %.3f, mean %.3f",
-            participant_id,
-            metrics.arousal,
-            metrics.valence,
-            metrics.mean,
-        )
+        log_participant_scores(participant_id, trained[participant_id].metrics)
     checkpoint = QuadrantCheckpoint.of(trained, recipe)
     save_checkpoint(checkpoint, checkpoint_path)
     return checkpoint
+
+
+def log_participant_scores(participant_id: int, metrics: AxisScores) -> None:
+    """Log one participant's balanced accuracy, the line every training command prints per participant."""
+    logger.info(
+        f"Participant {participant_id}: arousal {metrics.arousal:.3f}, "
+        f"valence {metrics.valence:.3f}, mean {metrics.mean:.3f}"
+    )
 
 
 def describe(summary: ScoreSummary, n_participants: int) -> str:

@@ -6,6 +6,9 @@ machine, which writes the same checkpoint to the same path. The only file that i
 ``modal``: ``train_participant`` runs unchanged in the container, given the mounted Volume as
 its data directory.
 
+Run it on the host: ``modal`` is in the dev dependency group, which the backend container
+does not install.
+
 Usage (needs a Modal login and the DEAP Volume; ``DEVELOPMENT.md`` has the one-time setup):
     uv run --directory backend train-classifier-modal
     uv run --directory backend train-classifier-modal --participants 1 2 3
@@ -17,10 +20,8 @@ from pathlib import Path
 import modal
 
 from cortexdj.ml.checkpoint import CHECKPOINT_PATH, ParticipantModels, QuadrantCheckpoint, save_checkpoint
-from cortexdj.training.command import describe, parse_participants
+from cortexdj.training.command import describe, log_participant_scores, parse_participants
 from cortexdj.training.train import train_participant
-
-logger = logging.getLogger(__name__)
 
 # 4 parents: training/ → cortexdj/ → src/ → backend root, where pyproject.toml and uv.lock are.
 # Found from this file, not the working directory, so the command runs from anywhere. Inside a
@@ -29,7 +30,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 DEAP_VOLUME_NAME = "cortexdj-deap"
 _VOLUME_MOUNT = "/vol"
-# The Volume holds the DEAP files under /deap: `modal volume put cortexdj-deap backend/data/deap /deap`.
+# The Volume holds the DEAP files under /deap; DEVELOPMENT.md has the upload command.
 _DEAP_DIR_IN_CONTAINER = Path(_VOLUME_MOUNT) / "deap"
 
 app = modal.App("cortexdj-train-classifier")
@@ -54,6 +55,9 @@ deap_volume = modal.Volume.from_name(DEAP_VOLUME_NAME)
     cpu=1,
     memory=2048,
     timeout=600,
+    # For a preempted container. Modal retries every failure alike, so a mistake no retry can
+    # fix (a Volume uploaded to the wrong path, a participant id with no file) also runs three
+    # times before the run fails; at seconds a participant that is cheaper than telling them apart.
     retries=2,
 )
 def train_participant_on_modal(participant_id: int) -> ParticipantModels:
@@ -83,13 +87,7 @@ def main() -> None:
         )
 
     for participant_id, models in trained.items():
-        logger.info(
-            "Participant %d: arousal %.3f, valence %.3f, mean %.3f",
-            participant_id,
-            models.metrics.arousal,
-            models.metrics.valence,
-            models.metrics.mean,
-        )
+        log_participant_scores(participant_id, models.metrics)
     checkpoint = QuadrantCheckpoint.of(trained)
     save_checkpoint(checkpoint)
     print(describe(checkpoint.summary, len(checkpoint.participants)))  # noqa: T201

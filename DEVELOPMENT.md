@@ -54,8 +54,9 @@ valence  0.609 ± 0.080
 mean     0.583 ± 0.053
 ```
 
-The run is deterministic, so a rerun prints the same figures; a different number means the code
-or the data changed. The number is within-subject and within one recording sitting: a decoder
+The run is deterministic on one machine, so a rerun there prints the same figures; a different
+number means the code or the data changed, or the run was on another processor (the Modal
+paragraphs below have the one case seen). The number is within-subject and within one recording sitting: a decoder
 trained on one day and used on another is a harder problem it does not cover.
 
 `train-classifier-modal` makes the same checkpoint on [Modal](https://modal.com): each
@@ -64,10 +65,12 @@ which writes the same file. It takes the same `--participants` option and prints
 lines. `train-classifier` stays the setup step; this is for training that outgrows a laptop. The
 wrapper is `cortexdj/training/modal_app.py`, the only file that imports `modal`, and it runs
 `train_participant` unchanged. If any participant still fails after two retries the run fails and
-writes nothing, so an existing checkpoint is left alone.
+writes nothing, so an existing checkpoint is left alone. Run it on the host: `modal` is in the dev
+dependency group, which the backend container does not install.
 
 One-time setup. The upload puts a copy of DEAP in your Modal account, so read the licence note
-in `backend/data/DEAP_SETUP.md` first:
+in `backend/data/DEAP_SETUP.md` first. If a `cortexdj-deap` Volume already exists without the
+ratings file, delete it (`modal volume delete cortexdj-deap`) and start from the create step:
 
 ```bash
 uv run --directory backend modal setup                              # log in; skip if `modal profile current` works
