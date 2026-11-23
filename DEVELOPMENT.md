@@ -83,10 +83,18 @@ uv run --directory backend train-classifier-modal
 ```
 
 The first run builds the image from `backend/uv.lock` without the dev group; later runs reuse it
-until the lockfile changes, and a code edit does not rebuild it. A run should print the figures
-above to three decimals; the two machines differ in processor and operating system, so only the
-last digits of a float may differ. Image build time, cold start, run time and cost have not been
-measured yet.
+until the lockfile changes, and a code edit does not rebuild it. The image built in 54 seconds, a
+full run takes about as long as the local one (not timed) and costs about 2 cents.
+
+A full run prints the three figures above exactly. Per participant, 31 of 32 match the local run
+to three decimals, and participant 32's valence reads 0.508 on Modal against 0.512 locally. The
+inputs are identical on both machines; the weights of one of that participant's fold models are
+not. That fold is sensitive to float rounding: nudging its inputs by 1e-7 moves its weights by
+about 0.006, where the nine other folds checked (participant 32's other four and participant 1's
+five) move by about 1e-6. So the two processors' rounding lands it on slightly different weights,
+and four of the participant's 600 windows, all scoring within 0.02 of the cut, change sides. A
+checkpoint made on Modal and one made locally are therefore not byte-identical, and a
+per-participant figure can differ in the third decimal.
 
 The cross-subject baseline script re-runs the evidence for training each participant on their
 own trials: logistic regression on the same band features scores at chance when trained on
