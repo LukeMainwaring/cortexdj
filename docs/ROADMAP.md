@@ -31,10 +31,10 @@
 
 ## Phase 4: Advanced ML
 
-- Quadrant classifier architecture bake-off, once the rebuilt linear classifier works end to end: on Modal, same within-subject split and metric, compare it with a small MLP on the band features, a real EEGNet on raw windows, then a fine-tuned CBraMod. A model replaces the linear one only if it wins by about 0.03 balanced accuracy. Comes before the pretrained-encoder sweep below
+- Quadrant classifier architecture bake-off, once the rebuilt linear classifier works end to end: on Modal through `train-classifier-modal`, which already fans the linear classifier out over participants; same within-subject split and metric, compare it with a small MLP on the band features, a real EEGNet on raw windows, then a fine-tuned CBraMod. A model replaces the linear one only if it wins by about 0.03 balanced accuracy. Comes before the pretrained-encoder sweep below
 - Quadrant classifier recipe search: vary `TrainingRecipe` (bands, window, epochs, regularization) by calling `train_participant(participant_id, data_dir, recipe)`, a plain function built for a sweep or Modal wrapper to call as it is; scored on the same within-subject split and metric as the bake-off
 - EEG data augmentation — Gaussian noise, temporal jittering, channel dropout
-- Extend the autoresearch harness (readable at the `pre-port` tag under `backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out; warm the Modal image to cut the ~15-min cold-start on each run
+- Extend the autoresearch harness (readable at the `pre-port` tag under `backend/autoresearch/`, currently EEGNet-only) to the contrastive encoder and multi-GPU fan-out, on the Modal wrapper in `cortexdj/training/modal_app.py` (the ~15-min cold start belonged to the old wrapper, which rebuilt its dependency layer on every code edit)
 - Evaluate pretrained encoders beyond CBraMod — CodeBrain (smallest-diff swap; shares the `(B, n_chans, n_times)` input contract), EEGPT, BENDR, REVE, LUNA — as drop-in backbone replacements (note: REVE's emotion benchmark is FACED, not DEAP, so DEAP numbers need direct measurement)
 - Plot TSception (Ding 2020, DEAP-benchmarked) and DGCNN (Song 2018, the SEED graph baseline) as from-scratch comparators in the encoder sweep above — separates foundation-model pretraining wins from architecture wins
 - Personalized fine-tuning — few-shot adaptation of the CBraMod encoder to individual users on top of DEAP fine-tuning

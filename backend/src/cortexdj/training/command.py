@@ -56,12 +56,16 @@ def describe(summary: ScoreSummary, n_participants: int) -> str:
     )
 
 
+def parse_participants(description: str) -> list[int]:
+    """Read ``--participants`` from the command line: the one option every training command takes, all 32 by default."""
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
+    participants: list[int] = parser.parse_args().participants
+    return participants
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    parser = argparse.ArgumentParser(description="Train the quadrant classifier and write its checkpoint")
-    parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
-    args = parser.parse_args()
-
-    checkpoint = train_classifier(args.participants)
+    checkpoint = train_classifier(parse_participants("Train the quadrant classifier and write its checkpoint"))
     print(describe(checkpoint.summary, len(checkpoint.participants)))  # noqa: T201
     print(f"Wrote {CHECKPOINT_PATH}")  # noqa: T201
