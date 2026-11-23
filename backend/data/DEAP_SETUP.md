@@ -25,6 +25,16 @@ shasum -a 256 backend/data/deap/participant_ratings.csv
 
 The directory is gitignored: DEAP's licence forbids redistributing either file, so never commit them.
 
+### A copy on Modal
+
+`train-classifier-modal` reads these files from a Modal Volume, `cortexdj-deap`, that you upload yourself (`DEVELOPMENT.md` has the commands). What DEAP's licence says about that, from the Internet Archive's June 2025 copy of the EULA (the official site is down):
+
+- It does not mention cloud storage or where copies are kept.
+- It forbids distributing the dataset "in any way", sharing the download credentials, and commercial use. It is for academic research, granted to the person who signed it.
+- It requires deleting every copy if access is withdrawn. That includes the Volume: `modal volume delete cortexdj-deap`.
+
+A Volume only your account can read gives the data to no one, which is the reading this repo proceeds on. A strict reading of "in any way" could count a cloud provider's storage as a third party, and only the dataset's administrators can settle that. The academic-use and signed-licensee terms apply to the copy in this directory as much as to the Volume.
+
 > **Note:** The official DEAP download page (eecs.qmul.ac.uk) is currently unavailable. The Kaggle mirror's valence and arousal are altered: in the 439 trials where both published ratings exceed 5, the mirror stores `9 - rating`. Its dominance and liking match the published ratings. CortexDJ trusts only the mirror's EEG array and takes valence and arousal from `participant_ratings.csv`. The EEG has not been compared with an official copy.
 
 ## Verify

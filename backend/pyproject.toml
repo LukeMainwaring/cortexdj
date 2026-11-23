@@ -37,10 +37,12 @@ dependencies = [
 seed-sessions = "cortexdj.scripts.seed_sessions:main"
 seed-track-index = "cortexdj.scripts.seed_track_index:main"
 train-classifier = "cortexdj.training.command:main"
+train-classifier-modal = "cortexdj.training.modal_app:main"
 
 [dependency-groups]
 dev = [
   "import-linter>=2.17",
+  "modal>=1.6.4",
   "mypy>=2.4.1",
   "pre-commit>=4.7.0",
   "pydantic-evals>=2.71.0",

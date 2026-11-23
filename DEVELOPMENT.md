@@ -54,9 +54,50 @@ valence  0.609 ± 0.080
 mean     0.583 ± 0.053
 ```
 
-The run is deterministic, so a rerun prints the same figures; a different number means the code
-or the data changed. The number is within-subject and within one recording sitting: a decoder
+The run is deterministic on one machine, so a rerun there prints the same figures; a different
+number means the code or the data changed, or the run was on another processor (the Modal
+paragraphs below have the one case seen). The number is within-subject and within one recording sitting: a decoder
 trained on one day and used on another is a harder problem it does not cover.
+
+`train-classifier-modal` makes the same checkpoint on [Modal](https://modal.com): each
+participant trains in its own container, all at once, and the results come back to this machine,
+which writes the same file. It takes the same `--participants` option and prints the same three
+lines. `train-classifier` stays the setup step; this is for training that outgrows a laptop. The
+wrapper is `cortexdj/training/modal_app.py`, the only file that imports `modal`, and it runs
+`train_participant` unchanged. If any participant still fails after two retries the run fails and
+writes nothing, so an existing checkpoint is left alone. Run it on the host: `modal` is in the dev
+dependency group, which the backend container does not install.
+
+One-time setup. The upload puts a copy of DEAP in your Modal account, so read the licence note
+in `backend/data/DEAP_SETUP.md` first. If a `cortexdj-deap` Volume already exists without the
+ratings file, delete it (`modal volume delete cortexdj-deap`) and start from the create step:
+
+```bash
+uv run --directory backend modal setup                              # log in; skip if `modal profile current` works
+uv run --directory backend modal volume create cortexdj-deap
+uv run --directory backend modal volume put cortexdj-deap data/deap /deap
+uv run --directory backend modal volume ls cortexdj-deap /deap     # 32 .dat files and participant_ratings.csv
+```
+
+Then:
+
+```bash
+uv run --directory backend train-classifier-modal
+```
+
+The first run builds the image from `backend/uv.lock` without the dev group; later runs reuse it
+until the lockfile changes, and a code edit does not rebuild it. The image built in 54 seconds, a
+full run takes about as long as the local one (not timed) and costs about 2 cents.
+
+A full run prints the three figures above exactly. Per participant, 31 of 32 match the local run
+to three decimals, and participant 32's valence reads 0.508 on Modal against 0.512 locally. The
+inputs are identical on both machines; the weights of one of that participant's fold models are
+not. That fold is sensitive to float rounding: nudging its inputs by 1e-7 moves its weights by
+about 0.006, where the nine other folds checked (participant 32's other four and participant 1's
+five) move by about 1e-6. So the two processors' rounding lands it on slightly different weights,
+and four of the participant's 600 windows, all scoring within 0.02 of the cut, change sides. A
+checkpoint made on Modal and one made locally are therefore not byte-identical, and a
+per-participant figure can differ in the third decimal.
 
 The cross-subject baseline script re-runs the evidence for training each participant on their
 own trials: logistic regression on the same band features scores at chance when trained on

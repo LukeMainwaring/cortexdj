@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 
 from cortexdj.core.paths import DEAP_DATA_DIR
-from cortexdj.ml.checkpoint import CHECKPOINT_PATH, QuadrantCheckpoint, ScoreSummary, save_checkpoint
+from cortexdj.ml.checkpoint import CHECKPOINT_PATH, AxisScores, QuadrantCheckpoint, ScoreSummary, save_checkpoint
 from cortexdj.ml.recipe import RECIPE, TrainingRecipe
 from cortexdj.training.train import train_participant
 
@@ -31,17 +31,18 @@ def train_classifier(
     trained = {}
     for participant_id in participants:
         trained[participant_id] = train_participant(participant_id, data_dir, recipe)
-        metrics = trained[participant_id].metrics
-        logger.info(
-            "Participant %d: arousal %.3f, valence %.3f, mean %.3f",
-            participant_id,
-            metrics.arousal,
-            metrics.valence,
-            metrics.mean,
-        )
+        log_participant_scores(participant_id, trained[participant_id].metrics)
     checkpoint = QuadrantCheckpoint.of(trained, recipe)
     save_checkpoint(checkpoint, checkpoint_path)
     return checkpoint
+
+
+def log_participant_scores(participant_id: int, metrics: AxisScores) -> None:
+    """Log one participant's balanced accuracy, the line every training command prints per participant."""
+    logger.info(
+        f"Participant {participant_id}: arousal {metrics.arousal:.3f}, "
+        f"valence {metrics.valence:.3f}, mean {metrics.mean:.3f}"
+    )
 
 
 def describe(summary: ScoreSummary, n_participants: int) -> str:
@@ -56,12 +57,16 @@ def describe(summary: ScoreSummary, n_participants: int) -> str:
     )
 
 
+def parse_participants(description: str) -> list[int]:
+    """Read ``--participants`` from the command line: the one option every training command takes, all 32 by default."""
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
+    participants: list[int] = parser.parse_args().participants
+    return participants
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    parser = argparse.ArgumentParser(description="Train the quadrant classifier and write its checkpoint")
-    parser.add_argument("--participants", nargs="+", type=int, default=list(range(1, 33)))
-    args = parser.parse_args()
-
-    checkpoint = train_classifier(args.participants)
+    checkpoint = train_classifier(parse_participants("Train the quadrant classifier and write its checkpoint"))
     print(describe(checkpoint.summary, len(checkpoint.participants)))  # noqa: T201
     print(f"Wrote {CHECKPOINT_PATH}")  # noqa: T201
